@@ -213,7 +213,7 @@
       // the repository so a lone local copy does not look for 15 MB of missing
       // files beside itself.
       var REMOTE_ASSET_BASE =
-        "https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/";
+        "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/";
 
       var canvas = document.getElementById("loadingCanvas");
       canvas.width =
@@ -317,13 +317,15 @@
     </script>
     <script
       type="text/javascript"
-      src="https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/game.js?v=4e38bdee"
+      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/game.js"
+      onerror="Module.setStatus('Could not load the game files. Check your internet connection.')"
     ></script>
     <script
       async
       type="text/javascript"
-      src="https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/love.js?v=4e38bdee"
+      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/love.js"
       onload="applicationLoad(this)"
+      onerror="Module.setStatus('Could not load the game engine. Check your internet connection.')"
     ></script>
   </body>
 </html>
