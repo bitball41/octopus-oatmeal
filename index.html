@@ -209,6 +209,12 @@
         window.parent.postMessage({ type: "adcall" }, "*");
       };
 
+      // index.html is also a downloadable launcher. Keep the heavy runtime in
+      // the repository so a lone local copy does not look for 15 MB of missing
+      // files beside itself.
+      var REMOTE_ASSET_BASE =
+        "https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/";
+
       var canvas = document.getElementById("loadingCanvas");
       canvas.width =
         window.innerWidth ||
@@ -243,6 +249,9 @@
       var Module = {
         arguments: ["./game.love"],
         INITIAL_MEMORY: 256000000,
+        locateFile: function (path) {
+          return REMOTE_ASSET_BASE + path;
+        },
         printErr: console.error.bind(console),
         canvas: (function () {
           var c = document.getElementById("canvas");
@@ -306,11 +315,14 @@
         Love(Module);
       };
     </script>
-    <script type="text/javascript" src="game.js?v=4e38bdee"></script>
+    <script
+      type="text/javascript"
+      src="https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/game.js?v=4e38bdee"
+    ></script>
     <script
       async
       type="text/javascript"
-      src="love.js?v=4e38bdee"
+      src="https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/love.js?v=4e38bdee"
       onload="applicationLoad(this)"
     ></script>
   </body>
