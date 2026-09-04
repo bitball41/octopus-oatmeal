@@ -18,3 +18,4 @@ jobs:
           ref: feature/native-multiplayer-menu
       - name: Print native UI hook context
         run: python3 scripts/inspect_native_ui.py
+      # second probe revision
