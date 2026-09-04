@@ -80,20 +80,32 @@ STUB = '''    <script>
 '''
 
 
+def replace_bridge_script(text: str) -> str:
+    markers = ["window.__octopusTextInputActive", "window.OctopusMultiplayer"]
+    marker_pos = -1
+    for marker in markers:
+        marker_pos = text.find(marker)
+        if marker_pos >= 0:
+            break
+
+    if marker_pos >= 0:
+        start = text.rfind("    <script>", 0, marker_pos)
+        end = text.find("    </script>", marker_pos)
+        if start >= 0 and end >= 0:
+            end += len("    </script>")
+            if end < len(text) and text[end] == "\n":
+                end += 1
+            return text[:start] + STUB + text[end:]
+
+    game_script = re.search(r'    <script(?:\s+[^>]*)?\s+src="[^"]*game\.js[^"]*"[^>]*></script>', text)
+    if not game_script:
+        raise RuntimeError("game.js script anchor not found")
+    return text[:game_script.start()] + STUB + text[game_script.start():]
+
+
 def install_bridge(text: str, module_src: str) -> str:
     text = text.replace("multiplayer.js", "multiplayer_native.js")
-
-    bridge_pattern = re.compile(
-        r'    <script>\s*window\.OctopusMultiplayer\s*=\s*window\.OctopusMultiplayer\s*\|\|\s*\{.*?</script>\s*',
-        re.S,
-    )
-    if bridge_pattern.search(text):
-        text = bridge_pattern.sub(STUB, text, count=1)
-    else:
-        game_script = re.search(r'    <script(?:\s+[^>]*)?\s+src="[^"]*game\.js[^"]*"[^>]*></script>', text)
-        if not game_script:
-            raise RuntimeError("game.js script anchor not found")
-        text = text[:game_script.start()] + STUB + text[game_script.start():]
+    text = replace_bridge_script(text)
 
     module_pattern = re.compile(r'    <script type="module" src="[^"]*multiplayer(?:_native)?\.js"></script>\s*')
     desired = f'    <script type="module" src="{module_src}"></script>\n'
