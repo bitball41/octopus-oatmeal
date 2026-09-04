@@ -46,6 +46,38 @@ def patch_lua(files: dict[str, bytes]) -> dict[str, bytes]:
     marker = 'local OCTOPUS_MP = require("octopus_multiplayer")'
     if marker not in main:
         main = marker + "\nOCTOPUS_MP.init()\n" + main
+
+    # Browser LÖVE builds deliver printable characters through love.textinput.
+    # Balatro's desktop input path only handles love.keypressed, so text fields
+    # (seeds, names, multiplayer codes) never receive normal typed characters.
+    textinput_marker = "function love.textinput(text)"
+    if textinput_marker not in main:
+        keyreleased_anchor = "function love.keyreleased(key)"
+        textinput_handler = '''function love.textinput(text)
+	if not (G and G.CONTROLLER and G.CONTROLLER.text_input_hook and G.FUNCS and G.FUNCS.text_input_key) then return end
+	if type(text) ~= "string" or text == "" then return end
+
+	-- Feed the browser's actual typed characters into Balatro's existing text
+	-- editor. Special keys (Backspace/Enter/arrows) still use love.keypressed.
+	for i = 1, #text do
+		local c = text:sub(i, i)
+		if c ~= "" then
+			G.FUNCS.text_input_key({
+				e = G.CONTROLLER.text_input_hook,
+				key = c,
+				caps = false,
+			})
+		end
+	end
+end
+
+'''
+        main = replace_once(
+            main,
+            keyreleased_anchor,
+            textinput_handler + keyreleased_anchor,
+            "browser love.textinput handler",
+        )
     files["main.lua"] = main.encode("utf-8")
 
     game = files["game.lua"].decode("utf-8")
@@ -101,23 +133,38 @@ def patch_lua(files: dict[str, bytes]) -> dict[str, bytes]:
     files["functions/button_callbacks.lua"] = buttons.encode("utf-8")
 
     ui = files["functions/UI_definitions.lua"].decode("utf-8")
-    if "octopus_multiplayer_button" not in ui:
-        collection_anchor = (
-            "          UIBox_button{id = 'collection_button', button = \"your_collection\", "
-            "colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, "
-            "label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},"
-        )
-        multiplayer_button = (
-            collection_anchor
+    collection_anchor = (
+        "          UIBox_button{id = 'collection_button', button = \"your_collection\", "
+        "colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, "
+        "label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},"
+    )
+
+    # Migrate the old v1 patch, which inserted MULTIPLAYER as a fourth child in
+    # Balatro's tightly-sized three-button row. Put it on its own native row
+    # directly below the stock row instead so it cannot be clipped/discarded.
+    old_inline = (
+        "\n          UIBox_button{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\", "
+        "colour = G.C.PURPLE or G.C.RED, minw = 3.65, minh = 1.55, "
+        "label = {'MULTIPLAYER'}, scale = text_scale*1.18, col = true},"
+    )
+    ui = ui.replace(old_inline, "", 1)
+
+    row_marker = "octopus_multiplayer_row"
+    if row_marker not in ui:
+        row_anchor = collection_anchor + "\n        }},"
+        multiplayer_row = (
+            row_anchor
+            + "\n        {n=G.UIT.R, config={id = 'octopus_multiplayer_row', align = \"cm\", padding = 0.08}, nodes={"
             + "\n          UIBox_button{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\", "
-              "colour = G.C.PURPLE or G.C.RED, minw = 3.65, minh = 1.55, "
-              "label = {'MULTIPLAYER'}, scale = text_scale*1.18, col = true},"
+              "colour = G.C.PURPLE or G.C.BLUE, minw = 9.95, minh = 0.95, "
+              "label = {'MULTIPLAYER'}, scale = text_scale*1.15, col = true},"
+            + "\n        }},"
         )
         ui = replace_once(
             ui,
-            collection_anchor,
-            multiplayer_button,
-            "main-menu multiplayer button",
+            row_anchor,
+            multiplayer_row,
+            "main-menu multiplayer row",
         )
     files["functions/UI_definitions.lua"] = ui.encode("utf-8")
 
