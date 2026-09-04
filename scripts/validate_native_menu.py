@@ -21,6 +21,10 @@ def main() -> None:
         main_lua = archive.read("main.lua").decode("utf-8")
         ui_lua = archive.read("functions/UI_definitions.lua").decode("utf-8")
         multiplayer_lua = archive.read("octopus_multiplayer.lua").decode("utf-8")
+        object_lua = archive.read("engine/object.lua").decode("utf-8")
+        node_lua = archive.read("engine/node.lua").decode("utf-8")
+        moveable_lua = archive.read("engine/moveable.lua").decode("utf-8")
+        ui_engine_lua = archive.read("engine/ui.lua").decode("utf-8")
 
     callback_module = main_lua.index('require "functions/button_callbacks"')
     multiplayer_loader = main_lua.index('local OCTOPUS_MP = require("octopus_multiplayer")')
@@ -92,6 +96,79 @@ def main() -> None:
     }
     if not required_ids <= menu_ids:
         raise AssertionError(f"missing native menu ids: {sorted(required_ids - menu_ids)}")
+
+    # Build the returned definition with Balatro's real UIBox/UIElement engine.
+    # Walking the definition alone misses container/layout bugs that can leave a
+    # node in Lua without producing a visible, clickable UI element.
+    render_lua = LuaRuntime(unpack_returned_tuples=True)
+    render_lua.execute(
+        """
+        local colour = {1, 1, 1, 1}
+        local font = {
+          getWidth=function(_, text) return #tostring(text) * 8 end,
+          getHeight=function() return 16 end,
+        }
+        G = {
+          UIDEF={}, FUNCS={}, ID=1,
+          UIT={T=1, B=2, C=3, R=4, O=5, ROOT=7, padding=0},
+          C={
+            CLEAR=colour, L_BLACK=colour, BLUE=colour, ORANGE=colour,
+            RED=colour, PALE_GREEN=colour, PURPLE=colour, WHITE=colour,
+            GREY=colour, DARK_EDITION=colour,
+            UI={TEXT_LIGHT=colour, BACKGROUND_DARK=colour, OUTLINE_LIGHT=colour},
+          },
+          SETTINGS={tutorial_complete=true, paused=false}, CONTROLLER={},
+          F_ENGLISH_ONLY=true, F_LINKTREE=false, FTP_LOCKED=false,
+          F_JAN_CTA=false, F_QUIT_BUTTON=false, F_DISP_USERNAME=false,
+          TILESIZE=20, TILESCALE=1,
+          LANG={font={FONT=font, squish=1, FONTSCALE=1, TEXT_HEIGHT_SCALE=1}},
+          ROOM={T={x=0, y=0, w=20, h=12}},
+          I={NODE={}, MOVEABLE={}, UIBOX={}}, MOVEABLES={},
+          STAGE=1, STAGE_OBJECTS={[1]={}}, TIMERS={REAL=0}, FRAMES={DRAW=0},
+        }
+        function localize(key) return key end
+        function Sprite(...) error('unexpected Sprite construction') end
+        function EMPTY(value) return value or {} end
+        love = {graphics={newText=function() return {set=function() end} end}}
+        """
+    )
+    for source in (object_lua, node_lua, moveable_lua, ui_engine_lua, ui_lua):
+        render_lua.execute(source)
+    render_lua.execute("UIElement.initialize_VT = function() end")
+    rendered_menu = render_lua.eval(
+        "UIBox{definition=create_UIBox_main_menu_buttons(), config={}}"
+    )
+    rendered_button = rendered_menu.get_UIE_by_ID(
+        rendered_menu, "octopus_multiplayer_button"
+    )
+    if lua_type(rendered_button) != "table":
+        raise AssertionError("UIBox engine dropped the MULTIPLAYER button")
+    if rendered_button["T"]["w"] <= 0 or rendered_button["T"]["h"] <= 0:
+        raise AssertionError("MULTIPLAYER button has no rendered area")
+    rendered_panel = rendered_menu.get_UIE_by_ID(
+        rendered_menu, "octopus_native_main_menu"
+    )
+    rendered_play = rendered_menu.get_UIE_by_ID(rendered_menu, "main_menu_play")
+    rendered_collection = rendered_menu.get_UIE_by_ID(
+        rendered_menu, "collection_button"
+    )
+    if rendered_panel["UIT"] != render_lua.globals().G["UIT"]["R"]:
+        raise AssertionError("native main-menu panel is not one rendered row")
+    button_y = [
+        rendered_play["T"]["y"],
+        rendered_collection["T"]["y"],
+        rendered_button["T"]["y"],
+    ]
+    if max(button_y) - min(button_y) > 1e-9:
+        raise AssertionError("MULTIPLAYER is not aligned in the visible button row")
+    print(
+        "rendered panel:",
+        tuple(rendered_panel["T"][key] for key in ("x", "y", "w", "h")),
+    )
+    print(
+        "rendered multiplayer:",
+        tuple(rendered_button["T"][key] for key in ("x", "y", "w", "h")),
+    )
 
     multiplayer = lua.execute(multiplayer_lua)
     multiplayer.install_callbacks()
