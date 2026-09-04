@@ -34,13 +34,13 @@ def patch_lua(files: dict[str, bytes]) -> dict[str, bytes]:
         "game.lua",
         "functions/state_events.lua",
         "functions/button_callbacks.lua",
+        "functions/UI_definitions.lua",
     ]
     for name in required:
         if name not in files:
             fail(f"{name} is missing from game.data")
 
-    mp_source = MP_LUA.read_bytes()
-    files["octopus_multiplayer.lua"] = mp_source
+    files["octopus_multiplayer.lua"] = MP_LUA.read_bytes()
 
     main = files["main.lua"].decode("utf-8")
     marker = 'local OCTOPUS_MP = require("octopus_multiplayer")'
@@ -99,6 +99,27 @@ def patch_lua(files: dict[str, bytes]) -> dict[str, bytes]:
             "run-start hook",
         )
     files["functions/button_callbacks.lua"] = buttons.encode("utf-8")
+
+    ui = files["functions/UI_definitions.lua"].decode("utf-8")
+    if "octopus_multiplayer_button" not in ui:
+        collection_anchor = (
+            "          UIBox_button{id = 'collection_button', button = \"your_collection\", "
+            "colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, "
+            "label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},"
+        )
+        multiplayer_button = (
+            collection_anchor
+            + "\n          UIBox_button{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\", "
+              "colour = G.C.PURPLE or G.C.RED, minw = 3.65, minh = 1.55, "
+              "label = {'MULTIPLAYER'}, scale = text_scale*1.18, col = true},"
+        )
+        ui = replace_once(
+            ui,
+            collection_anchor,
+            multiplayer_button,
+            "main-menu multiplayer button",
+        )
+    files["functions/UI_definitions.lua"] = ui.encode("utf-8")
 
     return files
 
