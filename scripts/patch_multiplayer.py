@@ -43,9 +43,33 @@ def patch_lua(files: dict[str, bytes]) -> dict[str, bytes]:
     files["octopus_multiplayer.lua"] = MP_LUA.read_bytes()
 
     main = files["main.lua"].decode("utf-8")
-    marker = 'local OCTOPUS_MP = require("octopus_multiplayer")'
-    if marker not in main:
-        main = marker + "\nOCTOPUS_MP.init()\n" + main
+    loader = 'local OCTOPUS_MP = require("octopus_multiplayer")'
+    install = "OCTOPUS_MP.install_callbacks()"
+
+    # Older builds required Octopus before Balatro had created G/FUNCS, then
+    # waited for the first Game:update to install the button callbacks.  The
+    # main menu is built during love.load, so that ordering leaves its native
+    # button with no callback during construction (and a first-frame click can
+    # call nil).  Load the module after Balatro's callback table and install it
+    # synchronously, before love.load can build the main-menu UIBox.
+    if install not in main:
+        old_bootstrap = loader + "\nOCTOPUS_MP.init()\n"
+        main = main.replace(old_bootstrap, "", 1)
+        callbacks_anchor = 'require "functions/button_callbacks"'
+        bootstrap = (
+            callbacks_anchor
+            + "\n\n"
+            + loader
+            + "\n"
+            + install
+            + "\nOCTOPUS_MP.init()"
+        )
+        main = replace_once(
+            main,
+            callbacks_anchor,
+            bootstrap,
+            "post-callback multiplayer bootstrap",
+        )
 
     # Browser LÖVE builds deliver printable characters through love.textinput.
     # Balatro's desktop input path only handles love.keypressed, so text fields
@@ -133,46 +157,56 @@ end
     files["functions/button_callbacks.lua"] = buttons.encode("utf-8")
 
     ui = files["functions/UI_definitions.lua"].decode("utf-8")
-    collection_anchor = (
-        "          UIBox_button{id = 'collection_button', button = \"your_collection\", "
-        "colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, "
-        "label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},"
-    )
-
-    # Remove the old v1 inline MULTIPLAYER button regardless of exact spacing
-    # or colour expression. It lived as a fourth child in Balatro's stock row.
-    ui = re.sub(
-        r"\r?\n[ \t]*UIBox_button\{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\",[^\r\n]*\},",
-        "",
-        ui,
-        count=1,
-    )
-
-    # Put MULTIPLAYER on its own native row below PLAY/OPTIONS/COLLECTION.
-    row_marker = "octopus_multiplayer_row"
-    if row_marker not in ui:
-        collection_pos = ui.find(collection_anchor)
-        if collection_pos < 0:
-            fail("Patch target not found: collection button for multiplayer row")
-
-        after_collection = collection_pos + len(collection_anchor)
-        close_match = re.search(r"\r?\n[ \t]*\}\},", ui[after_collection:])
-        if not close_match:
-            fail("Patch target not found: closing stock main-menu row")
-
-        close_start = after_collection + close_match.start()
-        close_end = after_collection + close_match.end()
-        stock_row_close = ui[close_start:close_end]
-        multiplayer_row = (
-            collection_anchor
-            + stock_row_close
-            + "\n        {n=G.UIT.R, config={id = 'octopus_multiplayer_row', align = \"cm\", padding = 0.08}, nodes={"
-            + "\n          UIBox_button{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\", "
-              "colour = G.C.PURPLE or G.C.BLUE, minw = 9.95, minh = 0.95, "
-              "label = {'MULTIPLAYER'}, scale = text_scale*1.15, col = true},"
-            + "\n        }},"
+    panel_marker = "octopus_native_main_menu"
+    if panel_marker not in ui:
+        # Normalize either previous attempted layout before installing the
+        # final native panel.  Keeping every visible button inside the same
+        # `mid` container makes the UIBox's size/alignment include MULTIPLAYER.
+        ui = re.sub(
+            r"\r?\n[ \t]*UIBox_button\{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\",[^\r\n]*\},",
+            "",
+            ui,
+            count=1,
         )
-        ui = ui[:collection_pos] + multiplayer_row + ui[close_end:]
+        ui = re.sub(
+            r"\r?\n[ \t]*\{n=G\.UIT\.R, config=\{id = 'octopus_multiplayer_row',[\s\S]*?\r?\n[ \t]*\}\},",
+            "",
+            ui,
+            count=1,
+        )
+
+        stock_panel = '''        {n=G.UIT.R, config={align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
+          UIBox_button{id = 'main_menu_play', button = not G.SETTINGS.tutorial_complete and "start_run" or "setup_run", colour = G.C.BLUE, minw = 3.65, minh = 1.55, label = {localize('b_play_cap')}, scale = text_scale*2, col = true},
+          {n=G.UIT.C, config={align = "cm"}, nodes={
+            UIBox_button{button = 'options', colour = G.C.ORANGE, minw = 2.65, minh = 1.35, label = {localize('b_options_cap')}, scale = text_scale * 1.2, col = true},
+            G.F_QUIT_BUTTON and {n=G.UIT.C, config={align = "cm", minw = 0.2}, nodes={}} or nil,
+            G.F_QUIT_BUTTON and UIBox_button{button = quit_func, colour = G.C.RED, minw = 2.65, minh = 1.35, label = {localize('b_quit_cap')}, scale = text_scale * 1.2, col = true} or nil,
+          }},
+          UIBox_button{id = 'collection_button', button = "your_collection", colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},
+        }},'''
+        native_panel = '''        {n=G.UIT.C, config={id = 'octopus_native_main_menu', align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
+          {n=G.UIT.R, config={align = "cm"}, nodes={
+            UIBox_button{id = 'main_menu_play', button = not G.SETTINGS.tutorial_complete and "start_run" or "setup_run", colour = G.C.BLUE, minw = 3.65, minh = 1.55, label = {localize('b_play_cap')}, scale = text_scale*2, col = true},
+            {n=G.UIT.C, config={align = "cm"}, nodes={
+              UIBox_button{button = 'options', colour = G.C.ORANGE, minw = 2.65, minh = 1.35, label = {localize('b_options_cap')}, scale = text_scale * 1.2, col = true},
+              G.F_QUIT_BUTTON and {n=G.UIT.C, config={align = "cm", minw = 0.2}, nodes={}} or nil,
+              G.F_QUIT_BUTTON and UIBox_button{button = quit_func, colour = G.C.RED, minw = 2.65, minh = 1.35, label = {localize('b_quit_cap')}, scale = text_scale * 1.2, col = true} or nil,
+            }},
+            UIBox_button{id = 'collection_button', button = "your_collection", colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},
+          }},
+          {n=G.UIT.R, config={id = 'octopus_multiplayer_row', align = "cm", padding = 0.03}, nodes={
+            UIBox_button{id = 'octopus_multiplayer_button', button = "octopus_multiplayer", colour = G.C.PURPLE, minw = 9.95, minh = 1.05, label = {'MULTIPLAYER'}, scale = text_scale*1.2},
+          }},
+        }},'''
+        if "\r\n" in ui:
+            stock_panel = stock_panel.replace("\n", "\r\n")
+            native_panel = native_panel.replace("\n", "\r\n")
+        ui = replace_once(
+            ui,
+            stock_panel,
+            native_panel,
+            "native main-menu panel",
+        )
 
     files["functions/UI_definitions.lua"] = ui.encode("utf-8")
     return files

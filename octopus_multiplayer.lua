@@ -370,8 +370,6 @@ function MP.init()
 end
 
 function MP.update(dt)
-  MP.install_callbacks()
-
   local text_active = not not (G and G.CONTROLLER and G.CONTROLLER.text_input_hook)
   if text_active ~= MP.web_text_input_active then
     MP.web_text_input_active = text_active
