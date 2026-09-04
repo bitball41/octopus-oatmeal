@@ -9,6 +9,7 @@ on:
       - octopus_multiplayer.lua
       - multiplayer.js
       - scripts/patch_multiplayer.py
+      - scripts/patch_multiplayer_html.py
       - .github/workflows/patch-browser-versus.yml
 
 permissions:
@@ -25,6 +26,9 @@ jobs:
 
       - name: Patch game archive
         run: python3 scripts/patch_multiplayer.py
+
+      - name: Patch HTML entry points
+        run: python3 scripts/patch_multiplayer_html.py
 
       - name: Validate archive
         run: |
@@ -60,14 +64,20 @@ jobs:
           print('multiplayer archive validation passed')
           PY
 
+      - name: Validate HTML bridge
+        run: |
+          grep -q 'OctopusMultiplayer' balatro.html
+          grep -q 'multiplayer.js' balatro.html
+          grep -q 'octopus-oatmeal@main/multiplayer.js' index.html
+
       - name: Commit generated build
         run: |
-          if git diff --quiet -- game.data game.js; then
+          if git diff --quiet -- game.data game.js balatro.html index.html; then
             echo "Generated build already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add game.data game.js
+          git add game.data game.js balatro.html index.html
           git commit -m "Build browser multiplayer game archive"
           git push origin HEAD:feature/browser-versus-p2p
