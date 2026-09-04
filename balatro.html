@@ -306,6 +306,18 @@
         Love(Module);
       };
     </script>
+    <script>
+      window.OctopusMultiplayer = window.OctopusMultiplayer || {
+        _pending: [],
+        fromLuaEncoded: function () {
+          this._pending.push(["fromLuaEncoded", Array.from(arguments)]);
+        },
+        setSaveDirectoryEncoded: function () {
+          this._pending.push(["setSaveDirectoryEncoded", Array.from(arguments)]);
+        },
+      };
+    </script>
+    <script type="module" src="multiplayer.js"></script>
     <script type="text/javascript" src="game.js?v=4e38bdee"></script>
     <script
       async

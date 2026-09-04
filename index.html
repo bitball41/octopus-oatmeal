@@ -213,7 +213,7 @@
       // the repository so a lone local copy does not look for 15 MB of missing
       // files beside itself.
       var REMOTE_ASSET_BASE =
-        "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/";
+        "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/";
 
       var canvas = document.getElementById("loadingCanvas");
       canvas.width =
@@ -315,15 +315,27 @@
         Love(Module);
       };
     </script>
+    <script>
+      window.OctopusMultiplayer = window.OctopusMultiplayer || {
+        _pending: [],
+        fromLuaEncoded: function () {
+          this._pending.push(["fromLuaEncoded", Array.from(arguments)]);
+        },
+        setSaveDirectoryEncoded: function () {
+          this._pending.push(["setSaveDirectoryEncoded", Array.from(arguments)]);
+        },
+      };
+    </script>
+    <script type="module" src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/multiplayer.js"></script>
     <script
       type="text/javascript"
-      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/game.js"
+      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/game.js"
       onerror="Module.setStatus('Could not load the game files. Check your internet connection.')"
     ></script>
     <script
       async
       type="text/javascript"
-      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@982f7d0/love.js"
+      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/love.js"
       onload="applicationLoad(this)"
       onerror="Module.setStatus('Could not load the game engine. Check your internet connection.')"
     ></script>
