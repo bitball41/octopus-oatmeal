@@ -27,11 +27,25 @@ jobs:
       - name: Validate browser client syntax
         run: node --check multiplayer_native.js
 
+      - name: Validate Lua syntax
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.4
+          luac -p octopus_multiplayer.lua
+
       - name: Patch game archive
         run: python3 scripts/patch_multiplayer.py
 
       - name: Patch HTML entry points
         run: python3 scripts/patch_multiplayer_html.py
+
+      - name: Validate HTML patch is idempotent
+        run: |
+          cp balatro.html /tmp/balatro.once.html
+          cp index.html /tmp/index.once.html
+          python3 scripts/patch_multiplayer_html.py
+          cmp balatro.html /tmp/balatro.once.html
+          cmp index.html /tmp/index.once.html
 
       - name: Validate archive
         run: |
@@ -82,6 +96,8 @@ jobs:
           grep -q '__octopusTextInputActive' balatro.html
           grep -q 'multiplayer_native.js' balatro.html
           grep -q 'octopus-oatmeal@main/multiplayer_native.js' index.html
+          test "$(grep -c '__octopusTextInputActive = false' balatro.html)" -eq 1
+          test "$(grep -c '__octopusTextInputActive = false' index.html)" -eq 1
           if grep -q 'id="octo-mp-toggle"' balatro.html index.html; then
             echo 'old floating multiplayer UI still present'
             exit 1
