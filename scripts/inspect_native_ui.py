@@ -24,13 +24,17 @@ def show(label, text, pattern, before=12, after=28):
     for i in range(lo, hi):
         print(f"{i+1:05d}: {lines[i]}")
 
-show("main menu function around PLAY", ui, r"PLAY|b_play|main_menu")
-show("collection/options row", ui, r"collection|options", 18, 45)
+show("main menu b_play", ui, r"b_play", 28, 70)
+show("main menu b_collection", ui, r"b_collection", 28, 70)
+show("main menu b_options", ui, r"b_options", 28, 70)
 show("create_text_input definition", ui, r"function\s+create_text_input|create_text_input\s*=", 8, 80)
-show("overlay menu callback example", buttons, r"G\.FUNCS\.(options|collection|settings|exit_overlay_menu)|overlay_menu", 12, 50)
+show("play callback", buttons, r"G\.FUNCS\.[A-Za-z0-9_]*play[A-Za-z0-9_]*\s*=\s*function", 12, 50)
+show("collection callback", buttons, r"G\.FUNCS\.[A-Za-z0-9_]*collection[A-Za-z0-9_]*\s*=\s*function", 12, 50)
+show("options callback", buttons, r"G\.FUNCS\.[A-Za-z0-9_]*options[A-Za-z0-9_]*\s*=\s*function", 12, 50)
+show("overlay_menu call", buttons, r"G\.FUNCS\.overlay_menu|overlay_menu\s*\(", 12, 70)
 
-print("\n===== candidate UIDEF functions =====")
-for m in re.finditer(r"function\s+G\.UIDEF\.([A-Za-z0-9_]+)|G\.UIDEF\.([A-Za-z0-9_]+)\s*=\s*function", ui):
+print("\n===== candidate menu functions =====")
+for m in re.finditer(r"function\s+([A-Za-z0-9_\.]+)\s*\([^)]*\)|([A-Za-z0-9_\.]+)\s*=\s*function\s*\([^)]*\)", ui):
     name = m.group(1) or m.group(2)
-    if any(k in name.lower() for k in ("main", "menu", "settings", "profile", "options", "tab")):
+    if any(k in name.lower() for k in ("main", "menu", "button", "options", "collection")):
         print(name)
