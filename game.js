@@ -31,7 +31,7 @@ Module.expectedDataFileDownloads++;
       throw "using preloaded data can only be done on a web page or in a web worker";
     }
     var PACKAGE_NAME = "game.data";
-    var REMOTE_PACKAGE_BASE = "game.data?v=ed1b7ab7";
+    var REMOTE_PACKAGE_BASE = "game.data?v=aa20c806";
     if (
       typeof Module["locateFilePackage"] === "function" &&
       !Module["locateFile"]
@@ -368,14 +368,14 @@ Module.expectedDataFileDownloads++;
     }
   };
   loadPackage({
-    package_uuid: "da0779f2-f71e-59c7-81cd-eeed9d3c9abb",
-    remote_package_size: 10642171,
+    package_uuid: "9f432efc-70cf-5215-8f29-6a6630cb8546",
+    remote_package_size: 10642146,
     files: [
       {
         filename: "/game.love",
         crunched: 0,
         start: 0,
-        end: 10642171,
+        end: 10642146,
         audio: false,
       },
     ],

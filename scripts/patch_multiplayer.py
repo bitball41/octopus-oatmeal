@@ -158,24 +158,7 @@ end
 
     ui = files["functions/UI_definitions.lua"].decode("utf-8")
     panel_marker = "octopus_native_main_menu"
-    if panel_marker not in ui:
-        # Normalize either previous attempted layout before installing the
-        # final native panel.  Keeping every visible button inside the same
-        # `mid` container makes the UIBox's size/alignment include MULTIPLAYER.
-        ui = re.sub(
-            r"\r?\n[ \t]*UIBox_button\{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\",[^\r\n]*\},",
-            "",
-            ui,
-            count=1,
-        )
-        ui = re.sub(
-            r"\r?\n[ \t]*\{n=G\.UIT\.R, config=\{id = 'octopus_multiplayer_row',[\s\S]*?\r?\n[ \t]*\}\},",
-            "",
-            ui,
-            count=1,
-        )
-
-        stock_panel = '''        {n=G.UIT.R, config={align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
+    stock_panel = '''        {n=G.UIT.R, config={align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
           UIBox_button{id = 'main_menu_play', button = not G.SETTINGS.tutorial_complete and "start_run" or "setup_run", colour = G.C.BLUE, minw = 3.65, minh = 1.55, label = {localize('b_play_cap')}, scale = text_scale*2, col = true},
           {n=G.UIT.C, config={align = "cm"}, nodes={
             UIBox_button{button = 'options', colour = G.C.ORANGE, minw = 2.65, minh = 1.35, label = {localize('b_options_cap')}, scale = text_scale * 1.2, col = true},
@@ -184,7 +167,7 @@ end
           }},
           UIBox_button{id = 'collection_button', button = "your_collection", colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},
         }},'''
-        native_panel = '''        {n=G.UIT.C, config={id = 'octopus_native_main_menu', align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
+    stacked_panel = '''        {n=G.UIT.C, config={id = 'octopus_native_main_menu', align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
           {n=G.UIT.R, config={align = "cm"}, nodes={
             UIBox_button{id = 'main_menu_play', button = not G.SETTINGS.tutorial_complete and "start_run" or "setup_run", colour = G.C.BLUE, minw = 3.65, minh = 1.55, label = {localize('b_play_cap')}, scale = text_scale*2, col = true},
             {n=G.UIT.C, config={align = "cm"}, nodes={
@@ -198,9 +181,48 @@ end
             UIBox_button{id = 'octopus_multiplayer_button', button = "octopus_multiplayer", colour = G.C.PURPLE, minw = 9.95, minh = 1.05, label = {'MULTIPLAYER'}, scale = text_scale*1.2},
           }},
         }},'''
-        if "\r\n" in ui:
-            stock_panel = stock_panel.replace("\n", "\r\n")
-            native_panel = native_panel.replace("\n", "\r\n")
+    native_panel = '''        {n=G.UIT.R, config={id = 'octopus_native_main_menu', align = "cm", padding = 0.2, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true}, nodes={
+          UIBox_button{id = 'main_menu_play', button = not G.SETTINGS.tutorial_complete and "start_run" or "setup_run", colour = G.C.BLUE, minw = 3.65, minh = 1.55, label = {localize('b_play_cap')}, scale = text_scale*2, col = true},
+          {n=G.UIT.C, config={align = "cm"}, nodes={
+            UIBox_button{button = 'options', colour = G.C.ORANGE, minw = 2.65, minh = 1.35, label = {localize('b_options_cap')}, scale = text_scale * 1.2, col = true},
+            G.F_QUIT_BUTTON and {n=G.UIT.C, config={align = "cm", minw = 0.2}, nodes={}} or nil,
+            G.F_QUIT_BUTTON and UIBox_button{button = quit_func, colour = G.C.RED, minw = 2.65, minh = 1.35, label = {localize('b_quit_cap')}, scale = text_scale * 1.2, col = true} or nil,
+          }},
+          UIBox_button{id = 'collection_button', button = "your_collection", colour = G.C.PALE_GREEN, minw = 3.65, minh = 1.55, label = {localize('b_collection_cap')}, scale = text_scale*1.5, col = true},
+          UIBox_button{id = 'octopus_multiplayer_button', button = "octopus_multiplayer", colour = G.C.PURPLE, minw = 3.95, minh = 1.55, label = {'MULTIPLAYER'}, scale = text_scale*1.2, col = true},
+        }},'''
+    if "\r\n" in ui:
+        stock_panel = stock_panel.replace("\n", "\r\n")
+        stacked_panel = stacked_panel.replace("\n", "\r\n")
+        native_panel = native_panel.replace("\n", "\r\n")
+
+    if native_panel in ui:
+        pass
+    elif panel_marker in ui:
+        ui = replace_once(
+            ui,
+            stacked_panel,
+            native_panel,
+            "stacked native main-menu panel",
+        )
+    else:
+        # Normalize either previous attempted layout before installing the
+        # final native panel.  Keeping every visible button in the same
+        # already-rendered `mid` row makes MULTIPLAYER use the exact layout
+        # path as PLAY, OPTIONS, and COLLECTION.
+        ui = re.sub(
+            r"\r?\n[ \t]*UIBox_button\{id = 'octopus_multiplayer_button', button = \"octopus_multiplayer\",[^\r\n]*\},",
+            "",
+            ui,
+            count=1,
+        )
+        ui = re.sub(
+            r"\r?\n[ \t]*\{n=G\.UIT\.R, config=\{id = 'octopus_multiplayer_row',[\s\S]*?\r?\n[ \t]*\}\},",
+            "",
+            ui,
+            count=1,
+        )
+
         ui = replace_once(
             ui,
             stock_panel,

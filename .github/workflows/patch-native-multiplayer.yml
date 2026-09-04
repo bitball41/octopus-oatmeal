@@ -8,6 +8,7 @@ on:
       - hotfix/legacy-launcher-native-mp
       - fix/native-menu-text-input
       - fix/native-multiplayer-button
+      - fix/native-multiplayer-render-v2
     paths:
       - octopus_multiplayer.lua
       - multiplayer.js
@@ -95,9 +96,9 @@ jobs:
               ('score hook', 'OCTOPUS_MP.on_hand_scored(hand_chips*mult)' in state),
               ('blind-end hook', 'OCTOPUS_MP.on_round_end(game_over)' in state),
               ('run-start hook', 'OCTOPUS_MP.on_run_start()' in buttons),
-              ('native main-menu row', 'octopus_multiplayer_row' in ui),
               ('native main-menu panel', 'octopus_native_main_menu' in ui),
               ('native main-menu button', 'octopus_multiplayer_button' in ui),
+              ('single visible main-menu row', 'octopus_multiplayer_row' not in ui),
               ('old inline button removed', ui.count('octopus_multiplayer_button') == 1),
               ('native multiplayer overlay', 'create_UIBox_octopus_multiplayer' in mp),
           ]
