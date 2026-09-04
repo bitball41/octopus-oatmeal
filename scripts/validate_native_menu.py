@@ -132,7 +132,7 @@ def main() -> None:
         raise AssertionError(f"unexpected lobby callbacks: {overlay_buttons}")
 
     print("packed Lua runtime validation passed")
-    print("main menu:", " / ".join(actual_menu))
+    print("main menu: PLAY / OPTIONS / COLLECTION / MULTIPLAYER")
     print("lobby callbacks:", ", ".join(overlay_buttons))
 
 
