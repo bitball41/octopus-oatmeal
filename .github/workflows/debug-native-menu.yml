@@ -1,0 +1,17 @@
+name: Debug native menu runtime
+
+on:
+  push:
+    branches:
+      - debug/native-menu-runtime
+    paths:
+      - scripts/debug_native_menu.py
+      - .github/workflows/debug-native-menu.yml
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect packed game.data
+        run: python3 scripts/debug_native_menu.py
