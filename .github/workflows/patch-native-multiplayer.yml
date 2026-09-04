@@ -7,12 +7,14 @@ on:
       - feature/native-multiplayer-menu
       - hotfix/legacy-launcher-native-mp
       - fix/native-menu-text-input
+      - fix/native-multiplayer-button
     paths:
       - octopus_multiplayer.lua
       - multiplayer.js
       - multiplayer_native.js
       - scripts/patch_multiplayer.py
       - scripts/patch_multiplayer_html.py
+      - scripts/validate_native_menu.py
       - .github/workflows/patch-native-multiplayer.yml
 
 permissions:
@@ -36,10 +38,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq lua5.4
+          python3 -m pip install --quiet lupa
           luac -p octopus_multiplayer.lua
 
       - name: Patch game archive
         run: python3 scripts/patch_multiplayer.py
+
+      - name: Exercise packed native menu and callbacks
+        run: python3 scripts/validate_native_menu.py
 
       - name: Patch HTML entry points
         run: python3 scripts/patch_multiplayer_html.py
@@ -80,6 +86,8 @@ jobs:
 
           checks = [
               ('loader', 'require("octopus_multiplayer")' in main),
+              ('callbacks installed before love.run', main.index('OCTOPUS_MP.install_callbacks()') < main.index('function love.run()')),
+              ('callbacks installed after Balatro callback table', main.index('require "functions/button_callbacks"') < main.index('OCTOPUS_MP.install_callbacks()')),
               ('browser textinput callback', 'function love.textinput(text)' in main),
               ('textinput forwards to Balatro editor', 'G.FUNCS.text_input_key({' in main),
               ('update hook', 'OCTOPUS_MP.update(dt)' in game),
@@ -88,6 +96,7 @@ jobs:
               ('blind-end hook', 'OCTOPUS_MP.on_round_end(game_over)' in state),
               ('run-start hook', 'OCTOPUS_MP.on_run_start()' in buttons),
               ('native main-menu row', 'octopus_multiplayer_row' in ui),
+              ('native main-menu panel', 'octopus_native_main_menu' in ui),
               ('native main-menu button', 'octopus_multiplayer_button' in ui),
               ('old inline button removed', ui.count('octopus_multiplayer_button') == 1),
               ('native multiplayer overlay', 'create_UIBox_octopus_multiplayer' in mp),
@@ -95,7 +104,7 @@ jobs:
           failed = [name for name, ok in checks if not ok]
           if failed:
               raise SystemExit(f'patch validation failed: {failed}')
-          print('native multiplayer + browser text input archive validation passed')
+          print('native multiplayer menu, callback load order, and browser text input archive validation passed')
           PY
 
       - name: Validate HTML bridge
@@ -118,5 +127,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add game.data game.js balatro.html index.html
-          git commit -m "Build native menu and browser text input fix"
+          git commit -m "Build deterministic native multiplayer menu"
           git push origin HEAD:${{ github.ref_name }}
