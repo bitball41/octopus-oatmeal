@@ -1,17 +1,51 @@
 // Legacy launcher compatibility bootstrap.
-// Old downloaded launchers still reference multiplayer.js. Instead of trying
-// to attach native multiplayer to an already-cached old game archive, replace
-// the document with the current launcher while preserving about:blank.
+// Old downloaded launchers still reference multiplayer.js. Resolve the latest
+// main commit at runtime, then replace the document with that immutable build
+// while preserving the current tab URL (including about:blank).
 
 const LATEST_LAUNCHER_URL =
   "https://raw.githubusercontent.com/bitball41/octopus-oatmeal/main/index.html";
-const NATIVE_RUNTIME_REF = "a27845d382ac5bbbfda86d3c7c02a82ac6a738f8";
+const MAIN_COMMIT_API =
+  "https://api.github.com/repos/bitball41/octopus-oatmeal/commits/main";
 const MUTABLE_ASSET_BASE =
   "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/";
-const PINNED_ASSET_BASE =
-  `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${NATIVE_RUNTIME_REF}/`;
+const FALLBACK_RUNTIME_REF = "cc0743b6d73d6638411f670f4fb2ca0e2e427524";
+
+function pinnedAssetBase(runtimeRef) {
+  return `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${runtimeRef}/`;
+}
+
+async function resolveRuntimeRef() {
+  const response = await fetch(`${MAIN_COMMIT_API}?octopus=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Accept: "application/vnd.github+json" },
+  });
+  if (!response.ok) {
+    throw new Error(`main commit lookup failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const sha = String(data?.sha || "");
+  if (!/^[0-9a-f]{40}$/i.test(sha)) {
+    throw new Error("main commit lookup returned an invalid SHA");
+  }
+  return sha;
+}
 
 async function upgradeLegacyLauncher() {
+  let runtimeRef = FALLBACK_RUNTIME_REF;
+
+  try {
+    runtimeRef = await resolveRuntimeRef();
+  } catch (error) {
+    console.warn(
+      "[Octopus] could not resolve latest main commit; using current known-good runtime",
+      error,
+    );
+  }
+
+  const immutableBase = pinnedAssetBase(runtimeRef);
+
   try {
     const url = `${LATEST_LAUNCHER_URL}?octopus=${Date.now()}`;
     const response = await fetch(url, { cache: "no-store" });
@@ -22,13 +56,10 @@ async function upgradeLegacyLauncher() {
       throw new Error("latest launcher does not contain native multiplayer");
     }
 
-    // Force all runtime files to come from one immutable commit. This avoids a
-    // stale @main game.js loading an older game.data package from jsDelivr.
-    html = html.split(MUTABLE_ASSET_BASE).join(PINNED_ASSET_BASE);
+    // Pin the entire runtime to the same exact commit so game.js, game.data,
+    // multiplayer_native.js, WASM, and all other assets cannot drift apart.
+    html = html.split(MUTABLE_ASSET_BASE).join(immutableBase);
 
-    // This script only runs in legacy downloaded launchers. Replacing the
-    // document keeps the existing tab URL (including about:blank) while
-    // aborting the stale runtime load and starting the pinned native build.
     document.open();
     document.write(html);
     document.close();
@@ -37,8 +68,8 @@ async function upgradeLegacyLauncher() {
     console.error("[Octopus] legacy launcher upgrade failed", error);
   }
 
-  // Fallback if GitHub Raw is unavailable.
-  import(`${PINNED_ASSET_BASE}multiplayer_native.js`).catch((error) => {
+  // Last-resort fallback still uses the latest resolved immutable build.
+  import(`${immutableBase}multiplayer_native.js`).catch((error) => {
     console.error("[Octopus] native multiplayer fallback failed", error);
   });
 }
