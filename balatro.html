@@ -307,6 +307,8 @@
       };
     </script>
     <script>
+      window.__octopusTextInputActive = false;
+      window.__octopusTextKeyQueue = window.__octopusTextKeyQueue || [];
       window.OctopusMultiplayer = window.OctopusMultiplayer || {
         _pending: [],
         fromLuaEncoded: function () {
@@ -315,9 +317,70 @@
         setSaveDirectoryEncoded: function () {
           this._pending.push(["setSaveDirectoryEncoded", Array.from(arguments)]);
         },
+        setTextInputActiveEncoded: function () {
+          this._pending.push(["setTextInputActiveEncoded", Array.from(arguments)]);
+        },
+        createLobby: function () {
+          this._pending.push(["createLobby", Array.from(arguments)]);
+        },
+        joinLobbyEncoded: function () {
+          this._pending.push(["joinLobbyEncoded", Array.from(arguments)]);
+        },
+        leaveLobby: function () {
+          this._pending.push(["leaveLobby", Array.from(arguments)]);
+        },
+        handleBrowserTextKey: function () {
+          this._pending.push(["handleBrowserTextKey", Array.from(arguments)]);
+        },
       };
+
+      (function () {
+        function loveKeyFromBrowserEvent(e) {
+          var special = {
+            Backspace: "backspace",
+            Delete: "delete",
+            Enter: "return",
+            Escape: "escape",
+            CapsLock: "capslock",
+            ArrowLeft: "left",
+            ArrowRight: "right",
+            Space: "space",
+          };
+          if (special[e.code]) return special[e.code];
+          if (typeof e.key === "string" && /^[A-Za-z]$/.test(e.key)) {
+            return e.key.toLowerCase();
+          }
+          if (typeof e.key === "string" && /^[0-9]$/.test(e.key)) {
+            return e.key;
+          }
+          return null;
+        }
+
+        window.addEventListener(
+          "keydown",
+          function (e) {
+            if (!window.__octopusTextInputActive) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            var key = loveKeyFromBrowserEvent(e);
+            if (!key) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+            var bridge = window.OctopusMultiplayer;
+            if (bridge && typeof bridge.handleBrowserTextKey === "function") {
+              bridge.handleBrowserTextKey(key, !!e.shiftKey);
+            } else {
+              window.__octopusTextKeyQueue.push([key, !!e.shiftKey]);
+            }
+          },
+          true
+        );
+      })();
     </script>
-    <script type="module" src="multiplayer.js"></script>
+<script type="module" src="multiplayer_native.js"></script>
+    <script type="module" src="multiplayer_native.js"></script>
     <script type="text/javascript" src="game.js?v=4e38bdee"></script>
     <script
       async
