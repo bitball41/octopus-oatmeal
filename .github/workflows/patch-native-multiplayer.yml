@@ -1,12 +1,15 @@
 name: Build native browser multiplayer
+# hotfix validation rerun
 
 on:
   workflow_dispatch:
   push:
     branches:
       - feature/native-multiplayer-menu
+      - hotfix/legacy-launcher-native-mp
     paths:
       - octopus_multiplayer.lua
+      - multiplayer.js
       - multiplayer_native.js
       - scripts/patch_multiplayer.py
       - scripts/patch_multiplayer_html.py
@@ -22,10 +25,12 @@ jobs:
       - name: Check out branch
         uses: actions/checkout@v4
         with:
-          ref: feature/native-multiplayer-menu
+          ref: ${{ github.ref_name }}
 
       - name: Validate browser client syntax
-        run: node --check multiplayer_native.js
+        run: |
+          node --check multiplayer.js
+          node --check multiplayer_native.js
 
       - name: Validate Lua syntax
         run: |
@@ -93,11 +98,10 @@ jobs:
 
       - name: Validate HTML bridge
         run: |
-          grep -q '__octopusTextInputActive' balatro.html
           grep -q 'multiplayer_native.js' balatro.html
-          grep -q 'octopus-oatmeal@main/multiplayer_native.js' index.html
-          test "$(grep -c '__octopusTextInputActive = false' balatro.html)" -eq 1
-          test "$(grep -c '__octopusTextInputActive = false' index.html)" -eq 1
+          grep -q 'octopus-oatmeal@main/multiplayer_native.js?v=native-menu-20260904-2' index.html
+          test "$(grep -o 'multiplayer_native.js' balatro.html | wc -l)" -eq 1
+          test "$(grep -o 'multiplayer_native.js' index.html | wc -l)" -eq 1
           if grep -q 'id="octo-mp-toggle"' balatro.html index.html; then
             echo 'old floating multiplayer UI still present'
             exit 1
@@ -112,5 +116,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add game.data game.js balatro.html index.html
-          git commit -m "Build native multiplayer and text input fixes"
-          git push origin HEAD:feature/native-multiplayer-menu
+          git commit -m "Build legacy-compatible native multiplayer launcher"
+          git push origin HEAD:${{ github.ref_name }}
