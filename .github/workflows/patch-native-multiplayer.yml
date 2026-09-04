@@ -1,5 +1,4 @@
 name: Build native browser multiplayer
-# hotfix validation rerun
 
 on:
   workflow_dispatch:
@@ -7,6 +6,7 @@ on:
     branches:
       - feature/native-multiplayer-menu
       - hotfix/legacy-launcher-native-mp
+      - fix/native-menu-text-input
     paths:
       - octopus_multiplayer.lua
       - multiplayer.js
@@ -80,20 +80,22 @@ jobs:
 
           checks = [
               ('loader', 'require("octopus_multiplayer")' in main),
+              ('browser textinput callback', 'function love.textinput(text)' in main),
+              ('textinput forwards to Balatro editor', 'G.FUNCS.text_input_key({' in main),
               ('update hook', 'OCTOPUS_MP.update(dt)' in game),
               ('round hook', 'OCTOPUS_MP.should_end_round()' in game),
               ('score hook', 'OCTOPUS_MP.on_hand_scored(hand_chips*mult)' in state),
               ('blind-end hook', 'OCTOPUS_MP.on_round_end(game_over)' in state),
               ('run-start hook', 'OCTOPUS_MP.on_run_start()' in buttons),
+              ('native main-menu row', 'octopus_multiplayer_row' in ui),
               ('native main-menu button', 'octopus_multiplayer_button' in ui),
+              ('old inline button removed', ui.count('octopus_multiplayer_button') == 1),
               ('native multiplayer overlay', 'create_UIBox_octopus_multiplayer' in mp),
-              ('global text bridge', "kind == 'text_key'" in mp),
-              ('text focus sync', 'setTextInputActiveEncoded' in mp),
           ]
           failed = [name for name, ok in checks if not ok]
           if failed:
               raise SystemExit(f'patch validation failed: {failed}')
-          print('native multiplayer archive validation passed')
+          print('native multiplayer + browser text input archive validation passed')
           PY
 
       - name: Validate HTML bridge
@@ -116,5 +118,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add game.data game.js balatro.html index.html
-          git commit -m "Build legacy-compatible native multiplayer launcher"
+          git commit -m "Build native menu and browser text input fix"
           git push origin HEAD:${{ github.ref_name }}
