@@ -9,7 +9,7 @@ const MAIN_COMMIT_API =
   "https://api.github.com/repos/bitball41/octopus-oatmeal/commits/main";
 const MUTABLE_ASSET_BASE =
   "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/";
-const FALLBACK_RUNTIME_REF = "cc0743b6d73d6638411f670f4fb2ca0e2e427524";
+const FALLBACK_RUNTIME_REF = "55afe41755e8fe3ce13976b4883259dd3830139a";
 
 function pinnedAssetBase(runtimeRef) {
   return `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${runtimeRef}/`;
@@ -52,7 +52,7 @@ async function upgradeLegacyLauncher() {
     if (!response.ok) throw new Error(`launcher fetch failed: ${response.status}`);
 
     let html = await response.text();
-    if (!html.includes("multiplayer_native.js")) {
+    if (!html.includes("multiplayer_upstream.js")) {
       throw new Error("latest launcher does not contain native multiplayer");
     }
 

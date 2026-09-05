@@ -6,25 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 BOOTSTRAP_START = "<!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_START -->"
 BOOTSTRAP_END = "<!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->"
+PINNED_RUNTIME_START = "<!-- OCTOPUS_PINNED_RUNTIME_START -->"
+PINNED_RUNTIME_END = "<!-- OCTOPUS_PINNED_RUNTIME_END -->"
 
 STUB = '''    <script>
-      window.__octopusTextInputActive = !!window.__octopusTextInputActive;
-      window.__octopusTextKeyQueue = window.__octopusTextKeyQueue || [];
-      window.OctopusMultiplayer = window.OctopusMultiplayer || { _pending: [] };
-      window.OctopusMultiplayer._pending = Array.isArray(window.OctopusMultiplayer._pending)
-        ? window.OctopusMultiplayer._pending
-        : [];
-      [
-        "fromLuaEncoded",
-        "setSaveDirectoryEncoded",
-        "setTextInputActiveEncoded",
-        "createLobby",
-        "joinLobbyEncoded",
-        "leaveLobby",
-        "handleBrowserTextKey",
-      ].forEach(function (method) {
-        if (typeof window.OctopusMultiplayer[method] !== "function") {
-          window.OctopusMultiplayer[method] = function () {
+      window.OctopusMP = window.OctopusMP || { _pending: [] };
+      ["attach", "send"].forEach(function (method) {
+        if (typeof window.OctopusMP[method] !== "function") {
+          window.OctopusMP[method] = function () {
             this._pending.push([method, Array.from(arguments)]);
           };
         }
@@ -62,7 +51,7 @@ def remove_generated_block(text: str) -> str:
 
     # Remove any old multiplayer module tags outside the generated block.
     text = re.sub(
-        r'[ \t]*<script\s+type="module"\s+src="[^"]*multiplayer(?:_native)?\.js(?:\?[^\"]*)?"\s*></script>\n?',
+        r'[ \t]*<script\s+type="module"\s+src="[^"]*multiplayer(?:_native|_upstream)?\.js(?:\?[^\"]*)?"\s*></script>\n?',
         '',
         text,
         flags=re.I,
@@ -85,7 +74,7 @@ def install_bridge(text: str, module_src: str) -> str:
 def patch_balatro() -> None:
     path = ROOT / "balatro.html"
     text = path.read_text("utf-8")
-    text = install_bridge(text, "multiplayer_native.js")
+    text = install_bridge(text, "multiplayer_upstream.js")
     path.write_text(text, "utf-8")
 
 
@@ -93,16 +82,22 @@ def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text("utf-8")
 
-    text = re.sub(
-        r'https://cdn\.jsdelivr\.net/gh/bitball41/octopus-oatmeal@[^/]+/',
-        'https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/',
+    # The downloadable launcher resolves main through GitHub's API, then
+    # loads multiplayer_upstream.js, game.js, love.js, WASM, and game.data from
+    # that one immutable commit. Never rewrite it back to mutable @main URLs:
+    # jsDelivr can resolve separate mutable requests to different revisions.
+    if text.count(PINNED_RUNTIME_START) != 1 or text.count(PINNED_RUNTIME_END) != 1:
+        raise RuntimeError("index.html is missing its immutable runtime loader")
+    if re.search(
+        r'<script[^>]+src="https://cdn\.jsdelivr\.net/gh/'
+        r'bitball41/octopus-oatmeal@main/(?:multiplayer_native|game|love)\.',
         text,
-    )
-
-    text = install_bridge(
-        text,
-        "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/multiplayer_native.js?v=native-menu-20260904-2",
-    )
+        re.I,
+    ):
+        raise RuntimeError("index.html still loads a mutable @main runtime asset")
+    text = re.sub(re.escape(BOOTSTRAP_START)+r'.*?'+re.escape(BOOTSTRAP_END),
+                  BOOTSTRAP_START+'\n'+STUB+'    '+BOOTSTRAP_END,text,flags=re.S)
+    text = text.replace('"multiplayer_native.js", true', '"multiplayer_upstream.js", true')
     path.write_text(text, "utf-8")
 
 

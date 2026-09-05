@@ -308,29 +308,16 @@
     </script>
     <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_START -->
     <script>
-      window.__octopusTextInputActive = !!window.__octopusTextInputActive;
-      window.__octopusTextKeyQueue = window.__octopusTextKeyQueue || [];
-      window.OctopusMultiplayer = window.OctopusMultiplayer || { _pending: [] };
-      window.OctopusMultiplayer._pending = Array.isArray(window.OctopusMultiplayer._pending)
-        ? window.OctopusMultiplayer._pending
-        : [];
-      [
-        "fromLuaEncoded",
-        "setSaveDirectoryEncoded",
-        "setTextInputActiveEncoded",
-        "createLobby",
-        "joinLobbyEncoded",
-        "leaveLobby",
-        "handleBrowserTextKey",
-      ].forEach(function (method) {
-        if (typeof window.OctopusMultiplayer[method] !== "function") {
-          window.OctopusMultiplayer[method] = function () {
+      window.OctopusMP = window.OctopusMP || { _pending: [] };
+      ["attach", "send"].forEach(function (method) {
+        if (typeof window.OctopusMP[method] !== "function") {
+          window.OctopusMP[method] = function () {
             this._pending.push([method, Array.from(arguments)]);
           };
         }
       });
     </script>
-    <script type="module" src="multiplayer_native.js"></script>
+    <script type="module" src="multiplayer_upstream.js"></script>
     <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->
 <script type="text/javascript" src="game.js?v=4e38bdee"></script>
     <script
