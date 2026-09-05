@@ -212,8 +212,9 @@
       // index.html is also a downloadable launcher. Keep the heavy runtime in
       // the repository so a lone local copy does not look for 15 MB of missing
       // files beside itself.
-      var REMOTE_ASSET_BASE =
-        "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/";
+      // Set by the runtime loader below after it resolves main to one exact
+      // commit. Every engine/package request must use the same immutable ref.
+      var REMOTE_ASSET_BASE = "";
 
       var canvas = document.getElementById("loadingCanvas");
       canvas.width =
@@ -317,41 +318,94 @@
     </script>
     <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_START -->
     <script>
-      window.__octopusTextInputActive = !!window.__octopusTextInputActive;
-      window.__octopusTextKeyQueue = window.__octopusTextKeyQueue || [];
-      window.OctopusMultiplayer = window.OctopusMultiplayer || { _pending: [] };
-      window.OctopusMultiplayer._pending = Array.isArray(window.OctopusMultiplayer._pending)
-        ? window.OctopusMultiplayer._pending
-        : [];
-      [
-        "fromLuaEncoded",
-        "setSaveDirectoryEncoded",
-        "setTextInputActiveEncoded",
-        "createLobby",
-        "joinLobbyEncoded",
-        "leaveLobby",
-        "handleBrowserTextKey",
-      ].forEach(function (method) {
-        if (typeof window.OctopusMultiplayer[method] !== "function") {
-          window.OctopusMultiplayer[method] = function () {
+      window.OctopusMP = window.OctopusMP || { _pending: [] };
+      ["attach", "send"].forEach(function (method) {
+        if (typeof window.OctopusMP[method] !== "function") {
+          window.OctopusMP[method] = function () {
             this._pending.push([method, Array.from(arguments)]);
           };
         }
       });
     </script>
-    <script type="module" src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/multiplayer_native.js?v=native-menu-20260904-2"></script>
     <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->
-<script
-      type="text/javascript"
-      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/game.js"
-      onerror="Module.setStatus('Could not load the game files. Check your internet connection.')"
-    ></script>
-    <script
-      async
-      type="text/javascript"
-      src="https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/love.js"
-      onload="applicationLoad(this)"
-      onerror="Module.setStatus('Could not load the game engine. Check your internet connection.')"
-    ></script>
+    <!-- OCTOPUS_PINNED_RUNTIME_START -->
+    <script>
+      (function () {
+        "use strict";
+
+        var REPOSITORY = "bitball41/octopus-oatmeal";
+        var MAIN_COMMIT_API =
+          "https://api.github.com/repos/" + REPOSITORY + "/commits/main";
+        var FALLBACK_RUNTIME_REF =
+          "55afe41755e8fe3ce13976b4883259dd3830139a";
+
+        function immutableBase(ref) {
+          return "https://cdn.jsdelivr.net/gh/" + REPOSITORY + "@" + ref + "/";
+        }
+
+        async function resolveRuntimeRef() {
+          var response = await fetch(
+            MAIN_COMMIT_API + "?octopus=" + Date.now(),
+            {
+              cache: "no-store",
+              headers: { Accept: "application/vnd.github+json" },
+            },
+          );
+          if (!response.ok) {
+            throw new Error("main commit lookup failed: " + response.status);
+          }
+          var payload = await response.json();
+          var sha = String((payload && payload.sha) || "");
+          if (!/^[0-9a-f]{40}$/i.test(sha)) {
+            throw new Error("main commit lookup returned an invalid SHA");
+          }
+          return sha;
+        }
+
+        function loadScript(src, module) {
+          return new Promise(function (resolve, reject) {
+            var script = document.createElement("script");
+            if (module) script.type = "module";
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = function () {
+              reject(new Error("failed to load " + src));
+            };
+            document.head.appendChild(script);
+          });
+        }
+
+        async function bootRuntime() {
+          Module.setStatus("Resolving current build...");
+
+          var runtimeRef = FALLBACK_RUNTIME_REF;
+          try {
+            runtimeRef = await resolveRuntimeRef();
+          } catch (error) {
+            console.warn(
+              "[Octopus] latest commit lookup failed; using known-good build",
+              error,
+            );
+          }
+
+          REMOTE_ASSET_BASE = immutableBase(runtimeRef);
+          window.__octopusRuntimeRef = runtimeRef;
+
+          // Load the bridge first so Lua cannot start before the lobby and
+          // gameplay handlers exist. game.js then points game.data at this
+          // same immutable commit through Module.locateFile.
+          await loadScript(REMOTE_ASSET_BASE + "multiplayer_upstream.js", true);
+          await loadScript(REMOTE_ASSET_BASE + "game.js", false);
+          await loadScript(REMOTE_ASSET_BASE + "love.js", false);
+          applicationLoad();
+        }
+
+        bootRuntime().catch(function (error) {
+          console.error("[Octopus] runtime boot failed", error);
+          Module.setStatus("Could not load the current game build.");
+        });
+      })();
+    </script>
+    <!-- OCTOPUS_PINNED_RUNTIME_END -->
   </body>
 </html>

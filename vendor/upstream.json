@@ -1,0 +1,20 @@
+{
+  "Steamodded": {
+    "url": "https://github.com/Steamodded/smods",
+    "commit": "adfa438771b14ea13ca9eb5993ef2632320a2865",
+    "archive": "Steamodded.zip",
+    "sha256": "ec96e4e401fa773d6ae2a9e051b0fa983fdcd5287dc1180cb1c20162facf7b01"
+  },
+  "Multiplayer": {
+    "url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayer",
+    "commit": "3dff16a99edde91894e0ccf94cc9a9171443070b",
+    "archive": "Multiplayer.zip",
+    "sha256": "998b2302a4e37ff37124b46c6bcdd3bc6471a3cfea0fbfe5461a020a9e2330d8"
+  },
+  "MultiplayerServer": {
+    "url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI-Server",
+    "commit": "d664c29523b827d53dfa1a181e5b2baf1aefac4f",
+    "archive": "MultiplayerServer.zip",
+    "sha256": "93deab31e4f1137e78a1fb54be1916f82a33fd7dc17a41d329ecc66941461717"
+  }
+}
