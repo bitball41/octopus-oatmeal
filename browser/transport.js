@@ -7,13 +7,22 @@ export class PeerRoom {
     this.id = randomId();
     this.nextSend = 0; this.nextReceive = 0; this.pending = new Map();
     this.ice = []; this.closed = false;
+    this.incoming = Promise.resolve();
+    this.status = {subscription:'CLOSED', presence:'idle', peer:'waiting', rtc:'new', dataChannel:'none', signalsSent:{}, signalsReceived:{}};
+  }
+  enqueue(packet) {
+    // A broadcast can arrive before the previous send's server ACK. In
+    // particular, accepted -> username/join must finish registering the guest
+    // before dispatch. Also serialize offer/answer and early ICE candidates.
+    this.incoming = this.incoming.then(()=>this.handle(packet)).catch(this.onError);
+    return this.incoming;
   }
   async open(code, role) {
     this.role = role;
     this.channel = this.supabase.channel('octopus-bmp-v055:'+code, {
       config:{broadcast:{ack:true,self:false},presence:{key:this.id}},
     });
-    this.channel.on('broadcast',{event:'wire'},({payload})=>this.handle(payload).catch(this.onError));
+    this.channel.on('broadcast',{event:'wire'},({payload})=>this.enqueue(payload));
     this.channel.on('presence',{event:'sync'},()=>{
       const peers=Object.values(this.channel.presenceState()).flat();
       if(role==='guest' && !this.remote) {
@@ -27,13 +36,20 @@ export class PeerRoom {
     });
     await new Promise((resolve,reject)=>{
       const timeout=setTimeout(()=>reject(new Error('Room connection timed out')),15000);
-      this.channel.subscribe(async status=>{
+      this.channel.subscribe(async (status,error)=>{
+        this.status.subscription=status;
+        if(this.closed) return;
         if(status==='SUBSCRIBED') {
+          try {
+            const result=await this.channel.track({id:this.id,role});
+            this.status.presence=result;
+            if(result!=='ok') throw new Error('Presence tracking failed: '+result);
+            clearTimeout(timeout); resolve();
+          } catch(error) {clearTimeout(timeout); reject(error);this.onError(error);}
+        } else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT' || status==='CLOSED') {
           clearTimeout(timeout);
-          try { await this.channel.track({id:this.id,role}); resolve(); }
-          catch(error) {reject(error);}
-        } else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT') {
-          clearTimeout(timeout); reject(new Error('Room connection failed'));
+          const failure=new Error('Signaling '+status+(error?.message ? ': '+error.message : ''));
+          reject(failure);this.onError(failure);
         }
       });
     });
@@ -44,10 +60,12 @@ export class PeerRoom {
   async signal(kind, data, to=this.remote) {
     if(this.closed) return;
     const result=await this.channel.send({type:'broadcast',event:'wire',payload:{kind,data,from:this.id,to}});
-    if(result!=='ok') throw new Error('Room message was not delivered');
+    if(result!=='ok') throw new Error('Signaling '+kind+' failed: '+result);
+    this.status.signalsSent[kind]=(this.status.signalsSent[kind]||0)+1;
   }
   async handle(packet) {
     if(this.closed || !packet || packet.from===this.id || (packet.to && packet.to!==this.id)) return;
+    this.status.signalsReceived[packet.kind]=(this.status.signalsReceived[packet.kind]||0)+1;
     if(packet.kind==='join' && this.role==='host') {
       if(this.remote && this.remote!==packet.from) {
         await this.signal('full',{},packet.from); return;
@@ -55,12 +73,14 @@ export class PeerRoom {
       if(this.remote) return; // Presence sync can repeat; never rebuild an active peer.
       this.remote=packet.from;
       await this.signal('accepted',{});
+      if(this.closed) return;
+      this.status.peer='accepted';
       this.onPeer();
-      await this.makeRTC(true).catch(error=>console.warn('WebRTC unavailable; using Realtime',error));
+      await this.makeRTC(true).catch(error=>{this.status.rtc='failed: '+error.message;});
       return;
     }
     if(packet.kind==='accepted' && this.role==='guest' && !this.remote) {
-      this.remote=packet.from; clearTimeout(this.joinTimer); this.onPeer(); return;
+      this.remote=packet.from; this.status.peer='accepted';clearTimeout(this.joinTimer); this.onPeer(); return;
     }
     if(packet.kind==='full' && this.role==='guest' && !this.remote) throw new Error('Lobby is full');
     if(packet.from!==this.remote) return;
@@ -77,8 +97,10 @@ export class PeerRoom {
     } else if(packet.kind==='leave') this.dropPeer();
   }
   async makeRTC(initiator) {
-    if(typeof RTCPeerConnection==='undefined') return;
+    if(typeof RTCPeerConnection==='undefined') {this.status.rtc='unavailable';return;}
     this.pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.l.google.com:19302'}]});
+    this.pc.onconnectionstatechange=()=>{this.status.rtc=this.pc?.connectionState||'closed';};
+    this.pc.oniceconnectionstatechange=()=>{this.status.ice=this.pc?.iceConnectionState||'closed';};
     this.pc.onicecandidate=e=>{if(e.candidate)this.signal('ice',e.candidate.toJSON()).catch(this.onError);};
     this.pc.ondatachannel=e=>this.bindRTC(e.channel);
     if(initiator) {
@@ -93,7 +115,14 @@ export class PeerRoom {
   }
   bindRTC(channel) {
     this.rtc=channel;
-    channel.onmessage=e=>{try{this.receive(JSON.parse(e.data));}catch(error){this.onError(error);}};
+    this.status.dataChannel=channel.readyState;
+    channel.onopen=()=>{this.status.dataChannel='open';};
+    channel.onclose=()=>{this.status.dataChannel='closed';};
+    channel.onerror=()=>{this.status.dataChannel='error';};
+    channel.onmessage=e=>{
+      try {this.enqueue({kind:'action',from:this.remote,to:this.id,data:JSON.parse(e.data)});}
+      catch(error){this.onError(error);}
+    };
   }
   receive(envelope) {
     if(!Number.isSafeInteger(envelope?.seq) || envelope.seq<this.nextReceive) return;
@@ -106,15 +135,19 @@ export class PeerRoom {
   }
   async send(packet) {
     if(!this.remote) throw new Error('Peer is not connected');
-    const envelope={seq:this.nextSend++,packet};
+    const envelope={seq:this.nextSend++,packet:JSON.parse(JSON.stringify(packet))};
     // Realtime copy provides recovery if RTC closes after accepting send().
     // Sequence numbers deduplicate and order the two paths before dispatch.
-    if(this.rtc?.readyState==='open') this.rtc.send(JSON.stringify(envelope));
+    if(this.rtc?.readyState==='open') {
+      try {this.rtc.send(JSON.stringify(envelope));}
+      catch(error) {this.status.dataChannel='send failed: '+error.message;}
+    }
     await this.signal('action',envelope);
   }
   dropPeer() {
     if(!this.remote) return;
     this.remote=null;this.peerSeen=false;
+    this.status.peer='disconnected';
     this.rtc?.close();this.pc?.close();this.rtc=null;this.pc=null;
     this.nextSend=0;this.nextReceive=0;this.pending.clear();this.ice=[];
     this.onClose();

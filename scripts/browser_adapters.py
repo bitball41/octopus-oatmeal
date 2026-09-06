@@ -80,6 +80,11 @@ MP.ACTIONS.connect()
     edit('Mods/Steamodded/src/utils.lua', utils)
 
     def handlers(text):
+        # LuaJIT coerces values for %s; browser Lua 5.1 rejects booleans and
+        # tables. lobbyInfo contains booleans and lobbyOptions contains tables.
+        text = once(text, 'string.format(" (%s: %s) ", k, v)',
+                    'string.format(" (%s: %s) ", tostring(k), tostring(v))',
+                    'Lua 5.1 packet logging')
         begin = text.index('local function action_lobby_options(options)')
         finish = text.index('::continue::', begin)
         segment = text[begin:finish]
@@ -93,6 +98,30 @@ MP.ACTIONS.connect()
         text = text.replace('goto continue', 'break')
         return once(text, '::continue::', 'until true', 'nemesis deck continue')
     edit('Mods/Multiplayer/networking/action_handlers.lua', handlers)
+
+    def controller(text):
+        # SDL emits both keypressed and textinput. Only textinput inserts
+        # characters; keypressed still owns navigation, deletion and submit.
+        # Gate after keypad/enter normalization, before desktop insertion.
+        return once(text, '    if self.text_input_hook then\n',
+                    "    if self.text_input_hook then\n"
+                    "        if #key == 1 or key == 'space' then return end\n",
+                    'single owner for browser character input')
+    edit('engine/controller.lua', controller)
+
+    def text_input(text):
+        # SDL characters already include Shift/CapsLock. Do not apply the
+        # desktop punctuation/caps mapping a second time.
+        return once(text, 'caps = false,\n', 'caps = false,\n                browser_text = true,\n',
+                    'literal browser text event')
+    edit('main.lua', text_input)
+
+    def text_editor(text):
+        return once(text,
+                    '  args.caps = args.caps or G.CONTROLLER.capslock or hook_config.all_caps',
+                    '  args.caps = (not args.browser_text and (args.caps or G.CONTROLLER.capslock)) or hook_config.all_caps',
+                    'preserve native all-caps fields with literal SDL text')
+    edit('functions/button_callbacks.lua', text_editor)
 
     def logs(text):
         text = once(text, 'if line:find("MULTIPLAYER", 1, true) then',

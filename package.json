@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build:multiplayer": "python scripts/build_upstream.py --release && node scripts/build_server.mjs && python scripts/patch_multiplayer_html.py",
-    "test:loader": "node scripts/validate_runtime_loader.mjs"
+    "test:loader": "node scripts/validate_runtime_loader.mjs",
+    "test:sessions": "node scripts/validate_sessions.mjs && python scripts/validate_session_input.py"
   },
   "devDependencies": {
     "esbuild": "0.25.12"

@@ -1,0 +1,45 @@
+name: Build and validate browser sessions
+
+on:
+  push:
+    branches: [fix/multiplayer-session-and-text-input]
+    paths:
+      - 'browser/**'
+      - 'scripts/**'
+      - 'vendor/**'
+      - 'package*.json'
+      - '.github/workflows/validate-browser-sessions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: python -m pip install lupa
+      - run: npm run build:multiplayer
+      - run: npm run test:loader
+      - run: npm run test:sessions
+      - run: node --check multiplayer_upstream.js
+      - name: Commit validated production assets
+        run: |
+          git add game.data game.js multiplayer_upstream.js balatro.html index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Rebuild validated browser multiplayer assets'
+          git push origin HEAD:${{ github.ref_name }}
