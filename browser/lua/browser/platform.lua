@@ -1,5 +1,6 @@
 -- Browser platform services for the pinned Steamodded and Multiplayer sources.
 -- No match rules live here: MP's existing client and server own those.
+require('browser.format').install()
 local fs = love.filesystem
 local nativefs = require 'browser.nativefs'
 package.loaded.nativefs = nativefs
