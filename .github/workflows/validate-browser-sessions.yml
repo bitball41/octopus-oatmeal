@@ -2,7 +2,7 @@ name: Build and validate browser sessions
 
 on:
   push:
-    branches: [fix/multiplayer-session-and-text-input, fix/nativefs-config-read]
+    branches: [fix/multiplayer-session-and-text-input, fix/nativefs-config-read, fix/steamodded-object-validation]
     paths:
       - 'browser/**'
       - 'scripts/**'
@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:loader
       - run: npm run test:sessions
       - run: python scripts/validate_nativefs.py
+      - run: python scripts/validate_object_registration.py
       - run: node --check multiplayer_upstream.js
       - name: Commit validated production assets
         run: |
