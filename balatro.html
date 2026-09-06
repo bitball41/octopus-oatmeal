@@ -306,20 +306,7 @@
         Love(Module);
       };
     </script>
-    <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_START -->
-    <script>
-      window.OctopusMP = window.OctopusMP || { _pending: [] };
-      ["attach", "send"].forEach(function (method) {
-        if (typeof window.OctopusMP[method] !== "function") {
-          window.OctopusMP[method] = function () {
-            this._pending.push([method, Array.from(arguments)]);
-          };
-        }
-      });
-    </script>
-    <script type="module" src="multiplayer_upstream.js"></script>
-    <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->
-<script type="text/javascript" src="game.js?v=4e38bdee"></script>
+    <script type="text/javascript" src="game.js?v=4e38bdee"></script>
     <script
       async
       type="text/javascript"
