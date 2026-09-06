@@ -29,6 +29,18 @@ MP.ACTIONS.connect()
         return text[:begin] + '-- Main-menu row is installed by browser.menu.\n\n' + text[end:]
     edit('Mods/Steamodded/src/ui.lua', smods_menu)
 
+    def object_validation(text):
+        # assert evaluates its message even for valid objects. Some classes
+        # (Gradient, for example) have no set; Lua 5.1 rejects nil for %s.
+        # Only build the diagnostic on failure, retaining required-field checks.
+        return once(text,
+                    "            assert(not (o[v] == nil), ('Missing required parameter for %s declaration: %s'):format(o.set, v))",
+                    "            if o[v] == nil then\n"
+                    "                error(('Missing required parameter for %s declaration: %s'):format(tostring(o.set or o.class_prefix or 'GameObject'), tostring(v)))\n"
+                    "            end",
+                    'Lua 5.1 lazy GameObject validation')
+    edit('Mods/Steamodded/src/game_object.lua', object_validation)
+
     def mp_menu(text):
         begin = text.index('-- Modify play button to take you to mode select first')
         end = text.index('G.FUNCS.wipe_off', begin)
