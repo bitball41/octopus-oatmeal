@@ -17,7 +17,7 @@ assert.match(html, /id="mode-pokermon"/);
 assert.match(html, /id="mode-multiplayer"/);
 assert.match(html, /Paperback \(a vanilla\+ mod\)/);
 assert.match(html, /Bunco \(a vanilla\+ mod\)/);
-assert.match(html, /Pokermon \(a vanilla\+ mod\)/);
+assert.match(html, /Pokermon \(a pokemon mod\)/);
 assert.match(html, /multiplayer mod/);
 assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
