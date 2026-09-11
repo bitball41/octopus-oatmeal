@@ -9,7 +9,7 @@ const MAIN_COMMIT_API =
   "https://api.github.com/repos/bitball41/octopus-oatmeal/commits/main";
 const MUTABLE_ASSET_BASE =
   "https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@main/";
-const FALLBACK_RUNTIME_REF = "55afe41755e8fe3ce13976b4883259dd3830139a";
+const FALLBACK_RUNTIME_REF = "e79da809feb66621460f605a30e5437052d6938f";
 
 function pinnedAssetBase(runtimeRef) {
   return `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${runtimeRef}/`;

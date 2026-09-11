@@ -86,7 +86,7 @@ assert.deepEqual(
 );
 assert.equal(local.vmContext.__octopusMode, "vanilla");
 assert.equal(
-  local.vmContext.Module.persistenceMountpoint,
+  local.vmContext.Module.persistenceDatabase,
   "/home/web_user/love-vanilla",
 );
 assert.equal(local.vmContext.Module.locateFile("game.data?v=1"), "vanilla/game.data?v=1");
@@ -102,7 +102,7 @@ assert.deepEqual(
 );
 assert.equal(localModded.loaded[0].type, "module");
 assert.equal(
-  localModded.vmContext.Module.persistenceMountpoint,
+  localModded.vmContext.Module.persistenceDatabase,
   "/home/web_user/love",
 );
 assert.equal(

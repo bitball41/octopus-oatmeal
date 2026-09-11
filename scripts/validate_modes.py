@@ -51,6 +51,10 @@ def main():
     red = [line for line in modded.read('game.lua').decode().splitlines() if 'b_red=' in line.replace(' ', '')][0]
     assert 'demo = false' in red and 'unlocked = true' in red
 
+    love = (ROOT / 'love.js').read_text()
+    assert 'Module["persistenceDatabase"]' in love
+    assert 'var persistenceMountpoint = "/home/web_user/love";' in love
+
     print('Vanilla/modded split, simplified lobby and Red Deck unlocked copy passed')
 
 

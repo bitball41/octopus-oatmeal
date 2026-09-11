@@ -2330,6 +2330,11 @@ var Love = (function () {
         });
       },
       getDB: function (name, callback) {
+        // LÖVE always writes under /home/web_user/love. Vanilla vs Modded
+        // keep that path and only split the IndexedDB database name.
+        if (typeof Module !== "undefined" && Module["persistenceDatabase"]) {
+          name = Module["persistenceDatabase"];
+        }
         var db = IDBFS.dbs[name];
         if (db) {
           return callback(null, db);
@@ -15826,14 +15831,18 @@ var Love = (function () {
       (typeof ENVIRONMENT_IS_PTHREAD === "undefined" ||
         !ENVIRONMENT_IS_PTHREAD)
     ) {
-      var persistenceMountpoint =
-        Module["persistenceMountpoint"] || "/home/web_user/love";
+      // PHYSFS save identity lives under /home/web_user/love. Do not mount
+      // IDBFS somewhere else or vanilla saves silently stay in MEMFS.
+      var persistenceMountpoint = "/home/web_user/love";
+      var persistenceDatabase =
+        Module["persistenceDatabase"] || persistenceMountpoint;
       var persistenceDependency = "IDBFS_restore";
       var persistenceSyncInFlight = false;
       var persistenceSyncQueued = false;
       var persistenceReady = false;
       var persistenceState = (Module["persistence"] = {
         mountpoint: persistenceMountpoint,
+        database: persistenceDatabase,
         state: "restoring",
         lastError: null,
         lastSync: null,
