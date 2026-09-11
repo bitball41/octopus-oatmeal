@@ -383,13 +383,83 @@
     <script>
       (function () {
         var booting = false;
-        function loadScript(src, module) {
+        var wasmReady = Promise.resolve();
+        /* OCTOPUS_ASSET_CACHE_START */
+var ASSET_REVISIONS = {"bunco/game.js": "c5205ecc3c7f21a688f1e292e27ced1b11d2f163dc045d08e3fc9d8301d435a5", "game.js": "21345d4b7fac95c01b684a77cf2feeabc8ff4ef868a1417ba9099bfcddb4387a", "love.js": "d9ef38a8a175fc9081da434b228a41866e947d9a9b8ee5eb3c8523b66f94fb8b", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "b02a6913c37b3b7537b715772401a24786df6cef4f2db79ce3befeee2ed00510", "paperback/game.js": "5e1824eef7c3f4c62870894881efec934639c3f9c5e3adb7c0446ee9bfed948f", "pokermon/game.js": "4c2fc7d99137b669be04989136a41004706b8f338687fe183e0201ce92916ff3", "vanilla/game.js": "58019520ce613b56d49decc7d1d1c161cf5aa7e7033352f50058275ab9f9914d"};
+// Embedded in both launchers by patch_multiplayer_html.py (including file://).
+var assetDatabase;
+function assetDB() {
+  if (!assetDatabase) assetDatabase = new Promise(function (resolve) {
+    try {
+      var request = indexedDB.open('OCTOPUS_RUNTIME_ASSETS', 1);
+      request.onupgradeneeded = function () { request.result.createObjectStore('assets'); };
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = request.onblocked = function () { resolve(null); };
+    } catch (_) { resolve(null); }
+  });
+  return assetDatabase;
+}
+async function cachedAsset(src) {
+  var url = new URL(src, document.baseURI).href;
+  var immutable = /(?:@|\/)[0-9a-f]{40}\//i.test(url);
+  // Local hosted builds carry content hashes; remote builds use immutable URLs.
+  var path = src.split('?')[0];
+  var revision = immutable ? url : ASSET_REVISIONS[path];
+  var key = immutable ? url.replace(/([@/])[0-9a-f]{40}\//i, '$1build/') : url;
+  var db = revision ? await assetDB() : null;
+  if (db) {
+    var cached = await new Promise(function (resolve) {
+      try {
+        var request = db.transaction('assets').objectStore('assets').get(key);
+        request.onsuccess = function () { resolve(request.result); };
+        request.onerror = function () { resolve(null); };
+      } catch (_) { resolve(null); }
+    });
+    if (cached && cached.revision === revision) return cached.blob;
+  }
+  var response = await fetch(url + (!immutable && revision ? (url.includes('?') ? '&' : '?') + 'v=' + revision : ''));
+  if (!response.ok) throw new Error('Download failed: ' + response.status + ' ' + src);
+  var blob = await response.blob();
+  if (db) await new Promise(function (resolve) {
+    try {
+      // One entry per asset: new versions replace old ones, never touch saves.
+      var tx = db.transaction('assets', 'readwrite');
+      tx.oncomplete = tx.onerror = tx.onabort = function () { resolve(); };
+      tx.objectStore('assets').put({revision: revision, blob: blob}, key);
+    } catch (_) { resolve(); }
+  });
+  return blob;
+}
+async function cachedScriptURL(src) {
+  try {
+    var blob = await cachedAsset(src);
+    return URL.createObjectURL(new Blob([blob], {type: 'text/javascript'}));
+  } catch (_) {
+    // file:// restrictions, disabled storage/fetch, or CSP: ordinary loading works.
+    return src;
+  }
+}
+
+/* OCTOPUS_ASSET_CACHE_END */
+
+        async function loadScript(src, module) {
+          var original = src;
+          src = await cachedScriptURL(src);
           return new Promise(function (resolve, reject) {
             var script = document.createElement("script");
             if (module) script.type = "module";
             script.src = src;
-            script.onload = resolve;
+            script.onload = function () {
+              if (src !== original) URL.revokeObjectURL(src);
+              resolve();
+            };
             script.onerror = function () {
+              if (src !== original) {
+                URL.revokeObjectURL(src);
+                src = original;
+                script.src = original;
+                return;
+              }
               reject(new Error("failed to load " + src));
             };
             document.head.appendChild(script);
@@ -397,14 +467,7 @@
         }
         var hinted = {};
         function hint(rel, href, as, cors) {
-          if (!href || hinted[rel + ":" + href]) return;
-          hinted[rel + ":" + href] = true;
-          var link = document.createElement("link");
-          link.rel = rel;
-          link.href = href;
-          if (as) link.as = as;
-          if (cors) link.crossOrigin = "anonymous";
-          document.head.appendChild(link);
+          // Assets are read through cachedAsset or the mode archive cache.
         }
         var MODES = {
           vanilla: {
@@ -440,16 +503,9 @@
           return mode;
         }
         function prefetchMode(mode) {
-          mode = canonicalMode(mode);
-          var spec = MODES[mode];
-          if (!spec) return;
-          var archives =
-            spec.parts && spec.parts.length ? spec.parts : ["game.data"];
-          archives.forEach(function (name) {
-            hint("preload", spec.dir + name, "fetch");
-          });
-          if (spec.multiplayer) hint("preload", "multiplayer_upstream.js", "script");
+          // Downloads begin on Play, after checking the persistent mode cache.
         }
+
         async function start(mode) {
           if (booting) return;
           mode = canonicalMode(mode);
@@ -474,16 +530,17 @@
           scripts.push(loadScript(spec.dir + "game.js", false));
           scripts.push(loadScript("love.js", false));
           await Promise.all(scripts);
+          await wasmReady;
           applicationLoad();
         }
         window.OctopusLaunch = { start: start, prefetch: prefetchMode };
         hint("preload", "love.js", "script");
         if (typeof fetch === "function") {
-          fetch("love.wasm")
+          wasmReady = cachedAsset("love.wasm")
             .then(function (response) {
               if (
                 !response ||
-                !response.ok ||
+
                 typeof response.arrayBuffer !== "function"
               ) {
                 return null;

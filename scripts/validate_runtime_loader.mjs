@@ -58,6 +58,7 @@ function context({ hostname, hash, fetchImpl }) {
   const vmContext = {
     console: { log() {}, warn() {}, error() {} },
     Date: { now: () => 1234 },
+    URL, Blob,
     fetch: fetchImpl,
     location: { protocol: "http:", hostname, hash: hash || "" },
     REMOTE_ASSET_BASE: "",
@@ -69,6 +70,7 @@ function context({ hostname, hash, fetchImpl }) {
       state.started += 1;
     },
     document: {
+      baseURI: "https://test.example/",
       readyState: "complete",
       addEventListener() {},
       getElementById(id) {
@@ -120,7 +122,7 @@ await flush();
 assert.equal(local.state.started, 0, "picker must not boot until a mode is chosen");
 assert.deepEqual(
   local.hints.map(({ href }) => href).sort(),
-  ["bunco/game.js", "game.js", "love.js", "paperback/game.js", "pokermon/game.js", "vanilla/game.js"],
+  [],
 );
 await local.vmContext.OctopusLaunch.start("vanilla");
 await flush();
@@ -138,10 +140,7 @@ assert.equal(local.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 assert.equal(local.state.started, 1);
 local.vmContext.OctopusLaunch.prefetch("paperback");
 await flush();
-assert.ok(
-  local.hints.some((hint) => hint.href === "paperback/game.data" && hint.as === "fetch"),
-  "hover/prefetch must start the mode archive before Play",
-);
+assert.equal(local.hints.length, 0, "Do not bypass persistent cache with preloads");
 
 const localMultiplayer = context({ hostname: "127.0.0.1" });
 await localMultiplayer.vmContext.OctopusLaunch.start("multiplayer");
@@ -228,8 +227,8 @@ localPokermon.vmContext.OctopusLaunch.prefetch("pokermon");
 await flush();
 for (const part of ["pokermon/game.data.part0", "pokermon/game.data.part1"]) {
   assert.ok(
-    localPokermon.hints.some((hint) => hint.href === part && hint.as === "fetch"),
-    "hover/prefetch must start Pokermon archive part " + part,
+    !localPokermon.hints.some((hint) => hint.href === part && hint.as === "fetch"),
+    "hover must not download Pokermon archive part " + part,
   );
 }
 assert.ok(
@@ -263,10 +262,7 @@ assert.equal(
   remote.vmContext.Module.locateFile("love.wasm"),
   `${base}love.wasm`,
 );
-assert.ok(
-  remote.hints.some((hint) => hint.href === `${base}love.js` && hint.as === "script"),
-  "remote picker must preload shared love.js",
-);
+assert.equal(remote.hints.length, 0, "Do not bypass persistent cache with preloads");
 
 const remotePaperback = context({
   hostname: "cdn.example",
@@ -282,17 +278,14 @@ assert.equal(
   remotePaperback.vmContext.Module.locateFile("love.wasm"),
   `${base}love.wasm`,
 );
-assert.ok(
-  remotePaperback.hints.some((hint) => hint.href === `${base}paperback/game.data`),
-  "choosing Paperback must preload its archive",
-);
+assert.equal(remotePaperback.hints.length, 0, "Do not bypass persistent cache with preloads");
 
 const wasmRemote = context({
   hostname: "cdn.example",
   fetchImpl: async (url) => {
     const href = String(url || "");
     if (href.includes("love.wasm")) {
-      return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+      return { ok: true, blob: async () => new Blob([new ArrayBuffer(8)]) };
     }
     return { ok: true, json: async () => ({ sha: resolvedRef }) };
   },
