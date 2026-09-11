@@ -74,8 +74,8 @@ def install_bridge(text: str, module_src: str) -> str:
 def patch_balatro() -> None:
     path = ROOT / "balatro.html"
     text = path.read_text("utf-8")
-    if "OctopusLaunch" not in text or "mode-paperback" not in text or "mode-multiplayer" not in text:
-        raise RuntimeError("balatro.html is missing the Vanilla/Paperback/Multiplayer launcher")
+    if "OctopusLaunch" not in text or "mode-paperback" not in text or "mode-bunco" not in text or "mode-multiplayer" not in text:
+        raise RuntimeError("balatro.html is missing the Vanilla/Paperback/Bunco/Multiplayer launcher")
     text = re.sub(
         re.escape(BOOTSTRAP_START) + r'.*?' + re.escape(BOOTSTRAP_END),
         BOOTSTRAP_START + '\n' + STUB + '    ' + BOOTSTRAP_END,
@@ -95,8 +95,8 @@ def patch_index() -> None:
     # jsDelivr can resolve separate mutable requests to different revisions.
     if text.count(PINNED_RUNTIME_START) != 1 or text.count(PINNED_RUNTIME_END) != 1:
         raise RuntimeError("index.html is missing its immutable runtime loader")
-    if "OctopusLaunch" not in text or "mode-paperback" not in text or "mode-multiplayer" not in text:
-        raise RuntimeError("index.html is missing the Vanilla/Paperback/Multiplayer launcher")
+    if "OctopusLaunch" not in text or "mode-paperback" not in text or "mode-bunco" not in text or "mode-multiplayer" not in text:
+        raise RuntimeError("index.html is missing the Vanilla/Paperback/Bunco/Multiplayer launcher")
     if re.search(
         r'<script[^>]+src="https://cdn\.jsdelivr\.net/gh/'
         r'bitball41/octopus-oatmeal@main/(?:multiplayer_native|game|love)\.',

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vanilla / Paperback / multiplayer archive split, Red Deck copy, and simplified lobby."""
+"""Vanilla / Paperback / Bunco / multiplayer archive split, Red Deck copy, and simplified lobby."""
 import zipfile
 from pathlib import Path
 
@@ -11,21 +11,50 @@ def archive(path):
     return z, set(z.namelist())
 
 
+def compile_packed_lua(packed, names, label, compile_lua):
+    for name in sorted(names):
+        if name.endswith('.lua'):
+            ok, err = compile_lua(packed.read(name).decode(), '@' + name)
+            assert ok, f'{label} {name}: {err}'
+
+
+def assert_smods_content_pack(packed, names, folder, main_lua, meta_json, label):
+    assert any(n.startswith('Mods/Steamodded/') for n in names)
+    assert any(n.startswith(f'Mods/{folder}/') for n in names)
+    assert not any(n.startswith('Mods/Multiplayer/') for n in names)
+    assert f'Mods/{folder}/{main_lua}' in names
+    assert f'Mods/{folder}/{meta_json}' in names
+    assert 'browser/platform.lua' in names
+    assert 'browser/nativefs.lua' in names
+    assert 'browser/menu.lua' not in names
+    main = packed.read('main.lua').decode()
+    assert 'require "browser.platform"' in main
+    assert 'require("browser.cheats").keypressed(key)' in main
+    assert 'Mods/Multiplayer' not in main
+    overrides = packed.read('Mods/Steamodded/src/overrides.lua').decode()
+    assert 'goto ' not in overrides
+    return packed, names
+
+
 def main():
     vanilla_path = ROOT / 'vanilla' / 'game.data'
     paperback_path = ROOT / 'paperback' / 'game.data'
+    bunco_path = ROOT / 'bunco' / 'game.data'
     multiplayer_path = ROOT / 'game.data'
     assert vanilla_path.is_file(), 'vanilla/game.data missing'
     assert paperback_path.is_file(), 'paperback/game.data missing'
+    assert bunco_path.is_file(), 'bunco/game.data missing'
     assert multiplayer_path.is_file(), 'multiplayer game.data missing'
 
     vanilla, vanilla_names = archive(vanilla_path)
     paperback, paperback_names = archive(paperback_path)
+    bunco, bunco_names = archive(bunco_path)
     modded, modded_names = archive(multiplayer_path)
 
     assert not any(n.startswith('Mods/Steamodded/') for n in vanilla_names)
     assert not any(n.startswith('Mods/Multiplayer/') for n in vanilla_names)
     assert not any(n.startswith('Mods/paperback/') for n in vanilla_names)
+    assert not any(n.startswith('Mods/Bunco/') for n in vanilla_names)
     assert 'browser/vanilla.lua' in vanilla_names
     assert 'browser/cheats.lua' in vanilla_names
     assert 'browser/clipboard.lua' in vanilla_names
@@ -38,23 +67,17 @@ def main():
     assert 'require("browser.clipboard").poll()' in vanilla_main
     assert 'require "browser.platform"' not in vanilla_main
 
-    assert any(n.startswith('Mods/Steamodded/') for n in paperback_names)
-    assert any(n.startswith('Mods/paperback/') for n in paperback_names)
-    assert not any(n.startswith('Mods/Multiplayer/') for n in paperback_names)
-    assert 'Mods/paperback/paperback.lua' in paperback_names
-    assert 'Mods/paperback/metadata.json' in paperback_names
-    assert 'browser/platform.lua' in paperback_names
-    assert 'browser/nativefs.lua' in paperback_names
-    assert 'browser/menu.lua' not in paperback_names
-    paperback_main = paperback.read('main.lua').decode()
-    assert 'require "browser.platform"' in paperback_main
-    assert 'require("browser.cheats").keypressed(key)' in paperback_main
-    assert 'Mods/Multiplayer' not in paperback_main
+    assert_smods_content_pack(
+        paperback, paperback_names, 'paperback', 'paperback.lua', 'metadata.json', 'paperback')
     overrides = paperback.read('Mods/Steamodded/src/overrides.lua').decode()
     assert 'pb_is_illegal_seq' in overrides
-    assert 'goto ' not in overrides
     assert '::pb_continue_rank_next::' not in overrides
     assert 'repeat' in overrides and 'until true' in overrides
+
+    assert_smods_content_pack(
+        bunco, bunco_names, 'Bunco', 'Bunco.lua', 'Bunco.json', 'bunco')
+    assert not any(n.startswith('Mods/paperback/') for n in bunco_names)
+    assert 'Mods/Bunco/lovely.toml' in bunco_names
 
     try:
         from lupa.lua51 import LuaRuntime
@@ -62,14 +85,13 @@ def main():
         from lupa import LuaRuntime
     lua = LuaRuntime(unpack_returned_tuples=True)
     compile_lua = lua.eval('function(s, n) local f,e=loadstring(s,n); return f~=nil,e end')
-    for name in sorted(paperback_names):
-        if name.endswith('.lua'):
-            ok, err = compile_lua(paperback.read(name).decode(), '@' + name)
-            assert ok, f'paperback {name}: {err}'
+    compile_packed_lua(paperback, paperback_names, 'paperback', compile_lua)
+    compile_packed_lua(bunco, bunco_names, 'bunco', compile_lua)
 
     assert any(n.startswith('Mods/Steamodded/') for n in modded_names)
     assert any(n.startswith('Mods/Multiplayer/') for n in modded_names)
     assert not any(n.startswith('Mods/paperback/') for n in modded_names)
+    assert not any(n.startswith('Mods/Bunco/') for n in modded_names)
     assert 'browser/menu.lua' in modded_names
     assert 'browser/platform.lua' in modded_names
     menu = modded.read('browser/menu.lua').decode()
@@ -89,7 +111,7 @@ def main():
     assert 'Module["persistenceDatabase"]' in love
     assert 'var persistenceMountpoint = "/home/web_user/love";' in love
 
-    print('Vanilla/Paperback/multiplayer split, simplified lobby and Red Deck unlocked copy passed')
+    print('Vanilla/Paperback/Bunco/multiplayer split, simplified lobby and Red Deck unlocked copy passed')
 
 
 if __name__ == '__main__':

@@ -17,6 +17,16 @@ ANCHORS = {
     ('Paperback','lovely/vacation_juice.toml',3): "if G.GAME.round_resets.blind and G.GAME.round_resets.blind.name == 'Small Blind' then\nG.GAME.round_resets.blind_states.Small = 'Defeated'\n",
     ('Multiplayer','lovely/TheOrder.toml',3): 'self.GAME.pseudorandom.hashed_seed = pseudohash(self.GAME.pseudorandom.seed)',
     ('Multiplayer','lovely/pause.toml',1): 'local credits = nil',
+    ('Bunco','lovely.toml',20): 'if G.GAME.current_round.discards_left <= 0 or #G.hand.highlighted <= 0 or #G.hand.highlighted > math.max(G.GAME.starting_params.discard_limit, 0) then',
+    ('Bunco','lovely.toml',27): 'if #G.hand.highlighted <= 0 or G.GAME.blind.block_play or #G.hand.highlighted > math.max(G.GAME.starting_params.play_limit, 1) then',
+    ('Bunco','lovely.toml',43): 'function level_up_hand(card, hand, instant, amount, statustext)',
+    ('Bunco','lovely.toml',45): 'function level_up_hand(card, hand, instant, amount, statustext)',
+    ('Bunco','lovely.toml',48): "if self.name == 'The Wheel' and SMODS.pseudorandom_probability(self, pseudoseed('wheel'), 1, 7, 'wheel') then",
+    ('Bunco','lovely.toml',60): 'if SMODS.smeared_check(self, suit) then',
+    ('Bunco','lovely.toml',99): 'ease_to = G.GAME.chips + math.floor( SMODS.calculate_round_score() ),',
+    ('Bunco','lovely.toml',112): 'SMODS.calculate_context({open_booster = true, card = self, booster = booster_obj})',
+    ('Bunco','lovely.toml',122): 'G.GAME.pack_choices = math.min((self.ability.choose or self.config.center.config.choose or 1) + (G.GAME.modifiers.booster_choice_mod or 0), self.ability.extra and math.max(1, self.ability.extra + (G.GAME.modifiers.booster_size_mod or 0)) or self.config.center.extra and math.max(1, self.config.center.extra + (G.GAME.modifiers.booster_size_mod or 0)) or 1)',
+    ('Bunco','lovely.toml',159): 'if G.GAME.blind and G.GAME.blind.in_blind and not self.from_quantum then G.E_MANAGER:add_event(Event({ func = function() G.GAME.blind:set_blind(nil, true, nil); return true end })) end',
 }
 
 SKIPS = {}
@@ -34,6 +44,9 @@ skip('Steamodded','screenshader_rendering',[1,2], 'The browser owns its AA/scale
 skip('Multiplayer','compatibility',[1,2], 'Optional AntePreview and Cryptid mods are not bundled.')
 skip('Multiplayer','misc',[12], 'Optional All in Jest Patchwork deck is not bundled.')
 skip('Paperback','perma_odds',[4], 'This Steamodded build keeps perma_h_dollars tooltips in utils.lua; the duplicate game_object.lua path is absent.')
+SKIPS[('Bunco','lovely.toml',10)] = 'Steamodded moved the DESCSCALE tooltip assembler into src/utils.lua; the desktop localize hook is gone.'
+SKIPS[('Bunco','lovely.toml',152)] = 'ease_dollars lives in common_events.lua on this Steamodded build; Bunco already patches that copy (index 151).'
+SKIPS[('Bunco','lovely.toml',154)] = 'The browser card back sprite is already created behind if not self.children.back then.'
 
 
 def adapt_patch(mod, name, index, patch, source):
@@ -72,4 +85,31 @@ def adapt_patch(mod, name, index, patch, source):
         patch['payload'] = (patch['payload']
                             .replace('goto pb_continue_rank_next', 'break')
                             .replace('::pb_continue_rank_next::', 'until true'))
+    if key==('Bunco','lovely.toml',20):
+        # Keep Steamodded discard_limit and add The 8's highlighted-limit bypass.
+        patch['payload'] = (
+            'if G.GAME.current_round.discards_left <= 0 or #G.hand.highlighted <= 0 '
+            'or #G.hand.highlighted > math.max(G.GAME.starting_params.discard_limit, 0) '
+            'or (G.GAME.THE_8_BYPASS and (#G.hand.highlighted > G.hand.config.highlighted_limit)) then'
+        )
+    if key==('Bunco','lovely.toml',27):
+        patch['payload'] = (
+            '\nlocal group_size = 0\n\n'
+            'if G.hand and G.hand.highlighted then\n'
+            '    for i = 1, #G.hand.highlighted do\n'
+            '        if G.hand.highlighted[i].ability.group then\n'
+            '            group_size = group_size + 1\n'
+            '        end\n'
+            '    end\n'
+            'end\n\n'
+            "if #G.hand.highlighted <= (G.GAME.blind and G.GAME.blind.name == 'cry-Sapphire Stamp' "
+            'and not G.GAME.blind.disabled and 1 or 0) or G.GAME.blind.block_play or '
+            '(#G.hand.highlighted > math.max(G.GAME.starting_params.play_limit, 1) '
+            'and group_size <= math.max(G.GAME.starting_params.play_limit, 1)) then\n'
+        )
+    if key==('Bunco','lovely.toml',99):
+        patch['payload'] = (
+            'ease_to = G.GAME.chips + math.floor( SMODS.calculate_round_score() ) '
+            '* (antiscore and -1 or 1),'
+        )
     return patch, SKIPS.get(key)

@@ -2,7 +2,7 @@ name: Build and validate browser sessions
 
 on:
   push:
-    branches: [fix/combined-multiplayer-cheats, cursor/vanilla-modded-launcher-9ef4, cursor/paperback-vanilla-plus-mod-9311]
+    branches: [fix/combined-multiplayer-cheats, cursor/vanilla-modded-launcher-9ef4, cursor/paperback-vanilla-plus-mod-9311, cursor/bunco-vanilla-plus-mod-9311]
     paths:
       - 'browser/**'
       - 'scripts/**'
@@ -46,7 +46,7 @@ jobs:
       - run: node --check multiplayer_upstream.js
       - name: Commit validated production assets
         run: |
-          git add game.data game.js multiplayer_upstream.js balatro.html index.html vanilla/game.data vanilla/game.js paperback/game.data paperback/game.js runtime.json
+          git add game.data game.js multiplayer_upstream.js balatro.html index.html vanilla/game.data vanilla/game.js paperback/game.data paperback/game.js bunco/game.data bunco/game.js runtime.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

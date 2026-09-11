@@ -6,6 +6,7 @@ This browser port bundles pinned source snapshots of:
 - Balatro Multiplayer `3dff16a99edde91894e0ccf94cc9a9171443070b` (release 0.5.5, GPL-3.0)
 - Balatro Multiplayer API Server `d664c29523b827d53dfa1a181e5b2baf1aefac4f` (GPL-3.0)
 - Paperback `f40ee0de1b56ec1bf28a1f6c6c4d34b7e64146bb` (v0.8.1, MIT)
+- Bunco `016e4cda5525fcb74ec6b6e70e7fdba1f0609547` (v5.1; upstream ships no LICENSE file)
 
 Their source archives, upstream URLs, exact checksums, and license files are in
 `vendor/`. `scripts/build_upstream.py` applies the pinned Lovely manifests to

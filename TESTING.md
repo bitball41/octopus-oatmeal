@@ -1,12 +1,13 @@
-# Vanilla / Paperback / Multiplayer launcher — September 11, 2026
+# Vanilla / Paperback / Bunco / Multiplayer launcher — September 11, 2026
 
 `index.html` and `balatro.html` pick a mode before the runtime starts.
 
 - **Vanilla** loads `vanilla/game.data`. Stock Balatro plus the liminal cheat and browser seed paste. IndexedDB database `/home/web_user/love-vanilla`.
 - **Paperback (a vanilla+ mod)** loads `paperback/game.data` (Steamodded + Paperback). IndexedDB database `/home/web_user/love-paperback`.
+- **Bunco (a vanilla+ mod)** loads `bunco/game.data` (Steamodded + Bunco). IndexedDB database `/home/web_user/love-bunco`.
 - **multiplayer mod** loads root `game.data` (Steamodded + Multiplayer). IndexedDB database `/home/web_user/love` so existing browser saves keep working. `#modded` still boots this mode.
 
-All three modes mount the LÖVE save directory at `/home/web_user/love`. They only split the IndexedDB name, so a run in one mode cannot read another mode's profile.
+All four modes mount the LÖVE save directory at `/home/web_user/love`. They only split the IndexedDB name, so a run in one mode cannot read another mode's profile.
 
 ## Fixes
 
@@ -30,4 +31,4 @@ python3 scripts/validate_format_atlas.py
 python3 scripts/validate_modes.py
 ```
 
-In the browser: open the launcher, pick Vanilla, confirm PLAY has no MULTIPLAYER button and a seeded run can start. Reload, pick Paperback (a vanilla+ mod), confirm Steamodded/Paperback content loads without a MULTIPLAYER button. Reload, pick multiplayer mod, confirm MULTIPLAYER is present, Red Deck shows +1 discard, and Create Lobby yields a five-letter code without extra menus. Use `OctopusMP.diagnostics()` if a join fails.
+In the browser: open the launcher, pick Vanilla, confirm PLAY has no MULTIPLAYER button and a seeded run can start. Reload, pick Paperback (a vanilla+ mod), confirm Steamodded/Paperback content loads without a MULTIPLAYER button. Reload, pick Bunco (a vanilla+ mod), confirm Steamodded/Bunco content (exotic suits, custom jokers) loads without a MULTIPLAYER button. Reload, pick multiplayer mod, confirm MULTIPLAYER is present, Red Deck shows +1 discard, and Create Lobby yields a five-letter code without extra menus. Use `OctopusMP.diagnostics()` if a join fails.

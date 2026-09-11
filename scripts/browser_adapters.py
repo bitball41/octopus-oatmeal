@@ -174,7 +174,7 @@ MP.ACTIONS.connect()
         return once(text, '::skip_game_actions_during_remove::', 'end', 'card removal scope')
     edit('card.lua', card)
 
-    if flavor == 'paperback':
+    if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()
                     if name.endswith('.lua') and re.search(r'\bgoto\b|::\w+::', data.decode())]
         assert not leftover, 'LuaJIT goto remains in ' + ', '.join(leftover)

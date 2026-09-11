@@ -33,10 +33,14 @@ VANILLA_SKIP = {
 PAPERBACK_SKIP = {
     'browser/menu.lua',
 }
+BUNCO_SKIP = {
+    'browser/menu.lua',
+}
 MOD_FOLDERS = {
     'Steamodded': 'Steamodded',
     'Multiplayer': 'Multiplayer',
     'Paperback': 'paperback',
+    'Bunco': 'Bunco',
 }
 
 
@@ -195,7 +199,7 @@ def apply_lovely(files, mods, lock):
         prefix = f'Mods/{folder}/'
         for name, data in source.items():
             files[prefix + name] = data.replace(b'\r\n', b'\n') if name.endswith('.lua') else data
-            if name.startswith('lovely/') and name.endswith('.toml'):
+            if name.endswith('.toml') and (name == 'lovely.toml' or name.startswith('lovely/')):
                 manifest = tomllib.loads(data.decode())
                 manifests.append((manifest['manifest'].get('priority', 0), mod, name, manifest, folder))
                 for patch in manifest.get('patches', []):
@@ -307,11 +311,16 @@ def build(candidate=False, release=False):
     summarize_report(pb_report, 'paperback', 'patch-report-paperback.json', candidate)
     emit_archive(pb_files, out/'paperback', template_js, ROOT/'paperback' if release else None)
 
+    bunco_files, bunco_report = build_smods_pack(['Steamodded', 'Bunco'], 'bunco', BUNCO_SKIP, lock)
+    summarize_report(bunco_report, 'bunco', 'patch-report-bunco.json', candidate)
+    emit_archive(bunco_files, out/'bunco', template_js, ROOT/'bunco' if release else None)
+
     build_vanilla(template_js, release=release)
     if release:
         print(ROOT/'game.data')
         print(ROOT/'vanilla'/'game.data')
         print(ROOT/'paperback'/'game.data')
+        print(ROOT/'bunco'/'game.data')
     else:
         print(out/'game.data')
 
