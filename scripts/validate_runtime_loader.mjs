@@ -13,11 +13,11 @@ assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker")
 assert.match(html, /id="mode-vanilla"/);
 assert.match(html, /id="mode-paperback"/);
 assert.match(html, /id="mode-bunco"/);
-assert.match(html, /id="mode-pokermon"/);
+assert.doesNotMatch(html, /id="mode-pokermon"/);
 assert.match(html, /id="mode-multiplayer"/);
 assert.match(html, /Paperback \(a vanilla\+ mod\)/);
 assert.match(html, /Bunco \(a vanilla\+ mod\)/);
-assert.match(html, /Pokermon \(a pokemon mod\)/);
+assert.doesNotMatch(html, /Pokermon \(a pokemon mod\)/);
 assert.match(html, /multiplayer mod/);
 assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
