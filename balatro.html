@@ -388,6 +388,17 @@
             document.head.appendChild(script);
           });
         }
+        var hinted = {};
+        function hint(rel, href, as, cors) {
+          if (!href || hinted[rel + ":" + href]) return;
+          hinted[rel + ":" + href] = true;
+          var link = document.createElement("link");
+          link.rel = rel;
+          link.href = href;
+          if (as) link.as = as;
+          if (cors) link.crossOrigin = "anonymous";
+          document.head.appendChild(link);
+        }
         var MODES = {
           vanilla: {
             persist: "/home/web_user/love-vanilla",
@@ -414,6 +425,13 @@
           if (mode === "modded") return "multiplayer";
           return mode;
         }
+        function prefetchMode(mode) {
+          mode = canonicalMode(mode);
+          var spec = MODES[mode];
+          if (!spec) return;
+          hint("preload", spec.dir + "game.data", "fetch");
+          if (spec.multiplayer) hint("preload", "multiplayer_upstream.js", "script");
+        }
         async function start(mode) {
           if (booting) return;
           mode = canonicalMode(mode);
@@ -424,31 +442,41 @@
           document.getElementById("mode-overlay").classList.add("hidden");
           document.getElementById("loading-overlay").classList.remove("hidden");
           Module.persistenceDatabase = spec.persist;
+          prefetchMode(mode);
           Module.locateFile = function (path) {
             return spec.dir && String(path).indexOf("game.data") === 0
               ? spec.dir + path
               : path;
           };
+          var scripts = [];
           if (spec.multiplayer) {
-            await loadScript("multiplayer_upstream.js", true);
+            scripts.push(loadScript("multiplayer_upstream.js", true));
           }
-          await loadScript(spec.dir + "game.js", false);
-          await loadScript("love.js", false);
+          scripts.push(loadScript(spec.dir + "game.js", false));
+          scripts.push(loadScript("love.js", false));
+          await Promise.all(scripts);
           applicationLoad();
         }
-        window.OctopusLaunch = { start: start };
-        document.getElementById("mode-vanilla").onclick = function () {
-          start("vanilla");
-        };
-        document.getElementById("mode-paperback").onclick = function () {
-          start("paperback");
-        };
-        document.getElementById("mode-bunco").onclick = function () {
-          start("bunco");
-        };
-        document.getElementById("mode-multiplayer").onclick = function () {
-          start("multiplayer");
-        };
+        window.OctopusLaunch = { start: start, prefetch: prefetchMode };
+        hint("preload", "love.js", "script");
+        hint("preload", "love.wasm", "fetch");
+        hint("preload", "vanilla/game.js", "script");
+        hint("preload", "paperback/game.js", "script");
+        hint("preload", "bunco/game.js", "script");
+        hint("preload", "game.js", "script");
+        ["vanilla", "paperback", "bunco", "multiplayer"].forEach(function (mode) {
+          var button = document.getElementById("mode-" + mode);
+          if (!button) return;
+          button.onclick = function () {
+            start(mode);
+          };
+          button.onmouseenter = function () {
+            prefetchMode(mode);
+          };
+          button.ontouchstart = function () {
+            prefetchMode(mode);
+          };
+        });
         var hash = String(location.hash || "").replace(/^#/, "");
         if (MODES[canonicalMode(hash)]) start(hash);
       })();

@@ -31,16 +31,19 @@ assert.equal(scripts.length, 1, "pinned runtime must be one inline script");
 const source = scripts[0][1];
 assert.match(source, /FALLBACK_RUNTIME_REF\s*=\s*\n?\s*"([0-9a-f]{40})"/i);
 assert.match(source, /raw\.githubusercontent\.com\/" \+ REPOSITORY \+ "\/" \+ ref \+ "\/"/);
+assert.match(source, /warmupPromise/);
+assert.match(source, /Promise\.all\(scripts\)/);
 assert.doesNotMatch(source, /55afe41755e8fe3ce13976b4883259dd3830139a/);
 assert.doesNotMatch(source, /e79da809feb66621460f605a30e5437052d6938f/);
 assert.doesNotMatch(source, /b24a5c077c0c0ad6ecd4fb0c268a4831c4ae0158/);
 
 function overlay() {
-  return { classList: { add() {}, remove() {} }, onclick: null };
+  return { classList: { add() {}, remove() {} }, onclick: null, onmouseenter: null, ontouchstart: null };
 }
 
 function context({ hostname, hash, fetchImpl }) {
   const loaded = [];
+  const hints = [];
   const statuses = [];
   const state = { started: 0 };
   const buttons = {
@@ -71,18 +74,38 @@ function context({ hostname, hash, fetchImpl }) {
           overlay()
         );
       },
-      createElement: () => ({}),
+      createElement(tag) {
+        return {
+          tagName: String(tag || "div").toLowerCase(),
+          rel: "",
+          href: "",
+          src: "",
+          as: "",
+          type: "",
+          crossOrigin: "",
+          onload: null,
+          onerror: null,
+        };
+      },
       head: {
-        appendChild(script) {
-          loaded.push({ src: script.src, type: script.type || "classic" });
-          queueMicrotask(() => script.onload());
+        appendChild(el) {
+          if (el.tagName === "link" || el.rel) {
+            hints.push({ rel: el.rel, href: el.href, as: el.as, cors: el.crossOrigin });
+            return;
+          }
+          if (el.src) {
+            loaded.push({ src: el.src, type: el.type || "classic" });
+            queueMicrotask(() => {
+              if (typeof el.onload === "function") el.onload();
+            });
+          }
         },
       },
     },
   };
   vmContext.window = vmContext;
   vm.runInNewContext(source, vmContext, { filename: "index-runtime-loader.js" });
-  return { vmContext, loaded, statuses, state };
+  return { vmContext, loaded, hints, statuses, state };
 }
 
 async function flush() {
@@ -92,6 +115,10 @@ async function flush() {
 const local = context({ hostname: "localhost" });
 await flush();
 assert.equal(local.state.started, 0, "picker must not boot until a mode is chosen");
+assert.deepEqual(
+  local.hints.map(({ href }) => href).sort(),
+  ["bunco/game.js", "game.js", "love.js", "love.wasm", "paperback/game.js", "vanilla/game.js"],
+);
 await local.vmContext.OctopusLaunch.start("vanilla");
 await flush();
 assert.deepEqual(
@@ -106,6 +133,12 @@ assert.equal(
 assert.equal(local.vmContext.Module.locateFile("game.data?v=1"), "vanilla/game.data?v=1");
 assert.equal(local.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 assert.equal(local.state.started, 1);
+local.vmContext.OctopusLaunch.prefetch("paperback");
+await flush();
+assert.ok(
+  local.hints.some((hint) => hint.href === "paperback/game.data" && hint.as === "fetch"),
+  "hover/prefetch must start the mode archive before Play",
+);
 
 const localMultiplayer = context({ hostname: "127.0.0.1" });
 await localMultiplayer.vmContext.OctopusLaunch.start("multiplayer");
@@ -178,7 +211,6 @@ const remote = context({
 await remote.vmContext.OctopusLaunch.start("multiplayer");
 await flush();
 const base = `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${resolvedRef}/`;
-const rawBase = `https://raw.githubusercontent.com/bitball41/octopus-oatmeal/${resolvedRef}/`;
 assert.deepEqual(
   remote.loaded.map(({ src }) => src),
   [
@@ -191,11 +223,15 @@ assert.equal(remote.vmContext.__octopusRuntimeRef, resolvedRef);
 assert.equal(remote.vmContext.REMOTE_ASSET_BASE, base);
 assert.equal(
   remote.vmContext.Module.locateFile("game.data?v=1"),
-  `${rawBase}game.data?v=1`,
+  `${base}game.data?v=1`,
 );
 assert.equal(
   remote.vmContext.Module.locateFile("love.wasm"),
   `${base}love.wasm`,
+);
+assert.ok(
+  remote.hints.some((hint) => hint.href === `${base}love.wasm` && hint.as === "fetch"),
+  "remote picker must preload the shared wasm",
 );
 
 const remotePaperback = context({
@@ -206,11 +242,15 @@ await remotePaperback.vmContext.OctopusLaunch.start("paperback");
 await flush();
 assert.equal(
   remotePaperback.vmContext.Module.locateFile("game.data?v=1"),
-  `${rawBase}paperback/game.data?v=1`,
+  `${base}paperback/game.data?v=1`,
 );
 assert.equal(
   remotePaperback.vmContext.Module.locateFile("love.wasm"),
   `${base}love.wasm`,
+);
+assert.ok(
+  remotePaperback.hints.some((hint) => hint.href === `${base}paperback/game.data`),
+  "choosing Paperback must preload its archive",
 );
 
 const hashed = context({ hostname: "localhost", hash: "#vanilla" });

@@ -8,6 +8,9 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no, minimum-scale=1, maximum-scale=1"
     />
     <title>Balatro</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://api.github.com" crossorigin />
+    <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin />
     <link rel="stylesheet" type="text/css" href="theme/love.css" />
     <script>
       var newConsole = (function (oldConsole) {
@@ -435,19 +438,30 @@
           REPOSITORY +
           "/main/runtime.json";
         var FALLBACK_RUNTIME_REF =
-          "27eee9873eb3fe85cba6210f480f80654f87857c";
+          "ef74520f7ee7d1321b21fbff68cb2d5b1b2e81fa";
         var booting = false;
+        var hinted = {};
 
         function immutableBase(ref) {
           return "https://cdn.jsdelivr.net/gh/" + REPOSITORY + "@" + ref + "/";
         }
 
         function githubRawBase(ref) {
-          // jsDelivr 403s files over 20 MB. Paperback's LÖVE archive is over
-          // that cap, so game.data always comes from GitHub raw.
+          // Escape hatch if a future archive exceeds jsDelivr's 20 MB cap.
           return (
             "https://raw.githubusercontent.com/" + REPOSITORY + "/" + ref + "/"
           );
+        }
+
+        function hint(rel, href, as, cors) {
+          if (!href || hinted[rel + ":" + href]) return;
+          hinted[rel + ":" + href] = true;
+          var link = document.createElement("link");
+          link.rel = rel;
+          link.href = href;
+          if (as) link.as = as;
+          if (cors) link.crossOrigin = "anonymous";
+          document.head.appendChild(link);
         }
 
         function localHost() {
@@ -460,6 +474,9 @@
         }
 
         async function readSha(url, json) {
+          if (typeof fetch !== "function") {
+            throw new Error("lookup failed: no fetch");
+          }
           var response = await fetch(url, {
             cache: "no-store",
             headers: json ? { Accept: "application/vnd.github+json" } : {},
@@ -530,6 +547,74 @@
           return mode;
         }
 
+        function bindMode(id, mode) {
+          var button = document.getElementById(id);
+          if (!button) return;
+          button.onclick = function () {
+            start(mode);
+          };
+          button.onmouseenter = function () {
+            prefetchMode(mode);
+          };
+          button.ontouchstart = function () {
+            prefetchMode(mode);
+          };
+        }
+
+        async function warmup() {
+          var runtimeRef = FALLBACK_RUNTIME_REF;
+          var assetBase = "";
+          if (localHost()) {
+            runtimeRef = "local";
+          } else {
+            try {
+              runtimeRef = await resolveRuntimeRef();
+            } catch (error) {
+              console.warn(
+                "[Octopus] latest commit lookup failed; using known-good build",
+                error,
+              );
+            }
+            assetBase = immutableBase(runtimeRef);
+          }
+
+          REMOTE_ASSET_BASE = assetBase;
+          window.__octopusRuntimeRef = runtimeRef;
+          // Shared LÖVE runtime is identical across modes. Pull it while the
+          // picker is still on screen so Play doesn't wait on a 4.7 MB wasm.
+          hint("preload", assetBase + "love.js", "script");
+          hint("preload", assetBase + "love.wasm", "fetch", !!assetBase);
+          hint("preload", assetBase + "vanilla/game.js", "script");
+          hint("preload", assetBase + "paperback/game.js", "script");
+          hint("preload", assetBase + "bunco/game.js", "script");
+          hint("preload", assetBase + "game.js", "script");
+          return { runtimeRef: runtimeRef, assetBase: assetBase };
+        }
+
+        var warmupPromise = warmup();
+
+        function prefetchMode(mode) {
+          mode = canonicalMode(mode);
+          var spec = MODES[mode];
+          if (!spec) return;
+          warmupPromise.then(function (warmed) {
+            var cors = !!warmed.assetBase;
+            hint(
+              "preload",
+              warmed.assetBase + spec.dir + "game.data",
+              "fetch",
+              cors,
+            );
+            if (spec.multiplayer) {
+              hint(
+                "preload",
+                warmed.assetBase + "multiplayer_upstream.js",
+                "script",
+              );
+            }
+          });
+        }
+
         async function start(mode) {
           if (booting) return;
           mode = canonicalMode(mode);
@@ -545,25 +630,12 @@
           if (loading) loading.classList.remove("hidden");
 
           Module.persistenceDatabase = spec.persist;
-
           Module.setStatus("Resolving current build...");
+          prefetchMode(mode);
 
-          var runtimeRef = FALLBACK_RUNTIME_REF;
-          var assetBase = "";
-          if (localHost()) {
-            runtimeRef = "local";
-            assetBase = "";
-          } else {
-            try {
-              runtimeRef = await resolveRuntimeRef();
-            } catch (error) {
-              console.warn(
-                "[Octopus] latest commit lookup failed; using known-good build",
-                error,
-              );
-            }
-            assetBase = immutableBase(runtimeRef);
-          }
+          var warmed = await warmupPromise;
+          var runtimeRef = warmed.runtimeRef;
+          var assetBase = warmed.assetBase;
 
           REMOTE_ASSET_BASE = assetBase;
           window.__octopusRuntimeRef = runtimeRef;
@@ -572,21 +644,21 @@
               spec.dir && String(path).indexOf("game.data") === 0
                 ? spec.dir + path
                 : path;
-            if (REMOTE_ASSET_BASE && String(path).indexOf("game.data") === 0) {
-              return githubRawBase(runtimeRef) + mapped;
-            }
-            return REMOTE_ASSET_BASE + mapped;
+            // Archives stay under jsDelivr's 20 MB cap. Use the CDN for speed;
+            // GitHub raw remains the manual fallback if a pack ever blows it.
+            return assetBase + mapped;
           };
 
           try {
+            var scripts = [];
             if (spec.multiplayer) {
-              await loadScript(
-                REMOTE_ASSET_BASE + "multiplayer_upstream.js",
-                true,
+              scripts.push(
+                loadScript(assetBase + "multiplayer_upstream.js", true),
               );
             }
-            await loadScript(REMOTE_ASSET_BASE + spec.dir + "game.js", false);
-            await loadScript(REMOTE_ASSET_BASE + "love.js", false);
+            scripts.push(loadScript(assetBase + spec.dir + "game.js", false));
+            scripts.push(loadScript(assetBase + "love.js", false));
+            await Promise.all(scripts);
             applicationLoad();
           } catch (error) {
             console.error("[Octopus] runtime boot failed", error);
@@ -595,17 +667,14 @@
           }
         }
 
-        window.OctopusLaunch = { start: start };
+        window.OctopusLaunch = { start: start, prefetch: prefetchMode };
+        window.__octopusGithubRawBase = githubRawBase;
 
         function bindPicker() {
-          var vanilla = document.getElementById("mode-vanilla");
-          var paperback = document.getElementById("mode-paperback");
-          var bunco = document.getElementById("mode-bunco");
-          var multiplayer = document.getElementById("mode-multiplayer");
-          if (vanilla) vanilla.onclick = function () { start("vanilla"); };
-          if (paperback) paperback.onclick = function () { start("paperback"); };
-          if (bunco) bunco.onclick = function () { start("bunco"); };
-          if (multiplayer) multiplayer.onclick = function () { start("multiplayer"); };
+          bindMode("mode-vanilla", "vanilla");
+          bindMode("mode-paperback", "paperback");
+          bindMode("mode-bunco", "bunco");
+          bindMode("mode-multiplayer", "multiplayer");
           var hash =
             typeof location !== "undefined"
               ? String(location.hash || "").replace(/^#/, "")
