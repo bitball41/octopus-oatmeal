@@ -1,5 +1,8 @@
 """Narrow source adaptations for the pinned browser/Lua 5.1 platform."""
+import io
 import re
+
+from PIL import Image
 
 
 def once(text, old, new, label):
@@ -44,18 +47,18 @@ MP.ACTIONS.connect()
 
     def smods_shader(text):
         # love.js aborts the whole window if newShader throws. Keep boot
-        # alive and skip the broken program (Bunco headache/pinch on WebGL 1).
-        if flavor == 'bunco':
-            # Bunco's edition shaders use GLSL 3 array constructors and float
-            # loops. Do not compile them; reuse a stock program so inject cannot abort.
+        # alive and skip the broken program (Bunco headache/pinch on WebGL 1,
+        # Pokermon shiny.fs float-loop).
+        skip_mod = {'bunco': 'Bunco', 'pokermon': 'Pokermon'}.get(flavor)
+        if skip_mod:
             text = once(text,
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
-                        '            if self.full_path and self.full_path:find("Bunco", 1, true) then\n'
+                        '            if self.full_path and self.full_path:find("' + skip_mod + '", 1, true) then\n'
                         '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
                         '                return\n'
                         '            end\n'
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
-                        'skip Bunco WebGL shaders')
+                        f'skip {skip_mod} WebGL shaders')
         return once(text,
                     '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
                     '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
@@ -228,6 +231,119 @@ MP.ACTIONS.connect()
             extra, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', extra, count=1)
             assert n == 1, f'{name} dummy uv.x * 2 missing'
             files[name] = extra.encode()
+
+    if flavor == 'pokermon':
+        meta = files['Mods/Pokermon/Pokermon.json'].decode()
+        meta, n = re.subn(
+            r'Steamodded \(>=1\.0\.0~BETA-1814a\)',
+            'Steamodded (>=1.0.0~BETA-1620a)',
+            meta,
+            count=1,
+        )
+        assert n == 1, 'Pokermon Steamodded dependency missing'
+        files['Mods/Pokermon/Pokermon.json'] = meta.encode()
+        cfg = files['Mods/Pokermon/config.lua'].decode()
+        cfg, n = re.subn(
+            r'\["poke_enable_animations"\]=true',
+            '["poke_enable_animations"]=false',
+            cfg,
+            count=1,
+        )
+        assert n == 1, 'Pokermon poke_enable_animations default missing'
+        cfg, n = re.subn(
+            r'\["pokemon_splash"\]=true',
+            '["pokemon_splash"]=false',
+            cfg,
+            count=1,
+        )
+        assert n == 1, 'Pokermon pokemon_splash default missing'
+        files['Mods/Pokermon/config.lua'] = cfg.encode()
+        # love.js PNG inflate dies on 2x Natdex (4260x13110) and 36-frame Unown
+        # strips (20880 wide). Ship 1x only, skip those sheets, and rewrite
+        # palette PNGs so the wasm decoder does not abort before love.load.
+        for name in list(files):
+            rel = name.replace('\\', '/')
+            if not rel.startswith('Mods/Pokermon/'):
+                continue
+            if '/assets/2x/' in rel:
+                del files[name]
+                continue
+            if rel.endswith('.png') and 'Natdex' in rel:
+                del files[name]
+        placeholder = Image.new('RGBA', (290, 285), (0, 0, 0, 0))
+        unown_buf = io.BytesIO()
+        placeholder.save(unown_buf, format='PNG')
+        unown_png = unown_buf.getvalue()
+        for key in (
+            'j_poke_unown_swarm',
+            'j_poke_unown_swarm_shiny',
+            'j_poke_unown_swarm_soul',
+            'j_poke_unown_swarm_shiny_soul',
+        ):
+            files[f'Mods/Pokermon/assets/1x/{key}.png'] = unown_png
+        for name, data in list(files.items()):
+            rel = name.replace('\\', '/')
+            if not rel.startswith('Mods/Pokermon/') or not rel.endswith('.png'):
+                continue
+            image = Image.open(io.BytesIO(data))
+            if image.mode == 'RGBA':
+                continue
+            converted = image.convert('RGBA')
+            buf = io.BytesIO()
+            converted.save(buf, format='PNG')
+            files[name] = buf.getvalue()
+
+        def sprites(text):
+            text = once(
+                text,
+                '--Load all Atlas\n',
+                '--Load all Atlas\n'
+                'if G and G.SETTINGS and G.SETTINGS.GRAPHICS then\n'
+                '  G.SETTINGS.GRAPHICS.texture_scaling = 1\n'
+                'end\n',
+                'force Pokermon 1x textures',
+            )
+            text = once(
+                text,
+                'local joker_basic_atlases = {"Gen01", "Gen02", "Gen03", "Gen04", "Gen05", "Gen06", "Gen07", "Gen08", "Gen09", "Natdex", "Others"}',
+                'local joker_basic_atlases = {"Gen01", "Gen02", "Gen03", "Gen04", "Gen05", "Gen06", "Gen07", "Gen08", "Gen09", "Others"}',
+                'skip Natdex atlas registration',
+            )
+            text = once(
+                text,
+                'SMODS.Atlas({\n'
+                '    key = "AtlasJokersSeriesBNatdex",\n'
+                '    path = "Series B/AtlasJokersSeriesBNatdex.png",\n'
+                '    px = 71,\n'
+                '    py = 95\n'
+                '})\n'
+                '\n'
+                'SMODS.Atlas({\n'
+                '    key = "AtlasJokersSeriesBNatdexShiny",\n'
+                '    path = "Series B/AtlasJokersSeriesBNatdexShiny.png",\n'
+                '    px = 71,\n'
+                '    py = 95\n'
+                '})\n',
+                '-- Series B Natdex sheets exceed WebGL texture limits.\n',
+                'skip Series B Natdex atlases',
+            )
+            text, n = re.subn(
+                r'px = 290,\n    py = 285,\n    atlas_table = \'ANIMATION_ATLAS\',\n    frames = 36,',
+                "px = 290,\n    py = 285,\n    atlas_table = 'ANIMATION_ATLAS',\n    frames = 1,",
+                text,
+            )
+            assert n == 4, 'Pokermon Unown swarm atlas frames missing'
+            return text
+        edit('Mods/Pokermon/pokesprites.lua', sprites)
+        utils = files['Mods/Steamodded/src/utils.lua'].decode()
+        utils, n = re.subn(
+            r'text_col = part\.control\.V and args\.vars\.colours\[tonumber\(part\.control\.V\)\]',
+            'text_col = part.control.V and args.vars.colours and args.vars.colours[tonumber(part.control.V)]',
+            utils,
+            count=1,
+        )
+        assert n == 1, 'Pokermon V-colour tooltip guard site missing'
+        files['Mods/Steamodded/src/utils.lua'] = utils.encode()
 
     if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()

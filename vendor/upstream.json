@@ -23,6 +23,12 @@
     "archive": "Bunco.zip",
     "sha256": "6fd3293325ac7b87200d2b4e2d0a22d5e18e2e7f5ae3b7851f1a01572a3068ee"
   },
+  "Pokermon": {
+    "url": "https://github.com/InertSteak/Pokermon",
+    "commit": "2f462f609c271d5b2f2be0e8ba9d0b73b4ed8b71",
+    "archive": "Pokermon.zip",
+    "sha256": "88bbc492c8ed315af397b075ce8b7572c65ee7584cb8b9b04ece38f7ace0bde9"
+  },
   "MultiplayerServer": {
     "url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI-Server",
     "commit": "d664c29523b827d53dfa1a181e5b2baf1aefac4f",

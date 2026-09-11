@@ -27,6 +27,9 @@ ANCHORS = {
     ('Bunco','lovely.toml',112): 'SMODS.calculate_context({open_booster = true, card = self, booster = booster_obj})',
     ('Bunco','lovely.toml',122): 'G.GAME.pack_choices = math.min((self.ability.choose or self.config.center.config.choose or 1) + (G.GAME.modifiers.booster_choice_mod or 0), self.ability.extra and math.max(1, self.ability.extra + (G.GAME.modifiers.booster_size_mod or 0)) or self.config.center.extra and math.max(1, self.config.center.extra + (G.GAME.modifiers.booster_size_mod or 0)) or 1)',
     ('Bunco','lovely.toml',159): 'if G.GAME.blind and G.GAME.blind.in_blind and not self.from_quantum then G.E_MANAGER:add_event(Event({ func = function() G.GAME.blind:set_blind(nil, true, nil); return true end })) end',
+    ('Pokermon','lovely/controller_support.toml',3): "focus_args = {button = args.type == 'sell' and 'leftshoulder' or args.type == 'buy_and_use' and 'leftshoulder' or 'rightshoulder', scale = 0.55, orientation = args.type == 'sell' and 'tli' or 'tri', offset = {x = args.type == 'sell' and 0.1 or -0.1, y = 0}, type = 'none'},",
+    ('Pokermon','lovely/controller_support.toml',4): "offset = {x=(args.type == 'sell' and -1 or 1)*((args.card_width or 0) - 0.17 - args.card.T.w/2),y=args.type == 'buy_and_use' and 0.6 or (args.buy_and_use) and -0.6 or 0},",
+    ('Pokermon','lovely/poke_utils.toml',12): "function get_flush(hand)\n  local ret = {}\n  local four_fingers = SMODS.four_fingers('flush')",
 }
 
 SKIPS = {}
@@ -47,6 +50,8 @@ skip('Paperback','perma_odds',[4], 'This Steamodded build keeps perma_h_dollars 
 SKIPS[('Bunco','lovely.toml',10)] = 'Steamodded moved the DESCSCALE tooltip assembler into src/utils.lua; the desktop localize hook is gone.'
 SKIPS[('Bunco','lovely.toml',152)] = 'ease_dollars lives in common_events.lua on this Steamodded build; Bunco already patches that copy (index 151).'
 SKIPS[('Bunco','lovely.toml',154)] = 'The browser card back sprite is already created behind if not self.children.back then.'
+SKIPS[('Pokermon','lovely/poke_utils.toml',9)] = 'Steamodded moved the V-colour tooltip assembler into src/utils.lua; the desktop misc_functions.lua path is gone.'
+SKIPS[('Pokermon','lovely/poke_utils.toml',14)] = 'Steamodded already skips pack_choices deduction unless the card comes from G.pack_cards; joker-area consumables are covered.'
 
 
 def adapt_patch(mod, name, index, patch, source):
@@ -111,5 +116,19 @@ def adapt_patch(mod, name, index, patch, source):
         patch['payload'] = (
             'ease_to = G.GAME.chips + math.floor( SMODS.calculate_round_score() ) '
             '* (antiscore and -1 or 1),'
+        )
+    if key==('Pokermon','lovely/controller_support.toml',3):
+        # Browser card_focus_button has no focus_button / orientation / x_offset args.
+        patch['payload'] = (
+            "focus_args = {button = args.type == 'sell' and 'leftshoulder' or args.type == 'buy_and_use' "
+            "and 'leftshoulder' or args.type == 'poke_reserve' and 'leftshoulder' or 'rightshoulder', "
+            "scale = 0.55, orientation = args.type == 'sell' and 'tli' or 'tri', "
+            "offset = {x = args.type == 'sell' and 0.1 or -0.1, y = 0}, type = 'none'},"
+        )
+    if key==('Pokermon','lovely/controller_support.toml',4):
+        patch['payload'] = (
+            "offset = {x=(args.type == 'sell' and -1 or 1)*((args.card_width or 0) - 0.17 - args.card.T.w/2),"
+            "y=args.type == 'buy_and_use' and 0.6 or (args.buy_and_use) and -0.6 or "
+            "args.type == 'poke_reserve' and 0.6 or (args.poke_reserve_and_use) and -0.6 or 0},"
         )
     return patch, SKIPS.get(key)

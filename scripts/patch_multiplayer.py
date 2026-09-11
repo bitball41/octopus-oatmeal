@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import re
 import sys
 import uuid
@@ -268,7 +269,7 @@ def rebuild_archive() -> bytes:
     return out.getvalue()
 
 
-def patch_game_js(blob: bytes, template: str | None = None) -> str:
+def patch_game_js(blob: bytes, template: str | None = None, parts: list[str] | None = None) -> str:
     size = len(blob)
     digest = hashlib.sha256(blob).hexdigest()
     package_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"octopus-oatmeal:{digest}"))
@@ -283,6 +284,15 @@ def patch_game_js(blob: bytes, template: str | None = None) -> str:
     )
     if count != 1:
         fail("Could not update game.data cache tag in game.js")
+
+    text, count = re.subn(
+        r'var SPLIT_PACKAGE_PARTS = \[[^\]]*\];',
+        'var SPLIT_PACKAGE_PARTS = ' + json.dumps(parts or []) + ';',
+        text,
+        count=1,
+    )
+    if count != 1:
+        fail("Could not update SPLIT_PACKAGE_PARTS in game.js")
 
     text, count = re.subn(
         r'package_uuid:\s*"[^"]+"',
