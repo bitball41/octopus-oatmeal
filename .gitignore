@@ -2,3 +2,4 @@ node_modules/
 build/
 __pycache__/
 browser/upstream-server.js
+pokermon/game.data

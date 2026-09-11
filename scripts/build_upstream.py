@@ -20,6 +20,9 @@ from browser_adapters import adapt_sources
 from patch_compatibility import adapt_patch
 from patch_multiplayer import patch_game_js
 
+JSDELIVR_LIMIT = 20 * 1024 * 1024
+PART_SIZE = 18 * 1024 * 1024
+
 ROOT = Path(__file__).resolve().parents[1]
 BASE_COMMIT = "83b8a60f09cb833475e825a27c48b1acdc872ba7"
 BASE_SHA256 = "aa20c806941b7d3eadd225f7ff8e1f2dd0ba48f98154cbad3ee191a375eecef8"
@@ -36,11 +39,15 @@ PAPERBACK_SKIP = {
 BUNCO_SKIP = {
     'browser/menu.lua',
 }
+POKERMON_SKIP = {
+    'browser/menu.lua',
+}
 MOD_FOLDERS = {
     'Steamodded': 'Steamodded',
     'Multiplayer': 'Multiplayer',
     'Paperback': 'paperback',
     'Bunco': 'Bunco',
+    'Pokermon': 'Pokermon',
 }
 
 
@@ -143,7 +150,7 @@ def patch_regex(text, patch):
 
 
 def keep_packed_file(name):
-    """Drop desktop-only junk so Paperback stays under jsDelivr's 20 MB cap."""
+    """Drop desktop-only junk so single-file packs stay under jsDelivr's 20 MB cap."""
     rel = name.replace('\\', '/')
     base = rel.rsplit('/', 1)[-1]
     if base in {'.DS_Store', '.gitignore'} or base.startswith('._'):
@@ -180,16 +187,40 @@ def vanilla_base():
     return unpack(blob)
 
 
+def write_parts(blob, dest_dir):
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    parts = []
+    for i, start in enumerate(range(0, len(blob), PART_SIZE)):
+        chunk = blob[start:start + PART_SIZE]
+        name = f'game.data.part{i}'
+        if len(chunk) > JSDELIVR_LIMIT:
+            raise RuntimeError(f'{dest_dir/name} is {len(chunk)} bytes; jsDelivr 403s files over 20 MB')
+        (dest_dir / name).write_bytes(chunk)
+        parts.append(name)
+    (dest_dir / 'parts.json').write_text(json.dumps(parts) + '\n')
+    return parts
+
+
 def emit_archive(files, dest_dir, template_js, release_dir=None):
     dest_dir.mkdir(parents=True, exist_ok=True)
     blob = write_love_archive(files, dest_dir/'game.data')
-    js = patch_game_js(blob, template_js)
+    parts = []
+    if len(blob) > JSDELIVR_LIMIT:
+        parts = write_parts(blob, dest_dir)
+        (dest_dir/'game.data').unlink()
+        if release_dir is not None:
+            write_parts(blob, release_dir)
+            full = release_dir/'game.data'
+            if full.exists():
+                full.unlink()
+    js = patch_game_js(blob, template_js, parts=parts)
     (dest_dir/'game.js').write_text(js, encoding='utf-8')
     if release_dir is not None:
         release_dir.mkdir(parents=True, exist_ok=True)
-        (release_dir/'game.data').write_bytes(blob)
+        if not parts:
+            (release_dir/'game.data').write_bytes(blob)
         (release_dir/'game.js').write_text(js, encoding='utf-8')
-    print(dest_dir/'game.data')
+    print(dest_dir/'game.data' if not parts else dest_dir/'parts.json')
     return blob, js
 
 
@@ -216,7 +247,11 @@ def apply_lovely(files, mods, lock):
             packed = prefix + name
             if not keep_packed_file(packed):
                 continue
-            files[packed] = data.replace(b'\r\n', b'\n') if name.endswith('.lua') else data
+            if name.endswith('.lua'):
+                data = data.replace(b'\r\n', b'\n')
+                if data.startswith(b'\xef\xbb\xbf'):
+                    data = data[3:]
+            files[packed] = data
             if name.endswith('.toml') and (name == 'lovely.toml' or name.startswith('lovely/')):
                 manifest = tomllib.loads(data.decode())
                 manifests.append((manifest['manifest'].get('priority', 0), mod, name, manifest, folder))
@@ -333,12 +368,17 @@ def build(candidate=False, release=False):
     summarize_report(bunco_report, 'bunco', 'patch-report-bunco.json', candidate)
     emit_archive(bunco_files, out/'bunco', template_js, ROOT/'bunco' if release else None)
 
+    poke_files, poke_report = build_smods_pack(['Steamodded', 'Pokermon'], 'pokermon', POKERMON_SKIP, lock)
+    summarize_report(poke_report, 'pokermon', 'patch-report-pokermon.json', candidate)
+    emit_archive(poke_files, out/'pokermon', template_js, ROOT/'pokermon' if release else None)
+
     build_vanilla(template_js, release=release)
     if release:
         print(ROOT/'game.data')
         print(ROOT/'vanilla'/'game.data')
         print(ROOT/'paperback'/'game.data')
         print(ROOT/'bunco'/'game.data')
+        print(ROOT/'pokermon'/'parts.json')
     else:
         print(out/'game.data')
 

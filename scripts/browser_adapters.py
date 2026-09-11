@@ -44,18 +44,18 @@ MP.ACTIONS.connect()
 
     def smods_shader(text):
         # love.js aborts the whole window if newShader throws. Keep boot
-        # alive and skip the broken program (Bunco headache/pinch on WebGL 1).
-        if flavor == 'bunco':
-            # Bunco's edition shaders use GLSL 3 array constructors and float
-            # loops. Do not compile them; reuse a stock program so inject cannot abort.
+        # alive and skip the broken program (Bunco headache/pinch on WebGL 1,
+        # Pokermon shiny.fs float-loop).
+        skip_mod = {'bunco': 'Bunco', 'pokermon': 'Pokermon'}.get(flavor)
+        if skip_mod:
             text = once(text,
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
-                        '            if self.full_path and self.full_path:find("Bunco", 1, true) then\n'
+                        '            if self.full_path and self.full_path:find("' + skip_mod + '", 1, true) then\n'
                         '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
                         '                return\n'
                         '            end\n'
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
-                        'skip Bunco WebGL shaders')
+                        f'skip {skip_mod} WebGL shaders')
         return once(text,
                     '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
                     '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
@@ -228,6 +228,42 @@ MP.ACTIONS.connect()
             extra, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', extra, count=1)
             assert n == 1, f'{name} dummy uv.x * 2 missing'
             files[name] = extra.encode()
+
+    if flavor == 'pokermon':
+        meta = files['Mods/Pokermon/Pokermon.json'].decode()
+        meta, n = re.subn(
+            r'Steamodded \(>=1\.0\.0~BETA-1814a\)',
+            'Steamodded (>=1.0.0~BETA-1620a)',
+            meta,
+            count=1,
+        )
+        assert n == 1, 'Pokermon Steamodded dependency missing'
+        files['Mods/Pokermon/Pokermon.json'] = meta.encode()
+        cfg = files['Mods/Pokermon/config.lua'].decode()
+        cfg, n = re.subn(
+            r'\["poke_enable_animations"\]=true',
+            '["poke_enable_animations"]=false',
+            cfg,
+            count=1,
+        )
+        assert n == 1, 'Pokermon poke_enable_animations default missing'
+        cfg, n = re.subn(
+            r'\["pokemon_splash"\]=true',
+            '["pokemon_splash"]=false',
+            cfg,
+            count=1,
+        )
+        assert n == 1, 'Pokermon pokemon_splash default missing'
+        files['Mods/Pokermon/config.lua'] = cfg.encode()
+        utils = files['Mods/Steamodded/src/utils.lua'].decode()
+        utils, n = re.subn(
+            r'text_col = part\.control\.V and args\.vars\.colours\[tonumber\(part\.control\.V\)\]',
+            'text_col = part.control.V and args.vars.colours and args.vars.colours[tonumber(part.control.V)]',
+            utils,
+            count=1,
+        )
+        assert n == 1, 'Pokermon V-colour tooltip guard site missing'
+        files['Mods/Steamodded/src/utils.lua'] = utils.encode()
 
     if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()

@@ -214,6 +214,10 @@
         background: #d97706; color: #fff; text-transform: none;
         letter-spacing: 0.03em; min-width: 240px;
       }
+      #mode-pokermon {
+        background: #ed533a; color: #fff; text-transform: none;
+        letter-spacing: 0.03em; min-width: 240px;
+      }
       #mode-multiplayer { background: #8b5cf6; color: #fff; }
     </style>
   </head>
@@ -233,8 +237,8 @@
       <div id="mode-overlay">
         <h1>Balatro</h1>
         <p>
-          Vanilla is the stock game plus cheats. Paperback and Bunco are
-          vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
+          Vanilla is the stock game plus cheats. Paperback, Bunco, and Pokermon
+          are vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
           Each mode keeps a completely separate save.
         </p>
         <div class="mode-row">
@@ -244,6 +248,9 @@
           </button>
           <button id="mode-bunco" type="button">
             Bunco (a vanilla+ mod)
+          </button>
+          <button id="mode-pokermon" type="button">
+            Pokermon (a vanilla+ mod)
           </button>
           <button id="mode-multiplayer" type="button">multiplayer mod</button>
         </div>
@@ -415,6 +422,18 @@
             dir: "bunco/",
             multiplayer: false,
           },
+          pokermon: {
+            persist: "/home/web_user/love-pokermon",
+            dir: "pokermon/",
+            multiplayer: false,
+            memory: 536870912,
+            parts: [
+              "game.data.part0",
+              "game.data.part1",
+              "game.data.part2",
+              "game.data.part3",
+            ],
+          },
           multiplayer: {
             persist: "/home/web_user/love",
             dir: "",
@@ -429,7 +448,11 @@
           mode = canonicalMode(mode);
           var spec = MODES[mode];
           if (!spec) return;
-          hint("preload", spec.dir + "game.data", "fetch");
+          var archives =
+            spec.parts && spec.parts.length ? spec.parts : ["game.data"];
+          archives.forEach(function (name) {
+            hint("preload", spec.dir + name, "fetch");
+          });
           if (spec.multiplayer) hint("preload", "multiplayer_upstream.js", "script");
         }
         async function start(mode) {
@@ -442,6 +465,7 @@
           document.getElementById("mode-overlay").classList.add("hidden");
           document.getElementById("loading-overlay").classList.remove("hidden");
           Module.persistenceDatabase = spec.persist;
+          if (spec.memory) Module.INITIAL_MEMORY = spec.memory;
           prefetchMode(mode);
           Module.locateFile = function (path) {
             return spec.dir && String(path).indexOf("game.data") === 0
@@ -479,8 +503,9 @@
         hint("preload", "vanilla/game.js", "script");
         hint("preload", "paperback/game.js", "script");
         hint("preload", "bunco/game.js", "script");
+        hint("preload", "pokermon/game.js", "script");
         hint("preload", "game.js", "script");
-        ["vanilla", "paperback", "bunco", "multiplayer"].forEach(function (mode) {
+        ["vanilla", "paperback", "bunco", "pokermon", "multiplayer"].forEach(function (mode) {
           var button = document.getElementById("mode-" + mode);
           if (!button) return;
           button.onclick = function () {

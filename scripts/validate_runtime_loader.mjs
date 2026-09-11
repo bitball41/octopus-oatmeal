@@ -13,9 +13,11 @@ assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker")
 assert.match(html, /id="mode-vanilla"/);
 assert.match(html, /id="mode-paperback"/);
 assert.match(html, /id="mode-bunco"/);
+assert.match(html, /id="mode-pokermon"/);
 assert.match(html, /id="mode-multiplayer"/);
 assert.match(html, /Paperback \(a vanilla\+ mod\)/);
 assert.match(html, /Bunco \(a vanilla\+ mod\)/);
+assert.match(html, /Pokermon \(a vanilla\+ mod\)/);
 assert.match(html, /multiplayer mod/);
 assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
@@ -50,6 +52,7 @@ function context({ hostname, hash, fetchImpl }) {
     "mode-vanilla": overlay(),
     "mode-paperback": overlay(),
     "mode-bunco": overlay(),
+    "mode-pokermon": overlay(),
     "mode-multiplayer": overlay(),
   };
   const vmContext = {
@@ -117,7 +120,7 @@ await flush();
 assert.equal(local.state.started, 0, "picker must not boot until a mode is chosen");
 assert.deepEqual(
   local.hints.map(({ href }) => href).sort(),
-  ["bunco/game.js", "game.js", "love.js", "paperback/game.js", "vanilla/game.js"],
+  ["bunco/game.js", "game.js", "love.js", "paperback/game.js", "pokermon/game.js", "vanilla/game.js"],
 );
 await local.vmContext.OctopusLaunch.start("vanilla");
 await flush();
@@ -203,6 +206,42 @@ assert.equal(
 );
 assert.equal(localBunco.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 
+const localPokermon = context({ hostname: "localhost" });
+await localPokermon.vmContext.OctopusLaunch.start("pokermon");
+await flush();
+assert.deepEqual(
+  localPokermon.loaded.map(({ src }) => src),
+  ["pokermon/game.js", "love.js"],
+);
+assert.equal(localPokermon.vmContext.__octopusMode, "pokermon");
+assert.equal(
+  localPokermon.vmContext.Module.persistenceDatabase,
+  "/home/web_user/love-pokermon",
+);
+assert.equal(localPokermon.vmContext.Module.INITIAL_MEMORY, 536870912);
+assert.equal(
+  localPokermon.vmContext.Module.locateFile("game.data?v=1"),
+  "pokermon/game.data?v=1",
+);
+assert.equal(localPokermon.vmContext.Module.locateFile("love.wasm"), "love.wasm");
+localPokermon.vmContext.OctopusLaunch.prefetch("pokermon");
+await flush();
+for (const part of [
+  "pokermon/game.data.part0",
+  "pokermon/game.data.part1",
+  "pokermon/game.data.part2",
+  "pokermon/game.data.part3",
+]) {
+  assert.ok(
+    localPokermon.hints.some((hint) => hint.href === part && hint.as === "fetch"),
+    "hover/prefetch must start Pokermon archive part " + part,
+  );
+}
+assert.ok(
+  !localPokermon.hints.some((hint) => hint.href === "pokermon/game.data"),
+  "Pokermon must not prefetch an unsplit game.data (jsDelivr 20 MB cap)",
+);
+
 const resolvedRef = "a".repeat(40);
 const remote = context({
   hostname: "cdn.example",
@@ -280,6 +319,11 @@ const hashedBunco = context({ hostname: "localhost", hash: "#bunco" });
 await flush();
 assert.equal(hashedBunco.vmContext.__octopusMode, "bunco");
 assert.equal(hashedBunco.state.started, 1);
+
+const hashedPokermon = context({ hostname: "localhost", hash: "#pokermon" });
+await flush();
+assert.equal(hashedPokermon.vmContext.__octopusMode, "pokermon");
+assert.equal(hashedPokermon.state.started, 1);
 
 const hashedAlias = context({ hostname: "localhost", hash: "#modded" });
 await flush();

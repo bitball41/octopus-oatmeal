@@ -48,40 +48,32 @@ Module.expectedDataFileDownloads++;
 
     var REMOTE_PACKAGE_SIZE = metadata.remote_package_size;
     var PACKAGE_UUID = metadata.package_uuid;
+    // jsDelivr 403s any single file over 20 MB. Fat archives ship as
+    // game.data.part0, part1, ... and get concatenated before processPackageData.
+    var SPLIT_PACKAGE_PARTS = [];
 
     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", packageName, true);
-      xhr.responseType = "arraybuffer";
-      xhr.onprogress = function (event) {
-        var url = packageName;
-        var size = packageSize;
-        if (event.total) size = event.total;
-        if (event.loaded) {
-          if (!xhr.addedTotal) {
-            xhr.addedTotal = true;
-            if (!Module.dataFileDownloads) Module.dataFileDownloads = {};
-            Module.dataFileDownloads[url] = {
-              loaded: event.loaded,
-              total: size,
-            };
-          } else {
-            Module.dataFileDownloads[url].loaded = event.loaded;
-          }
+      function applyProgress(url, loaded, size) {
+        if (loaded) {
+          if (!Module.dataFileDownloads) Module.dataFileDownloads = {};
+          Module.dataFileDownloads[url] = {
+            loaded: loaded,
+            total: size,
+          };
           var total = 0;
-          var loaded = 0;
+          var downloaded = 0;
           var num = 0;
           for (var download in Module.dataFileDownloads) {
             var data = Module.dataFileDownloads[download];
             total += data.total;
-            loaded += data.loaded;
+            downloaded += data.loaded;
             num++;
           }
           total = Math.ceil((total * Module.expectedDataFileDownloads) / num);
           if (Module["setStatus"])
             Module["setStatus"](
               "Downloading data... (" +
-                Math.floor(loaded / 1024 / 1024) +
+                Math.floor(downloaded / 1024 / 1024) +
                 "/" +
                 Math.floor(total / 1024 / 1024) +
                 "M)",
@@ -89,25 +81,70 @@ Module.expectedDataFileDownloads++;
         } else if (!Module.dataFileDownloads) {
           if (Module["setStatus"]) Module["setStatus"]("Downloading data...");
         }
-      };
-      xhr.onerror = function (event) {
-        throw new Error("NetworkError for: " + packageName);
-      };
-      xhr.onload = function (event) {
-        if (
-          xhr.status == 200 ||
-          xhr.status == 304 ||
-          xhr.status == 206 ||
-          (xhr.status == 0 && xhr.response)
-        ) {
-          // file URLs can return 0
-          var packageData = xhr.response;
-          callback(packageData);
-        } else {
-          throw new Error(xhr.statusText + " : " + xhr.responseURL);
+      }
+
+      function xhrOne(url, expectedSize, onload) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.responseType = "arraybuffer";
+        xhr.onprogress = function (event) {
+          var size = expectedSize;
+          if (event.total) size = event.total;
+          applyProgress(url, event.loaded, size);
+        };
+        xhr.onerror = function (event) {
+          throw new Error("NetworkError for: " + url);
+        };
+        xhr.onload = function (event) {
+          if (
+            xhr.status == 200 ||
+            xhr.status == 304 ||
+            xhr.status == 206 ||
+            (xhr.status == 0 && xhr.response)
+          ) {
+            // file URLs can return 0
+            onload(xhr.response);
+          } else {
+            throw new Error(xhr.statusText + " : " + xhr.responseURL);
+          }
+        };
+        xhr.send(null);
+      }
+
+      var parts = SPLIT_PACKAGE_PARTS;
+      if (parts && parts.length) {
+        var query = packageName.indexOf("?");
+        var suffix = query >= 0 ? packageName.slice(query) : "";
+        var path = query >= 0 ? packageName.slice(0, query) : packageName;
+        var slash = path.lastIndexOf("/");
+        var dir = slash >= 0 ? path.slice(0, slash + 1) : "";
+        var expected = Math.ceil(packageSize / parts.length);
+        var buffers = new Array(parts.length);
+        var remaining = parts.length;
+        for (var i = 0; i < parts.length; i++) {
+          (function (index) {
+            xhrOne(dir + parts[index] + suffix, expected, function (buffer) {
+              buffers[index] = buffer;
+              remaining--;
+              if (remaining) return;
+              var totalBytes = 0;
+              for (var j = 0; j < buffers.length; j++) {
+                totalBytes += buffers[j].byteLength;
+              }
+              var out = new Uint8Array(totalBytes);
+              var offset = 0;
+              for (var k = 0; k < buffers.length; k++) {
+                out.set(new Uint8Array(buffers[k]), offset);
+                offset += buffers[k].byteLength;
+              }
+              callback(out.buffer);
+            });
+          })(i);
         }
-      };
-      xhr.send(null);
+        return;
+      }
+
+      xhrOne(packageName, packageSize, callback);
     }
 
     function handleError(error) {

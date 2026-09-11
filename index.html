@@ -256,6 +256,14 @@
         min-width: 240px;
       }
 
+      #mode-pokermon {
+        background: #ed533a;
+        color: #fff;
+        text-transform: none;
+        letter-spacing: 0.03em;
+        min-width: 240px;
+      }
+
       #mode-multiplayer {
         background: #8b5cf6;
         color: #fff;
@@ -278,8 +286,8 @@
       <div id="mode-overlay">
         <h1>Balatro</h1>
         <p>
-          Vanilla is the stock game plus cheats. Paperback and Bunco are
-          vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
+          Vanilla is the stock game plus cheats. Paperback, Bunco, and Pokermon
+          are vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
           Each mode keeps a completely separate save.
         </p>
         <div class="mode-row">
@@ -289,6 +297,9 @@
           </button>
           <button id="mode-bunco" type="button">
             Bunco (a vanilla+ mod)
+          </button>
+          <button id="mode-pokermon" type="button">
+            Pokermon (a vanilla+ mod)
           </button>
           <button id="mode-multiplayer" type="button">multiplayer mod</button>
         </div>
@@ -535,6 +546,18 @@
             dir: "bunco/",
             multiplayer: false,
           },
+          pokermon: {
+            persist: "/home/web_user/love-pokermon",
+            dir: "pokermon/",
+            multiplayer: false,
+            memory: 536870912,
+            parts: [
+              "game.data.part0",
+              "game.data.part1",
+              "game.data.part2",
+              "game.data.part3",
+            ],
+          },
           multiplayer: {
             persist: "/home/web_user/love",
             dir: "",
@@ -604,6 +627,7 @@
           hint("preload", assetBase + "vanilla/game.js", "script");
           hint("preload", assetBase + "paperback/game.js", "script");
           hint("preload", assetBase + "bunco/game.js", "script");
+          hint("preload", assetBase + "pokermon/game.js", "script");
           hint("preload", assetBase + "game.js", "script");
           return { runtimeRef: runtimeRef, assetBase: assetBase };
         }
@@ -616,12 +640,18 @@
           if (!spec) return;
           warmupPromise.then(function (warmed) {
             var cors = !!warmed.assetBase;
-            hint(
-              "preload",
-              warmed.assetBase + spec.dir + "game.data",
-              "fetch",
-              cors,
-            );
+            var archives =
+              spec.parts && spec.parts.length
+                ? spec.parts
+                : ["game.data"];
+            archives.forEach(function (name) {
+              hint(
+                "preload",
+                warmed.assetBase + spec.dir + name,
+                "fetch",
+                cors,
+              );
+            });
             if (spec.multiplayer) {
               hint(
                 "preload",
@@ -647,6 +677,7 @@
           if (loading) loading.classList.remove("hidden");
 
           Module.persistenceDatabase = spec.persist;
+          if (spec.memory) Module.INITIAL_MEMORY = spec.memory;
           Module.setStatus("Resolving current build...");
           prefetchMode(mode);
 
@@ -691,6 +722,7 @@
           bindMode("mode-vanilla", "vanilla");
           bindMode("mode-paperback", "paperback");
           bindMode("mode-bunco", "bunco");
+          bindMode("mode-pokermon", "pokermon");
           bindMode("mode-multiplayer", "multiplayer");
           var hash =
             typeof location !== "undefined"
