@@ -30,6 +30,14 @@ VANILLA_SKIP = {
     'browser/platform.lua',
     'browser/nativefs.lua',
 }
+PAPERBACK_SKIP = {
+    'browser/menu.lua',
+}
+MOD_FOLDERS = {
+    'Steamodded': 'Steamodded',
+    'Multiplayer': 'Multiplayer',
+    'Paperback': 'paperback',
+}
 
 
 def unpack(data):
@@ -153,40 +161,43 @@ def vanilla_base():
     return unpack(blob)
 
 
+def emit_archive(files, dest_dir, template_js, release_dir=None):
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    blob = write_love_archive(files, dest_dir/'game.data')
+    js = patch_game_js(blob, template_js)
+    (dest_dir/'game.js').write_text(js, encoding='utf-8')
+    if release_dir is not None:
+        release_dir.mkdir(parents=True, exist_ok=True)
+        (release_dir/'game.data').write_bytes(blob)
+        (release_dir/'game.js').write_text(js, encoding='utf-8')
+    print(dest_dir/'game.data')
+    return blob, js
+
+
 def build_vanilla(template_js, release=False):
     files = vanilla_base()
     from browser_features import apply as apply_features
     apply_features(files, vanilla=True)
     pack_browser_lua(files, VANILLA_SKIP)
     files['main.lua'] = b'require "browser.vanilla"\n' + files['main.lua']
-    out = ROOT/'build'/'vanilla'
-    blob = write_love_archive(files, out/'game.data')
-    js = patch_game_js(blob, template_js)
-    (out/'game.js').write_text(js, encoding='utf-8')
-    if release:
-        dest = ROOT/'vanilla'
-        dest.mkdir(exist_ok=True)
-        (dest/'game.data').write_bytes(blob)
-        (dest/'game.js').write_text(js, encoding='utf-8')
-    print(out/'game.data')
-    return blob, js
+    return emit_archive(files, ROOT/'build'/'vanilla', template_js,
+                        ROOT/'vanilla' if release else None)
 
 
-def build(candidate=False, release=False):
-    files = browser_base()
-    lock = json.loads((ROOT/'vendor/upstream.json').read_text())
+def apply_lovely(files, mods, lock):
     manifests, modules, early = [], {}, []
-    for mod in ['Steamodded', 'Multiplayer']:
+    for mod in mods:
         spec = lock[mod]
         blob = (ROOT/'vendor'/spec['archive']).read_bytes()
         assert hashlib.sha256(blob).hexdigest() == spec['sha256'], f'{mod} checksum mismatch'
         source = unpack(blob)
-        prefix = f'Mods/{mod}/'
+        folder = MOD_FOLDERS[mod]
+        prefix = f'Mods/{folder}/'
         for name, data in source.items():
             files[prefix + name] = data.replace(b'\r\n', b'\n') if name.endswith('.lua') else data
             if name.startswith('lovely/') and name.endswith('.toml'):
                 manifest = tomllib.loads(data.decode())
-                manifests.append((manifest['manifest'].get('priority', 0), mod, name, manifest))
+                manifests.append((manifest['manifest'].get('priority', 0), mod, name, manifest, folder))
                 for patch in manifest.get('patches', []):
                     if 'module' in patch:
                         p = patch['module']
@@ -203,7 +214,7 @@ def build(candidate=False, release=False):
         return target
 
     report = []
-    for _, mod, name, manifest in sorted(manifests, key=lambda x: x[:3]):
+    for _, mod, name, manifest, folder in sorted(manifests, key=lambda x: x[:3]):
         for index, item in enumerate(manifest.get('patches', []), 1):
             kind, patch = next(iter(item.items()))
             if kind == 'module': continue
@@ -215,7 +226,7 @@ def build(candidate=False, release=False):
             elif target not in files:
                 row.update(status='missing-target', matches=0)
             elif kind == 'copy':
-                payload = b'\n'.join(files[f'Mods/{mod}/'+p] for p in patch['sources']) + b'\n'
+                payload = b'\n'.join(files[f'Mods/{folder}/'+p] for p in patch['sources']) + b'\n'
                 files[target] = payload + files[target] if patch['position']=='prepend' else files[target] + b'\n' + payload
                 row.update(status='applied', matches=1)
             else:
@@ -226,7 +237,7 @@ def build(candidate=False, release=False):
                     # after return (invalid on both Lua 5.1 and LuaJIT).
                     patch['pattern'] = patch['pattern'].replace('}))\ncard_eval', '}))\nreturn nil, true\ncard_eval')
                     patch['payload'] += '\nreturn nil, true\n'
-                patch['payload'] = patch['payload'].replace('{{lovely_hack:patch_dir}}', f'Mods/{mod}')
+                patch['payload'] = patch['payload'].replace('{{lovely_hack:patch_dir}}', f'Mods/{folder}')
                 operation = patch_pattern if kind == 'pattern' else patch_regex
                 source_text = files[target].decode()
                 scoped_function = None
@@ -247,43 +258,62 @@ def build(candidate=False, release=False):
                 status = 'applied' if count and ('times' not in patch or count == patch['times']) else 'mismatch'
                 row.update(status=status, matches=count, expected=patch.get('times'), pattern=patch['pattern'])
             report.append(row)
+    return files, report, modules, early
 
-    adapt_sources(files)
+
+def finish_smods_pack(files, modules, early, flavor, skip_lua=()):
+    adapt_sources(files, flavor=flavor)
     from patch_seed_rng import apply as apply_seed_rng
     apply_seed_rng(files)
     from browser_features import apply as apply_features
     apply_features(files)
     for module, path in modules.items():
         files[module.replace('.', '/')+'.lua'] = files[path]
-    pack_browser_lua(files)
+    pack_browser_lua(files, skip_lua)
     files['main.lua'] = (b'require "browser.platform"\n' +
                          ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
+    return files
+
+
+def summarize_report(report, label, out_name, candidate):
     out = ROOT/'build'; out.mkdir(exist_ok=True)
-    (out/'patch-report.json').write_text(json.dumps(report, indent=2)+'\n')
+    (out/out_name).write_text(json.dumps(report, indent=2)+'\n')
     failures = [r for r in report if r['status'] not in ('applied','not-applicable')]
     skipped = sum(r['status']=='not-applicable' for r in report)
-    print(f'{len(report)-len(failures)-skipped} patch operations applied; {skipped} explicitly not applicable; {len(failures)} unresolved')
+    print(f'{label}: {len(report)-len(failures)-skipped} patch operations applied; {skipped} explicitly not applicable; {len(failures)} unresolved')
     if failures and not candidate:
-        raise RuntimeError('Unresolved upstream patch operations; see build/patch-report.json')
+        raise RuntimeError(f'Unresolved {label} patch operations; see build/{out_name}')
+    return failures
+
+
+def build_smods_pack(mods, flavor, skip_lua, lock):
+    files = browser_base()
+    files, report, modules, early = apply_lovely(files, mods, lock)
+    files = finish_smods_pack(files, modules, early, flavor, skip_lua)
+    return files, report
+
+
+def build(candidate=False, release=False):
+    lock = json.loads((ROOT/'vendor/upstream.json').read_text())
     template_js = (ROOT/'game.js').read_text(encoding='utf-8')
-    candidate_path = out/'game.data'
-    blob = write_love_archive(files, candidate_path)
-    (out/'modded').mkdir(exist_ok=True)
-    (out/'modded'/'game.data').write_bytes(blob)
-    modded_js = patch_game_js(blob, template_js)
-    (out/'modded'/'game.js').write_text(modded_js, encoding='utf-8')
-    vanilla_blob, vanilla_js = build_vanilla(template_js, release=False)
+    out = ROOT/'build'; out.mkdir(exist_ok=True)
+
+    mp_files, mp_report = build_smods_pack(['Steamodded', 'Multiplayer'], 'multiplayer', (), lock)
+    summarize_report(mp_report, 'multiplayer', 'patch-report.json', candidate)
+    blob, modded_js = emit_archive(mp_files, out/'modded', template_js, ROOT if release else None)
+    (out/'game.data').write_bytes(blob)
+
+    pb_files, pb_report = build_smods_pack(['Steamodded', 'Paperback'], 'paperback', PAPERBACK_SKIP, lock)
+    summarize_report(pb_report, 'paperback', 'patch-report-paperback.json', candidate)
+    emit_archive(pb_files, out/'paperback', template_js, ROOT/'paperback' if release else None)
+
+    build_vanilla(template_js, release=release)
     if release:
-        (ROOT/'game.data').write_bytes(blob)
-        (ROOT/'game.js').write_text(modded_js, encoding='utf-8')
-        vanilla_dir = ROOT/'vanilla'
-        vanilla_dir.mkdir(exist_ok=True)
-        (vanilla_dir/'game.data').write_bytes(vanilla_blob)
-        (vanilla_dir/'game.js').write_text(vanilla_js, encoding='utf-8')
         print(ROOT/'game.data')
         print(ROOT/'vanilla'/'game.data')
+        print(ROOT/'paperback'/'game.data')
     else:
-        print(candidate_path)
+        print(out/'game.data')
 
 
 if __name__ == '__main__':

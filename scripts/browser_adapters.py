@@ -7,7 +7,7 @@ def once(text, old, new, label):
     return text.replace(old, new, 1)
 
 
-def adapt_sources(files):
+def adapt_sources(files, flavor='multiplayer'):
     def edit(name, operation): files[name] = operation(files[name].decode()).encode()
 
     def core(text):
@@ -18,7 +18,8 @@ require('browser.platform').connect()
 MP.ACTIONS.connect()
 '''
         return text
-    edit('Mods/Multiplayer/core.lua', core)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/core.lua', core)
 
     def smods_menu(text):
         begin = text.index('local create_UIBox_main_menu_buttonsRef = create_UIBox_main_menu_buttons')
@@ -45,13 +46,15 @@ MP.ACTIONS.connect()
         begin = text.index('-- Modify play button to take you to mode select first')
         end = text.index('G.FUNCS.wipe_off', begin)
         return text[:begin] + '-- Dedicated MULTIPLAYER entry is installed by browser.menu.\n\n' + text[end:]
-    edit('Mods/Multiplayer/ui/main_menu/main_menu.lua', mp_menu)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/ui/main_menu/main_menu.lua', mp_menu)
 
     def title_card(text):
         return once(text, 'function Add_custom_multiplayer_cards(change_context)',
                     'function Add_custom_multiplayer_cards(change_context)\n    if MP.title_card and MP.title_card.area == G.title_top then return end',
                     'browser recursive menu decoration guard')
-    edit('Mods/Multiplayer/ui/main_menu/title_card.lua', title_card)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/ui/main_menu/title_card.lua', title_card)
 
     def multiplayer_selector(text):
         # PLAY stays the browser's single-player entry, so its tutorial gate and
@@ -61,7 +64,8 @@ MP.ACTIONS.connect()
         begin = text.index('\n\t\t\t\tUIBox_button(')
         end = text.index('\n\t\t\t\tMP.LOBBY.connected', begin)
         return text[:begin] + text[end:]
-    edit('Mods/Multiplayer/ui/main_menu/play_button/play_button.lua', multiplayer_selector)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/ui/main_menu/play_button/play_button.lua', multiplayer_selector)
 
     def events(text):
         # The browser's debug-only prints concatenate an optional argument.
@@ -87,8 +91,10 @@ MP.ACTIONS.connect()
         assert n == text.count('::skip::'), 'Unrecognized Steamodded skip structure'
         text = text.replace('::skip::', 'end')
         text = once(text, 'goto continue\n            end', 'else', 'playing area continue')
-        text = once(text, 'if not area.cards then goto continue end', 'if area.cards then', 'MP empty card area guard')
-        return once(text, '::continue::', 'end\n            end', 'playing area scope')
+        if 'if not area.cards then goto continue end' in text:
+            text = once(text, 'if not area.cards then goto continue end', 'if area.cards then', 'MP empty card area guard')
+            return once(text, '::continue::', 'end\n            end', 'playing area scope')
+        return once(text, '::continue::', 'end', 'playing area scope')
     edit('Mods/Steamodded/src/utils.lua', utils)
 
     def handlers(text):
@@ -109,7 +115,8 @@ MP.ACTIONS.connect()
         text = once(text, 'for _, card_str in pairs(card_strings) do', 'for _, card_str in pairs(card_strings) do\n        repeat', 'nemesis deck loop')
         text = text.replace('goto continue', 'break')
         return once(text, '::continue::', 'until true', 'nemesis deck continue')
-    edit('Mods/Multiplayer/networking/action_handlers.lua', handlers)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/networking/action_handlers.lua', handlers)
 
     def controller(text):
         # SDL emits both keypressed and textinput. Only textinput inserts
@@ -143,7 +150,8 @@ MP.ACTIONS.connect()
                     'if line:find("MULTIPLAYER", 1, true) then\n        repeat', 'log loop')
         text = text.replace('goto continue', 'break')
         return once(text, '::continue::', 'until true', 'log continue')
-    edit('Mods/Multiplayer/lib/log_parser.lua', logs)
+    if flavor == 'multiplayer':
+        edit('Mods/Multiplayer/lib/log_parser.lua', logs)
 
     def game(text):
         text, n = re.subn(r'if (not SMODS.add_to_pool\(SMODS.Ranks\[v.value\][\s\S]*?) then\s+goto continue\s+end',
@@ -165,3 +173,8 @@ MP.ACTIONS.connect()
                     'if not G.in_delete_run then', 'card removal guard')
         return once(text, '::skip_game_actions_during_remove::', 'end', 'card removal scope')
     edit('card.lua', card)
+
+    if flavor == 'paperback':
+        leftover = [name for name, data in files.items()
+                    if name.endswith('.lua') and re.search(r'\bgoto\b|::\w+::', data.decode())]
+        assert not leftover, 'LuaJIT goto remains in ' + ', '.join(leftover)
