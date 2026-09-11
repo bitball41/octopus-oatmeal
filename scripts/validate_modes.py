@@ -100,6 +100,7 @@ def main():
     assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
     bunco_shader = bunco.read('Mods/Steamodded/src/game_object.lua').decode()
     assert 'pcall(love.graphics.newShader' in bunco_shader
+    assert 'self.full_path:find("Bunco", 1, true)' in bunco_shader
 
     try:
         from lupa.lua51 import LuaRuntime

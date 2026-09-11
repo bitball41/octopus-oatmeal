@@ -45,6 +45,17 @@ MP.ACTIONS.connect()
     def smods_shader(text):
         # love.js aborts the whole window if newShader throws. Keep boot
         # alive and skip the broken program (Bunco headache/pinch on WebGL 1).
+        if flavor == 'bunco':
+            # Bunco's edition shaders use GLSL 3 array constructors and float
+            # loops. Do not compile them; reuse a stock program so inject cannot abort.
+            text = once(text,
+                        '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
+                        '            if self.full_path and self.full_path:find("Bunco", 1, true) then\n'
+                        '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
+                        '                return\n'
+                        '            end\n'
+                        '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
+                        'skip Bunco WebGL shaders')
         return once(text,
                     '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
                     '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
