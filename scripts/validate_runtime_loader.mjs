@@ -184,9 +184,4 @@ await flush();
 assert.equal(hashedAlias.vmContext.__octopusMode, "multiplayer");
 assert.equal(hashedAlias.state.started, 1);
 
-const hashedAlias = context({ hostname: "localhost", hash: "#modded" });
-await flush();
-assert.equal(hashedAlias.vmContext.__octopusMode, "multiplayer");
-assert.equal(hashedAlias.state.started, 1);
-
 console.log("immutable launcher runtime validation passed");
