@@ -42,6 +42,20 @@ MP.ACTIONS.connect()
                     'Lua 5.1 lazy GameObject validation')
     edit('Mods/Steamodded/src/game_object.lua', object_validation)
 
+    def smods_shader(text):
+        # love.js aborts the whole window if newShader throws. Keep boot
+        # alive and skip the broken program (Bunco headache/pinch on WebGL 1).
+        return once(text,
+                    '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
+                    '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
+                    '            if ok then\n'
+                    '                G.SHADERS[self.key] = shader\n'
+                    '            else\n'
+                    '                print("Shader compile failed: " .. tostring(self.key) .. " " .. tostring(shader))\n'
+                    '            end',
+                    'pcall SMODS shader compile')
+    edit('Mods/Steamodded/src/game_object.lua', smods_shader)
+
     def mp_menu(text):
         begin = text.index('-- Modify play button to take you to mode select first')
         end = text.index('G.FUNCS.wipe_off', begin)

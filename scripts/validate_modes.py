@@ -74,6 +74,8 @@ def main():
     assert 'pb_is_illegal_seq' in overrides
     assert '::pb_continue_rank_next::' not in overrides
     assert 'repeat' in overrides and 'until true' in overrides
+    pb_shader = paperback.read('Mods/Steamodded/src/game_object.lua').decode()
+    assert 'pcall(love.graphics.newShader' in pb_shader
 
     assert_smods_content_pack(
         bunco, bunco_names, 'Bunco', 'Bunco.lua', 'Bunco.json', 'bunco')
@@ -86,6 +88,8 @@ def main():
     assert headache.count('for (float i = 0.0; i <= 1.0; i += steps)') == 3
     assert 'for (float i = 0; i <= 1; i += steps)' not in headache
     assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
+    bunco_shader = bunco.read('Mods/Steamodded/src/game_object.lua').decode()
+    assert 'pcall(love.graphics.newShader' in bunco_shader
 
     try:
         from lupa.lua51 import LuaRuntime
