@@ -237,7 +237,15 @@
         color: #fff;
       }
 
-      #mode-modded {
+      #mode-paperback {
+        background: #8b61ad;
+        color: #fff;
+        text-transform: none;
+        letter-spacing: 0.03em;
+        min-width: 240px;
+      }
+
+      #mode-multiplayer {
         background: #8b5cf6;
         color: #fff;
       }
@@ -259,12 +267,16 @@
       <div id="mode-overlay">
         <h1>Balatro</h1>
         <p>
-          Vanilla is the stock game plus cheats. Modded loads Multiplayer and
+          Vanilla is the stock game plus cheats. Paperback is a vanilla+
+          content pack. Multiplayer mod loads Balatro Multiplayer. Each mode
           keeps a completely separate save.
         </p>
         <div class="mode-row">
           <button id="mode-vanilla" type="button">Vanilla</button>
-          <button id="mode-modded" type="button">Modded</button>
+          <button id="mode-paperback" type="button">
+            Paperback (a vanilla+ mod)
+          </button>
+          <button id="mode-multiplayer" type="button">multiplayer mod</button>
         </div>
       </div>
       <div id="loading-overlay" class="hidden">
@@ -471,9 +483,34 @@
           });
         }
 
+        var MODES = {
+          vanilla: {
+            persist: "/home/web_user/love-vanilla",
+            dir: "vanilla/",
+            multiplayer: false,
+          },
+          paperback: {
+            persist: "/home/web_user/love-paperback",
+            dir: "paperback/",
+            multiplayer: false,
+          },
+          multiplayer: {
+            persist: "/home/web_user/love",
+            dir: "",
+            multiplayer: true,
+          },
+        };
+
+        function canonicalMode(mode) {
+          if (mode === "modded") return "multiplayer";
+          return mode;
+        }
+
         async function start(mode) {
           if (booting) return;
-          if (mode !== "vanilla" && mode !== "modded") {
+          mode = canonicalMode(mode);
+          var spec = MODES[mode];
+          if (!spec) {
             throw new Error("unknown launcher mode");
           }
           booting = true;
@@ -483,10 +520,7 @@
           if (picker) picker.classList.add("hidden");
           if (loading) loading.classList.remove("hidden");
 
-          Module.persistenceDatabase =
-            mode === "vanilla"
-              ? "/home/web_user/love-vanilla"
-              : "/home/web_user/love";
+          Module.persistenceDatabase = spec.persist;
 
           Module.setStatus("Resolving current build...");
 
@@ -509,23 +543,22 @@
 
           REMOTE_ASSET_BASE = assetBase;
           window.__octopusRuntimeRef = runtimeRef;
-          var modeDir = mode === "vanilla" ? "vanilla/" : "";
           Module.locateFile = function (path) {
             var mapped =
-              mode === "vanilla" && String(path).indexOf("game.data") === 0
-                ? modeDir + path
+              spec.dir && String(path).indexOf("game.data") === 0
+                ? spec.dir + path
                 : path;
             return REMOTE_ASSET_BASE + mapped;
           };
 
           try {
-            if (mode === "modded") {
+            if (spec.multiplayer) {
               await loadScript(
                 REMOTE_ASSET_BASE + "multiplayer_upstream.js",
                 true,
               );
             }
-            await loadScript(REMOTE_ASSET_BASE + modeDir + "game.js", false);
+            await loadScript(REMOTE_ASSET_BASE + spec.dir + "game.js", false);
             await loadScript(REMOTE_ASSET_BASE + "love.js", false);
             applicationLoad();
           } catch (error) {
@@ -539,14 +572,16 @@
 
         function bindPicker() {
           var vanilla = document.getElementById("mode-vanilla");
-          var modded = document.getElementById("mode-modded");
+          var paperback = document.getElementById("mode-paperback");
+          var multiplayer = document.getElementById("mode-multiplayer");
           if (vanilla) vanilla.onclick = function () { start("vanilla"); };
-          if (modded) modded.onclick = function () { start("modded"); };
+          if (paperback) paperback.onclick = function () { start("paperback"); };
+          if (multiplayer) multiplayer.onclick = function () { start("multiplayer"); };
           var hash =
             typeof location !== "undefined"
               ? String(location.hash || "").replace(/^#/, "")
               : "";
-          if (hash === "vanilla" || hash === "modded") start(hash);
+          if (MODES[canonicalMode(hash)]) start(hash);
         }
 
         if (document.readyState === "loading") {

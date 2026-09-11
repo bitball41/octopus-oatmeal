@@ -14,6 +14,7 @@ ANCHORS = {
     ('Steamodded','lovely/fixes.toml',40): 'if v.config.center and (v.config.center.name == "Stone Card") then self.ability.stone_tally = self.ability.stone_tally+1 end',
     ('Steamodded','lovely/fixes.toml',44): 'if v.config.center and (v.config.center.name ~= "Default Base") then self.ability.driver_tally = self.ability.driver_tally+1 end',
     ('Steamodded','lovely/fixes.toml',47): 'if G.pack_cards and G.pack_cards.cards and (G.pack_cards.cards[1]) and',
+    ('Paperback','lovely/vacation_juice.toml',3): "if G.GAME.round_resets.blind and G.GAME.round_resets.blind.name == 'Small Blind' then\nG.GAME.round_resets.blind_states.Small = 'Defeated'\n",
     ('Multiplayer','lovely/TheOrder.toml',3): 'self.GAME.pseudorandom.hashed_seed = pseudohash(self.GAME.pseudorandom.seed)',
     ('Multiplayer','lovely/pause.toml',1): 'local credits = nil',
 }
@@ -32,6 +33,7 @@ skip('Steamodded','menu',[6], 'CRT bloom option is already disabled by the brows
 skip('Steamodded','screenshader_rendering',[1,2], 'The browser owns its AA/scaled final canvas pass and disables CRT. The bundled Multiplayer mod registers no ScreenShader; retain the browser renderer instead of drawing an unscaled desktop canvas behind it.')
 skip('Multiplayer','compatibility',[1,2], 'Optional AntePreview and Cryptid mods are not bundled.')
 skip('Multiplayer','misc',[12], 'Optional All in Jest Patchwork deck is not bundled.')
+skip('Paperback','perma_odds',[4], 'This Steamodded build keeps perma_h_dollars tooltips in utils.lua; the duplicate game_object.lua path is absent.')
 
 
 def adapt_patch(mod, name, index, patch, source):
@@ -63,4 +65,11 @@ def adapt_patch(mod, name, index, patch, source):
         old=source[begin:end]
         patch['pattern']=old
         patch['payload']='if not G.FTP_LOCKED then\n'+patch['payload']+'\nelse\n'+old+'\nend'
+    if key==('Paperback','lovely/ace_apostle_straights.toml',4):
+        patch['payload'] = patch['payload'].replace('goto pb_continue_rank_next', 'break')
+        patch['payload'] = 'repeat\n' + patch['payload']
+    if key==('Paperback','lovely/ace_apostle_straights.toml',5):
+        patch['payload'] = (patch['payload']
+                            .replace('goto pb_continue_rank_next', 'break')
+                            .replace('::pb_continue_rank_next::', 'until true'))
     return patch, SKIPS.get(key)

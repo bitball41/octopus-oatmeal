@@ -11,7 +11,11 @@ const end = "<!-- OCTOPUS_PINNED_RUNTIME_END -->";
 assert.equal(html.split(start).length - 1, 1, "missing pinned-runtime start marker");
 assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker");
 assert.match(html, /id="mode-vanilla"/);
-assert.match(html, /id="mode-modded"/);
+assert.match(html, /id="mode-paperback"/);
+assert.match(html, /id="mode-multiplayer"/);
+assert.match(html, /Paperback \(a vanilla\+ mod\)/);
+assert.match(html, /multiplayer mod/);
+assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
   html,
   /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/gh\/bitball41\/octopus-oatmeal@main\/(?:multiplayer_native|game|love)\./i,
@@ -34,7 +38,11 @@ function context({ hostname, hash, fetchImpl }) {
   const loaded = [];
   const statuses = [];
   const state = { started: 0 };
-  const buttons = { "mode-vanilla": overlay(), "mode-modded": overlay() };
+  const buttons = {
+    "mode-vanilla": overlay(),
+    "mode-paperback": overlay(),
+    "mode-multiplayer": overlay(),
+  };
   const vmContext = {
     console: { log() {}, warn() {}, error() {} },
     Date: { now: () => 1234 },
@@ -93,29 +101,57 @@ assert.equal(local.vmContext.Module.locateFile("game.data?v=1"), "vanilla/game.d
 assert.equal(local.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 assert.equal(local.state.started, 1);
 
-const localModded = context({ hostname: "127.0.0.1" });
-await localModded.vmContext.OctopusLaunch.start("modded");
+const localMultiplayer = context({ hostname: "127.0.0.1" });
+await localMultiplayer.vmContext.OctopusLaunch.start("multiplayer");
 await flush();
 assert.deepEqual(
-  localModded.loaded.map(({ src }) => src),
+  localMultiplayer.loaded.map(({ src }) => src),
   ["multiplayer_upstream.js", "game.js", "love.js"],
 );
-assert.equal(localModded.loaded[0].type, "module");
+assert.equal(localMultiplayer.loaded[0].type, "module");
+assert.equal(localMultiplayer.vmContext.__octopusMode, "multiplayer");
 assert.equal(
-  localModded.vmContext.Module.persistenceDatabase,
+  localMultiplayer.vmContext.Module.persistenceDatabase,
   "/home/web_user/love",
 );
 assert.equal(
-  localModded.vmContext.Module.locateFile("game.data?v=9"),
+  localMultiplayer.vmContext.Module.locateFile("game.data?v=9"),
   "game.data?v=9",
 );
+
+const localAlias = context({ hostname: "localhost" });
+await localAlias.vmContext.OctopusLaunch.start("modded");
+await flush();
+assert.equal(localAlias.vmContext.__octopusMode, "multiplayer");
+assert.deepEqual(
+  localAlias.loaded.map(({ src }) => src),
+  ["multiplayer_upstream.js", "game.js", "love.js"],
+);
+
+const localPaperback = context({ hostname: "localhost" });
+await localPaperback.vmContext.OctopusLaunch.start("paperback");
+await flush();
+assert.deepEqual(
+  localPaperback.loaded.map(({ src }) => src),
+  ["paperback/game.js", "love.js"],
+);
+assert.equal(localPaperback.vmContext.__octopusMode, "paperback");
+assert.equal(
+  localPaperback.vmContext.Module.persistenceDatabase,
+  "/home/web_user/love-paperback",
+);
+assert.equal(
+  localPaperback.vmContext.Module.locateFile("game.data?v=1"),
+  "paperback/game.data?v=1",
+);
+assert.equal(localPaperback.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 
 const resolvedRef = "a".repeat(40);
 const remote = context({
   hostname: "cdn.example",
   fetchImpl: async () => ({ ok: true, json: async () => ({ sha: resolvedRef }) }),
 });
-await remote.vmContext.OctopusLaunch.start("modded");
+await remote.vmContext.OctopusLaunch.start("multiplayer");
 await flush();
 const base = `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${resolvedRef}/`;
 assert.deepEqual(
@@ -137,5 +173,20 @@ const hashed = context({ hostname: "localhost", hash: "#vanilla" });
 await flush();
 assert.equal(hashed.vmContext.__octopusMode, "vanilla");
 assert.equal(hashed.state.started, 1);
+
+const hashedPaperback = context({ hostname: "localhost", hash: "#paperback" });
+await flush();
+assert.equal(hashedPaperback.vmContext.__octopusMode, "paperback");
+assert.equal(hashedPaperback.state.started, 1);
+
+const hashedAlias = context({ hostname: "localhost", hash: "#modded" });
+await flush();
+assert.equal(hashedAlias.vmContext.__octopusMode, "multiplayer");
+assert.equal(hashedAlias.state.started, 1);
+
+const hashedAlias = context({ hostname: "localhost", hash: "#modded" });
+await flush();
+assert.equal(hashedAlias.vmContext.__octopusMode, "multiplayer");
+assert.equal(hashedAlias.state.started, 1);
 
 console.log("immutable launcher runtime validation passed");

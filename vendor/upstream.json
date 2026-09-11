@@ -11,6 +11,12 @@
     "archive": "Multiplayer.zip",
     "sha256": "998b2302a4e37ff37124b46c6bcdd3bc6471a3cfea0fbfe5461a020a9e2330d8"
   },
+  "Paperback": {
+    "url": "https://github.com/Balatro-Paperback/paperback",
+    "commit": "f40ee0de1b56ec1bf28a1f6c6c4d34b7e64146bb",
+    "archive": "Paperback.zip",
+    "sha256": "ac415a02c3dcc272defa7d6d40faac7eb4e7b91c176acecc0c773f6eec49735a"
+  },
   "MultiplayerServer": {
     "url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI-Server",
     "commit": "d664c29523b827d53dfa1a181e5b2baf1aefac4f",
