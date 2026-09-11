@@ -435,11 +435,19 @@
           REPOSITORY +
           "/main/runtime.json";
         var FALLBACK_RUNTIME_REF =
-          "b24a5c077c0c0ad6ecd4fb0c268a4831c4ae0158";
+          "27eee9873eb3fe85cba6210f480f80654f87857c";
         var booting = false;
 
         function immutableBase(ref) {
           return "https://cdn.jsdelivr.net/gh/" + REPOSITORY + "@" + ref + "/";
+        }
+
+        function githubRawBase(ref) {
+          // jsDelivr 403s files over 20 MB. Paperback's LÖVE archive is over
+          // that cap, so game.data always comes from GitHub raw.
+          return (
+            "https://raw.githubusercontent.com/" + REPOSITORY + "/" + ref + "/"
+          );
         }
 
         function localHost() {
@@ -564,6 +572,9 @@
               spec.dir && String(path).indexOf("game.data") === 0
                 ? spec.dir + path
                 : path;
+            if (REMOTE_ASSET_BASE && String(path).indexOf("game.data") === 0) {
+              return githubRawBase(runtimeRef) + mapped;
+            }
             return REMOTE_ASSET_BASE + mapped;
           };
 

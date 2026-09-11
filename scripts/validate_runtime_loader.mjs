@@ -30,8 +30,10 @@ const scripts = [...marked.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length, 1, "pinned runtime must be one inline script");
 const source = scripts[0][1];
 assert.match(source, /FALLBACK_RUNTIME_REF\s*=\s*\n?\s*"([0-9a-f]{40})"/i);
+assert.match(source, /raw\.githubusercontent\.com\/" \+ REPOSITORY \+ "\/" \+ ref \+ "\/"/);
 assert.doesNotMatch(source, /55afe41755e8fe3ce13976b4883259dd3830139a/);
 assert.doesNotMatch(source, /e79da809feb66621460f605a30e5437052d6938f/);
+assert.doesNotMatch(source, /b24a5c077c0c0ad6ecd4fb0c268a4831c4ae0158/);
 
 function overlay() {
   return { classList: { add() {}, remove() {} }, onclick: null };
@@ -176,6 +178,7 @@ const remote = context({
 await remote.vmContext.OctopusLaunch.start("multiplayer");
 await flush();
 const base = `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${resolvedRef}/`;
+const rawBase = `https://raw.githubusercontent.com/bitball41/octopus-oatmeal/${resolvedRef}/`;
 assert.deepEqual(
   remote.loaded.map(({ src }) => src),
   [
@@ -188,7 +191,26 @@ assert.equal(remote.vmContext.__octopusRuntimeRef, resolvedRef);
 assert.equal(remote.vmContext.REMOTE_ASSET_BASE, base);
 assert.equal(
   remote.vmContext.Module.locateFile("game.data?v=1"),
-  `${base}game.data?v=1`,
+  `${rawBase}game.data?v=1`,
+);
+assert.equal(
+  remote.vmContext.Module.locateFile("love.wasm"),
+  `${base}love.wasm`,
+);
+
+const remotePaperback = context({
+  hostname: "cdn.example",
+  fetchImpl: async () => ({ ok: true, json: async () => ({ sha: resolvedRef }) }),
+});
+await remotePaperback.vmContext.OctopusLaunch.start("paperback");
+await flush();
+assert.equal(
+  remotePaperback.vmContext.Module.locateFile("game.data?v=1"),
+  `${rawBase}paperback/game.data?v=1`,
+);
+assert.equal(
+  remotePaperback.vmContext.Module.locateFile("love.wasm"),
+  `${base}love.wasm`,
 );
 
 const hashed = context({ hostname: "localhost", hash: "#vanilla" });

@@ -52,6 +52,18 @@ def main():
     bunco, bunco_names = archive(bunco_path)
     modded, modded_names = archive(multiplayer_path)
 
+    # jsDelivr hard-caps a single file at 20 MB. Downloaded launchers fetch
+    # these archives from that CDN unless locateFile sends game.data to GitHub raw.
+    jsdelivr_limit = 20 * 1024 * 1024
+    for label, packed in (
+        ('vanilla', vanilla_path),
+        ('paperback', paperback_path),
+        ('bunco', bunco_path),
+        ('multiplayer', multiplayer_path),
+    ):
+        size = packed.stat().st_size
+        assert size <= jsdelivr_limit, f'{label} game.data is {size} bytes; jsDelivr 403s files over 20 MB'
+
     assert not any(n.startswith('Mods/Steamodded/') for n in vanilla_names)
     assert not any(n.startswith('Mods/Multiplayer/') for n in vanilla_names)
     assert not any(n.startswith('Mods/paperback/') for n in vanilla_names)
@@ -76,6 +88,7 @@ def main():
     assert 'repeat' in overrides and 'until true' in overrides
     pb_shader = paperback.read('Mods/Steamodded/src/game_object.lua').decode()
     assert 'pcall(love.graphics.newShader' in pb_shader
+    assert not any('lsp_def' in n or n.endswith('.DS_Store') or n.endswith('.md') for n in paperback_names)
 
     assert_smods_content_pack(
         bunco, bunco_names, 'Bunco', 'Bunco.lua', 'Bunco.json', 'bunco')

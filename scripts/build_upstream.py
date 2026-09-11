@@ -142,10 +142,25 @@ def patch_regex(text, patch):
     return text, count
 
 
+def keep_packed_file(name):
+    """Drop desktop-only junk so Paperback stays under jsDelivr's 20 MB cap."""
+    rel = name.replace('\\', '/')
+    base = rel.rsplit('/', 1)[-1]
+    if base in {'.DS_Store', '.gitignore'} or base.startswith('._'):
+        return False
+    if any(part in {'.github', '.vscode', 'lsp_def'} for part in rel.split('/')):
+        return False
+    if base.lower().endswith('.md'):
+        return False
+    return True
+
+
 def write_love_archive(files, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for name, data in sorted(files.items()):
+            if not keep_packed_file(name):
+                continue
             info = zipfile.ZipInfo(name, (2026,1,1,0,0,0)); info.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(info, data)
     return path.read_bytes()
@@ -198,7 +213,10 @@ def apply_lovely(files, mods, lock):
         folder = MOD_FOLDERS[mod]
         prefix = f'Mods/{folder}/'
         for name, data in source.items():
-            files[prefix + name] = data.replace(b'\r\n', b'\n') if name.endswith('.lua') else data
+            packed = prefix + name
+            if not keep_packed_file(packed):
+                continue
+            files[packed] = data.replace(b'\r\n', b'\n') if name.endswith('.lua') else data
             if name.endswith('.toml') and (name == 'lovely.toml' or name.startswith('lovely/')):
                 manifest = tomllib.loads(data.decode())
                 manifests.append((manifest['manifest'].get('priority', 0), mod, name, manifest, folder))

@@ -14,7 +14,7 @@ All four modes mount the LÖVE save directory at `/home/web_user/love`. They onl
 - Red Deck in the multiplayer run setup was showing "Not available in this demo" because a Steamodded back.lua patch was remapped onto `if not back_config.unlocked then` and deleted that check. The unlocked Red Deck description is restored.
 - Multiplayer create-lobby skips ruleset / gamemode / weekly walls. Hosting uses vanilla ruleset + attrition and goes straight to a lobby code.
 - Signaling uses the legacy Supabase anon JWT for Realtime. The live GitHub Pages build was still on the publishable `sb_publishable_` key.
-- Launcher fallback SHA is a real commit, with GitHub API then `runtime.json` then that SHA. Localhost loads files from this checkout instead of jsDelivr.
+- Launcher fallback SHA is a real commit, with GitHub API then `runtime.json` then that SHA. Localhost loads files from this checkout instead of the CDN. Remote `game.data` comes from GitHub raw because jsDelivr 403s files over 20 MB (Paperback was over that cap). Scripts and WASM still use jsDelivr.
 
 ## Verification
 
