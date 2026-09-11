@@ -3,9 +3,14 @@ import {createClient} from '@supabase/supabase-js';
 import {BrowserServer} from './server.js';
 import {PeerRoom} from './transport.js';
 
-const supabase=createClient('https://yswxdsagoywzevwgarbf.supabase.co',
-  'sb_publishable_Ah6QGx7Tpr-rBvaa4cQcPw_7djryJ9K',
-  {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const SUPABASE_URL='https://yswxdsagoywzevwgarbf.supabase.co';
+// Realtime websocket auth still expects the legacy JWT anon key. The newer
+// sb_publishable_ key 401s the channel subscribe and looks like "won't connect".
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzd3hkc2Fnb3l3emV2d2dhcmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMjIwMTIsImV4cCI6MjEwMDU5ODAxMn0.BylSAqxf0sAq74kGRlRL7xEnzedKjWY_x05xf_63oxc';
+const supabase=createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+  realtime:{params:{apikey:SUPABASE_ANON}},
+});
 let saveDirectory, server, room, role, joiningCode;
 let sequence=0, pending=[], operation=Promise.resolve();
 installClipboard(() => saveDirectory);

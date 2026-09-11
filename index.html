@@ -181,6 +181,66 @@
         border-radius: 3px;
         transition: width 0.3s ease;
       }
+
+      #mode-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: #0d2233;
+        z-index: 5;
+        color: #d7ecf7;
+        text-align: center;
+        padding: 24px;
+      }
+
+      #mode-overlay.hidden {
+        display: none;
+      }
+
+      #mode-overlay h1 {
+        font-size: 1.6em;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #8ec3e3;
+      }
+
+      #mode-overlay p {
+        max-width: 420px;
+        color: #8aa7b8;
+        line-height: 1.45;
+      }
+
+      .mode-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .mode-row button {
+        min-width: 160px;
+        padding: 16px 22px;
+        border: 0;
+        border-radius: 10px;
+        font: 700 1.05em arial, sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      #mode-vanilla {
+        background: #3d9be8;
+        color: #fff;
+      }
+
+      #mode-modded {
+        background: #8b5cf6;
+        color: #fff;
+      }
     </style>
   </head>
   <body>
@@ -196,7 +256,18 @@
         height="100%"
       ></canvas>
 
-      <div id="loading-overlay">
+      <div id="mode-overlay">
+        <h1>Balatro</h1>
+        <p>
+          Vanilla is the stock game plus cheats. Modded loads Multiplayer and
+          keeps a completely separate save.
+        </p>
+        <div class="mode-row">
+          <button id="mode-vanilla" type="button">Vanilla</button>
+          <button id="mode-modded" type="button">Modded</button>
+        </div>
+      </div>
+      <div id="loading-overlay" class="hidden">
         <div id="loading-status">Loading...</div>
         <div id="progress-track">
           <div id="progress-fill"></div>
@@ -336,30 +407,55 @@
         var REPOSITORY = "bitball41/octopus-oatmeal";
         var MAIN_COMMIT_API =
           "https://api.github.com/repos/" + REPOSITORY + "/commits/main";
+        var RUNTIME_JSON =
+          "https://raw.githubusercontent.com/" +
+          REPOSITORY +
+          "/main/runtime.json";
         var FALLBACK_RUNTIME_REF =
-          "55afe41755e8fe3ce13976b4883259dd3830139a";
+          "e79da809feb66621460f605a30e5437052d6938f";
+        var booting = false;
 
         function immutableBase(ref) {
           return "https://cdn.jsdelivr.net/gh/" + REPOSITORY + "@" + ref + "/";
         }
 
-        async function resolveRuntimeRef() {
-          var response = await fetch(
-            MAIN_COMMIT_API + "?octopus=" + Date.now(),
-            {
-              cache: "no-store",
-              headers: { Accept: "application/vnd.github+json" },
-            },
+        function localHost() {
+          return (
+            typeof location !== "undefined" &&
+            /^https?:$/.test(location.protocol) &&
+            (location.hostname === "localhost" ||
+              location.hostname === "127.0.0.1")
           );
+        }
+
+        async function readSha(url, json) {
+          var response = await fetch(url, {
+            cache: "no-store",
+            headers: json ? { Accept: "application/vnd.github+json" } : {},
+          });
           if (!response.ok) {
-            throw new Error("main commit lookup failed: " + response.status);
+            throw new Error("lookup failed: " + response.status);
           }
           var payload = await response.json();
           var sha = String((payload && payload.sha) || "");
           if (!/^[0-9a-f]{40}$/i.test(sha)) {
-            throw new Error("main commit lookup returned an invalid SHA");
+            throw new Error("lookup returned an invalid SHA");
           }
           return sha;
+        }
+
+        async function resolveRuntimeRef() {
+          try {
+            return await readSha(MAIN_COMMIT_API + "?octopus=" + Date.now(), true);
+          } catch (error) {
+            console.warn("[Octopus] GitHub commit API failed", error);
+          }
+          try {
+            return await readSha(RUNTIME_JSON + "?octopus=" + Date.now(), false);
+          } catch (error) {
+            console.warn("[Octopus] runtime.json lookup failed", error);
+          }
+          return FALLBACK_RUNTIME_REF;
         }
 
         function loadScript(src, module) {
@@ -375,35 +471,89 @@
           });
         }
 
-        async function bootRuntime() {
+        async function start(mode) {
+          if (booting) return;
+          if (mode !== "vanilla" && mode !== "modded") {
+            throw new Error("unknown launcher mode");
+          }
+          booting = true;
+          window.__octopusMode = mode;
+          var picker = document.getElementById("mode-overlay");
+          var loading = document.getElementById("loading-overlay");
+          if (picker) picker.classList.add("hidden");
+          if (loading) loading.classList.remove("hidden");
+
+          Module.persistenceMountpoint =
+            mode === "vanilla"
+              ? "/home/web_user/love-vanilla"
+              : "/home/web_user/love";
+
           Module.setStatus("Resolving current build...");
 
           var runtimeRef = FALLBACK_RUNTIME_REF;
-          try {
-            runtimeRef = await resolveRuntimeRef();
-          } catch (error) {
-            console.warn(
-              "[Octopus] latest commit lookup failed; using known-good build",
-              error,
-            );
+          var assetBase = "";
+          if (localHost()) {
+            runtimeRef = "local";
+            assetBase = "";
+          } else {
+            try {
+              runtimeRef = await resolveRuntimeRef();
+            } catch (error) {
+              console.warn(
+                "[Octopus] latest commit lookup failed; using known-good build",
+                error,
+              );
+            }
+            assetBase = immutableBase(runtimeRef);
           }
 
-          REMOTE_ASSET_BASE = immutableBase(runtimeRef);
+          REMOTE_ASSET_BASE = assetBase;
           window.__octopusRuntimeRef = runtimeRef;
+          var modeDir = mode === "vanilla" ? "vanilla/" : "";
+          Module.locateFile = function (path) {
+            var mapped =
+              mode === "vanilla" && String(path).indexOf("game.data") === 0
+                ? modeDir + path
+                : path;
+            return REMOTE_ASSET_BASE + mapped;
+          };
 
-          // Load the bridge first so Lua cannot start before the lobby and
-          // gameplay handlers exist. game.js then points game.data at this
-          // same immutable commit through Module.locateFile.
-          await loadScript(REMOTE_ASSET_BASE + "multiplayer_upstream.js", true);
-          await loadScript(REMOTE_ASSET_BASE + "game.js", false);
-          await loadScript(REMOTE_ASSET_BASE + "love.js", false);
-          applicationLoad();
+          try {
+            if (mode === "modded") {
+              await loadScript(
+                REMOTE_ASSET_BASE + "multiplayer_upstream.js",
+                true,
+              );
+            }
+            await loadScript(REMOTE_ASSET_BASE + modeDir + "game.js", false);
+            await loadScript(REMOTE_ASSET_BASE + "love.js", false);
+            applicationLoad();
+          } catch (error) {
+            console.error("[Octopus] runtime boot failed", error);
+            Module.setStatus("Could not load the " + mode + " game build.");
+            throw error;
+          }
         }
 
-        bootRuntime().catch(function (error) {
-          console.error("[Octopus] runtime boot failed", error);
-          Module.setStatus("Could not load the current game build.");
-        });
+        window.OctopusLaunch = { start: start };
+
+        function bindPicker() {
+          var vanilla = document.getElementById("mode-vanilla");
+          var modded = document.getElementById("mode-modded");
+          if (vanilla) vanilla.onclick = function () { start("vanilla"); };
+          if (modded) modded.onclick = function () { start("modded"); };
+          var hash =
+            typeof location !== "undefined"
+              ? String(location.hash || "").replace(/^#/, "")
+              : "";
+          if (hash === "vanilla" || hash === "modded") start(hash);
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", bindPicker);
+        } else {
+          bindPicker();
+        }
       })();
     </script>
     <!-- OCTOPUS_PINNED_RUNTIME_END -->

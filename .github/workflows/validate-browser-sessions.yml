@@ -2,13 +2,16 @@ name: Build and validate browser sessions
 
 on:
   push:
-    branches: [fix/combined-multiplayer-cheats]
+    branches: [fix/combined-multiplayer-cheats, cursor/vanilla-modded-launcher-9ef4]
     paths:
       - 'browser/**'
       - 'scripts/**'
       - 'vendor/**'
       - 'package*.json'
       - '148 jokers.HTML'
+      - 'index.html'
+      - 'balatro.html'
+      - 'love.js'
       - '.github/workflows/validate-browser-sessions.yml'
   workflow_dispatch:
 
@@ -39,10 +42,11 @@ jobs:
       - run: python scripts/validate_nativefs.py
       - run: python scripts/validate_object_registration.py
       - run: python scripts/validate_format_atlas.py
+      - run: python scripts/validate_modes.py
       - run: node --check multiplayer_upstream.js
       - name: Commit validated production assets
         run: |
-          git add game.data game.js multiplayer_upstream.js balatro.html index.html
+          git add game.data game.js multiplayer_upstream.js balatro.html index.html vanilla/game.data vanilla/game.js runtime.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

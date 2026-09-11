@@ -2,12 +2,12 @@
   "name": "octopus-oatmeal",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build:multiplayer": "python scripts/build_upstream.py --release && node scripts/build_server.mjs && python scripts/patch_multiplayer_html.py",
+    "scripts": {
+    "build:multiplayer": "python3 scripts/build_upstream.py --release && node scripts/build_server.mjs && python3 scripts/patch_multiplayer_html.py",
     "test:loader": "node scripts/validate_runtime_loader.mjs",
-    "test:sessions": "node scripts/validate_sessions.mjs && python scripts/validate_session_input.py",
-    "test:features": "python scripts/validate_browser_features.py && python scripts/validate_seed_rng.py"
-  },
+    "test:sessions": "node scripts/validate_sessions.mjs && python3 scripts/validate_session_input.py",
+    "test:features": "python3 scripts/validate_browser_features.py && python3 scripts/validate_seed_rng.py && python3 scripts/validate_modes.py"
+    },
   "devDependencies": {
     "esbuild": "0.25.12"
   },

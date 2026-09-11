@@ -74,7 +74,14 @@ def install_bridge(text: str, module_src: str) -> str:
 def patch_balatro() -> None:
     path = ROOT / "balatro.html"
     text = path.read_text("utf-8")
-    text = install_bridge(text, "multiplayer_upstream.js")
+    if "OctopusLaunch" not in text or 'start("vanilla")' not in text:
+        raise RuntimeError("balatro.html is missing the Vanilla/Modded launcher")
+    text = re.sub(
+        re.escape(BOOTSTRAP_START) + r'.*?' + re.escape(BOOTSTRAP_END),
+        BOOTSTRAP_START + '\n' + STUB + '    ' + BOOTSTRAP_END,
+        text,
+        flags=re.S,
+    )
     path.write_text(text, "utf-8")
 
 
@@ -88,6 +95,8 @@ def patch_index() -> None:
     # jsDelivr can resolve separate mutable requests to different revisions.
     if text.count(PINNED_RUNTIME_START) != 1 or text.count(PINNED_RUNTIME_END) != 1:
         raise RuntimeError("index.html is missing its immutable runtime loader")
+    if "OctopusLaunch" not in text or 'start("vanilla")' not in text:
+        raise RuntimeError("index.html is missing the Vanilla/Modded launcher")
     if re.search(
         r'<script[^>]+src="https://cdn\.jsdelivr\.net/gh/'
         r'bitball41/octopus-oatmeal@main/(?:multiplayer_native|game|love)\.',
@@ -97,7 +106,6 @@ def patch_index() -> None:
         raise RuntimeError("index.html still loads a mutable @main runtime asset")
     text = re.sub(re.escape(BOOTSTRAP_START)+r'.*?'+re.escape(BOOTSTRAP_END),
                   BOOTSTRAP_START+'\n'+STUB+'    '+BOOTSTRAP_END,text,flags=re.S)
-    text = text.replace('"multiplayer_native.js", true', '"multiplayer_upstream.js", true')
     path.write_text(text, "utf-8")
 
 

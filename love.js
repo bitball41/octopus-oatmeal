@@ -15826,7 +15826,8 @@ var Love = (function () {
       (typeof ENVIRONMENT_IS_PTHREAD === "undefined" ||
         !ENVIRONMENT_IS_PTHREAD)
     ) {
-      var persistenceMountpoint = "/home/web_user/love";
+      var persistenceMountpoint =
+        Module["persistenceMountpoint"] || "/home/web_user/love";
       var persistenceDependency = "IDBFS_restore";
       var persistenceSyncInFlight = false;
       var persistenceSyncQueued = false;

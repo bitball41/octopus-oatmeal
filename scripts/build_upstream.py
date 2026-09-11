@@ -23,6 +23,13 @@ from patch_multiplayer import patch_game_js
 ROOT = Path(__file__).resolve().parents[1]
 BASE_COMMIT = "83b8a60f09cb833475e825a27c48b1acdc872ba7"
 BASE_SHA256 = "aa20c806941b7d3eadd225f7ff8e1f2dd0ba48f98154cbad3ee191a375eecef8"
+VANILLA_COMMIT = "e7734a98494363d5b35e99eb06250dfbd820abcd"
+VANILLA_SHA256 = "9d39d62965c2d9e415a336b88641caa23bd8040c7af24627fcdb6a0032b583e5"
+VANILLA_SKIP = {
+    'browser/menu.lua',
+    'browser/platform.lua',
+    'browser/nativefs.lua',
+}
 
 
 def unpack(data):
@@ -123,6 +130,48 @@ def patch_regex(text, patch):
     return text, count
 
 
+def write_love_archive(files, path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        for name, data in sorted(files.items()):
+            info = zipfile.ZipInfo(name, (2026,1,1,0,0,0)); info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
+    return path.read_bytes()
+
+
+def pack_browser_lua(files, skip=()):
+    for path in (ROOT/'browser/lua').rglob('*.lua'):
+        rel = path.relative_to(ROOT/'browser/lua').as_posix()
+        if rel in skip:
+            continue
+        files[rel] = path.read_bytes()
+
+
+def vanilla_base():
+    blob = subprocess.check_output(['git', 'show', VANILLA_COMMIT + ':game.data'], cwd=ROOT)
+    assert hashlib.sha256(blob).hexdigest() == VANILLA_SHA256, 'Vanilla base checksum mismatch'
+    return unpack(blob)
+
+
+def build_vanilla(template_js, release=False):
+    files = vanilla_base()
+    from browser_features import apply as apply_features
+    apply_features(files, vanilla=True)
+    pack_browser_lua(files, VANILLA_SKIP)
+    files['main.lua'] = b'require "browser.vanilla"\n' + files['main.lua']
+    out = ROOT/'build'/'vanilla'
+    blob = write_love_archive(files, out/'game.data')
+    js = patch_game_js(blob, template_js)
+    (out/'game.js').write_text(js, encoding='utf-8')
+    if release:
+        dest = ROOT/'vanilla'
+        dest.mkdir(exist_ok=True)
+        (dest/'game.data').write_bytes(blob)
+        (dest/'game.js').write_text(js, encoding='utf-8')
+    print(out/'game.data')
+    return blob, js
+
+
 def build(candidate=False, release=False):
     files = browser_base()
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
@@ -206,8 +255,7 @@ def build(candidate=False, release=False):
     apply_features(files)
     for module, path in modules.items():
         files[module.replace('.', '/')+'.lua'] = files[path]
-    for path in (ROOT/'browser/lua').rglob('*.lua'):
-        files[path.relative_to(ROOT/'browser/lua').as_posix()] = path.read_bytes()
+    pack_browser_lua(files)
     files['main.lua'] = (b'require "browser.platform"\n' +
                          ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
     out = ROOT/'build'; out.mkdir(exist_ok=True)
@@ -217,16 +265,23 @@ def build(candidate=False, release=False):
     print(f'{len(report)-len(failures)-skipped} patch operations applied; {skipped} explicitly not applicable; {len(failures)} unresolved')
     if failures and not candidate:
         raise RuntimeError('Unresolved upstream patch operations; see build/patch-report.json')
+    template_js = (ROOT/'game.js').read_text(encoding='utf-8')
     candidate_path = out/'game.data'
-    with zipfile.ZipFile(candidate_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-        for name, data in sorted(files.items()):
-            info = zipfile.ZipInfo(name, (2026,1,1,0,0,0)); info.compress_type = zipfile.ZIP_DEFLATED
-            z.writestr(info, data)
+    blob = write_love_archive(files, candidate_path)
+    (out/'modded').mkdir(exist_ok=True)
+    (out/'modded'/'game.data').write_bytes(blob)
+    modded_js = patch_game_js(blob, template_js)
+    (out/'modded'/'game.js').write_text(modded_js, encoding='utf-8')
+    vanilla_blob, vanilla_js = build_vanilla(template_js, release=False)
     if release:
-        blob = candidate_path.read_bytes()
         (ROOT/'game.data').write_bytes(blob)
-        (ROOT/'game.js').write_text(patch_game_js(blob), encoding='utf-8')
+        (ROOT/'game.js').write_text(modded_js, encoding='utf-8')
+        vanilla_dir = ROOT/'vanilla'
+        vanilla_dir.mkdir(exist_ok=True)
+        (vanilla_dir/'game.data').write_bytes(vanilla_blob)
+        (vanilla_dir/'game.js').write_text(vanilla_js, encoding='utf-8')
         print(ROOT/'game.data')
+        print(ROOT/'vanilla'/'game.data')
     else:
         print(candidate_path)
 

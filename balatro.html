@@ -181,6 +181,32 @@
         border-radius: 3px;
         transition: width 0.3s ease;
       }
+
+      #mode-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: #0d2233;
+        z-index: 5;
+        color: #d7ecf7;
+        text-align: center;
+        padding: 24px;
+      }
+
+      #mode-overlay.hidden { display: none; }
+      #mode-overlay h1 { font-size: 1.6em; letter-spacing: 0.12em; text-transform: uppercase; color: #8ec3e3; }
+      #mode-overlay p { max-width: 420px; color: #8aa7b8; line-height: 1.45; }
+      .mode-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+      .mode-row button {
+        min-width: 160px; padding: 16px 22px; border: 0; border-radius: 10px;
+        font: 700 1.05em arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+      }
+      #mode-vanilla { background: #3d9be8; color: #fff; }
+      #mode-modded { background: #8b5cf6; color: #fff; }
     </style>
   </head>
   <body>
@@ -196,7 +222,18 @@
         height="100%"
       ></canvas>
 
-      <div id="loading-overlay">
+      <div id="mode-overlay">
+        <h1>Balatro</h1>
+        <p>
+          Vanilla is the stock game plus cheats. Modded loads Multiplayer and
+          keeps a completely separate save.
+        </p>
+        <div class="mode-row">
+          <button id="mode-vanilla" type="button">Vanilla</button>
+          <button id="mode-modded" type="button">Modded</button>
+        </div>
+      </div>
+      <div id="loading-overlay" class="hidden">
         <div id="loading-status">Loading...</div>
         <div id="progress-track">
           <div id="progress-fill"></div>
@@ -243,6 +280,9 @@
       var Module = {
         arguments: ["./game.love"],
         INITIAL_MEMORY: 256000000,
+        locateFile: function (path) {
+          return path;
+        },
         printErr: console.error.bind(console),
         canvas: (function () {
           var c = document.getElementById("canvas");
@@ -317,14 +357,55 @@
         }
       });
     </script>
-    <script type="module" src="multiplayer_upstream.js"></script>
     <!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->
-<script type="text/javascript" src="game.js?v=4e38bdee"></script>
-    <script
-      async
-      type="text/javascript"
-      src="love.js?v=4e38bdee"
-      onload="applicationLoad(this)"
-    ></script>
+    <script>
+      (function () {
+        var booting = false;
+        function loadScript(src, module) {
+          return new Promise(function (resolve, reject) {
+            var script = document.createElement("script");
+            if (module) script.type = "module";
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = function () {
+              reject(new Error("failed to load " + src));
+            };
+            document.head.appendChild(script);
+          });
+        }
+        async function start(mode) {
+          if (booting) return;
+          booting = true;
+          window.__octopusMode = mode;
+          document.getElementById("mode-overlay").classList.add("hidden");
+          document.getElementById("loading-overlay").classList.remove("hidden");
+          Module.persistenceMountpoint =
+            mode === "vanilla"
+              ? "/home/web_user/love-vanilla"
+              : "/home/web_user/love";
+          Module.locateFile = function (path) {
+            return mode === "vanilla" && String(path).indexOf("game.data") === 0
+              ? "vanilla/" + path
+              : path;
+          };
+          if (mode === "modded") {
+            await loadScript("multiplayer_upstream.js", true);
+          }
+          await loadScript(
+            mode === "vanilla" ? "vanilla/game.js" : "game.js",
+            false,
+          );
+          await loadScript("love.js", false);
+          applicationLoad();
+        }
+        window.OctopusLaunch = { start: start };
+        document.getElementById("mode-vanilla").onclick = function () {
+          start("vanilla");
+        };
+        document.getElementById("mode-modded").onclick = function () {
+          start("modded");
+        };
+      })();
+    </script>
   </body>
 </html>

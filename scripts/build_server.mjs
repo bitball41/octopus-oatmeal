@@ -7,7 +7,7 @@ const lock=JSON.parse(await readFile('vendor/upstream.json','utf8')).Multiplayer
 const archive=await readFile('vendor/'+lock.archive);
 if(createHash('sha256').update(archive).digest('hex')!==lock.sha256) throw new Error('Server source checksum mismatch');
 await mkdir('build/upstream-server',{recursive:true});
-execFileSync('python',['-m','zipfile','-e','vendor/'+lock.archive,'build/upstream-server']);
+execFileSync('python3',['-m','zipfile','-e','vendor/'+lock.archive,'build/upstream-server']);
 
 const shims={
   'node:crypto': `export function randomBytes(n) { const bytes=crypto.getRandomValues(new Uint8Array(n)); return {toString(format){if(format!=='hex')throw new Error('Unsupported byte format');return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}}; }`,
