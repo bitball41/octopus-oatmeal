@@ -52,6 +52,7 @@ MP.ACTIONS.connect()
                     '                G.SHADERS[self.key] = shader\n'
                     '            else\n'
                     '                print("Shader compile failed: " .. tostring(self.key) .. " " .. tostring(shader))\n'
+                    '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
                     '            end',
                     'pcall SMODS shader compile')
     edit('Mods/Steamodded/src/game_object.lua', smods_shader)
@@ -198,12 +199,13 @@ MP.ACTIONS.connect()
         shader = files['Mods/Bunco/assets/shaders/headache.fs'].decode()
         shader, n = re.subn(r'\bframe \* 71\.0\b', 'float(frame) * 71.0', shader)
         assert n == 2, 'Bunco headache.fs int*float sites missing'
+        shader = shader.replace('    float steps = 0.25;\n\n', '')
         shader, n = re.subn(
-            r'for \(float i = 0; i <= 1; i \+= steps\)',
-            'for (float i = 0.0; i <= 1.0; i += steps)',
+            r'for \(float i = 0; i <= 1; i \+= steps\) \{',
+            'for (int bunc_k = 0; bunc_k <= 4; bunc_k++) { float i = float(bunc_k) * 0.25;',
             shader,
         )
-        assert n == 3, 'Bunco headache.fs int-to-float for-loops missing'
+        assert n == 3, 'Bunco headache.fs WebGL1 loop rewrite missing'
         shader, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', shader, count=1)
         assert n == 1, 'Bunco headache.fs dummy uv.x * 2 missing'
         files['Mods/Bunco/assets/shaders/headache.fs'] = shader.encode()
