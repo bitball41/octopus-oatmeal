@@ -2,7 +2,9 @@
 import re
 
 ANCHORS = {
-    ('Steamodded','lovely/back.toml',7): 'if not back_config.unlocked then',
+    # Do not remap Steamodded back.toml patch 7 onto `if not back_config.unlocked then`
+    # with position=at. That deletes the unlocked check so Red Deck shows
+    # "Not available in this demo". See adapt_patch for the insert-after fix.
     ('Steamodded','lovely/playing_card.toml',9): 'return G.ARGS.LOC_COLOURS[_c] or _default or G.C.BLACK',
     ('Steamodded','lovely/pool.toml',3): 'local randInd = math.random(#keys)',
     ('Steamodded','lovely/scoring_calculation.toml',11): "check_and_set_high_score('hand',  SMODS.calculate_round_score() )",
@@ -43,6 +45,16 @@ def adapt_patch(mod, name, index, patch, source):
     if mod=='Steamodded' and name=='lovely/ui_elements.toml' and index in (22,23):
         patch['pattern']=patch['pattern'].replace('self.config.lang.font','(self.config.font or self.config.lang.font)')
         patch['payload']=patch['payload'].replace('self.config.lang.font','(self.config.font or self.config.lang.font)')
+    if key==('Steamodded','lovely/back.toml',7):
+        # Browser back.lua uses `if not back_config.unlock_condition or back_config.demo`.
+        # Upstream SMODS replaces a lone unlock_condition check. Keep the unlocked
+        # guard and only inject the SMODS localization locals into that branch.
+        patch['pattern'] = 'if not back_config.unlocked then'
+        patch['position'] = 'after'
+        payload = patch['payload']
+        marker = 'if not back_config.unlock_condition then'
+        assert payload.rstrip().endswith(marker), 'Steamodded back.lua payload changed'
+        patch['payload'] = payload[:payload.rstrip().rfind(marker)].rstrip() + '\n'
     if key==('Steamodded','lovely/stake.toml',23):
         patch['pattern']=patch['pattern'].replace('\n\n','\n')
     if key==('Steamodded','lovely/blind.toml',35):

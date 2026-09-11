@@ -46,6 +46,33 @@ function M.install()
         print('[Octopus] native MULTIPLAYER callback -> upstream play_options')
         return G.FUNCS.play_options(e)
     end
+    -- Skip ruleset / gamemode / weekly / mutator walls. Host and join only.
+    function G.FUNCS.create_lobby(e)
+        if MP.SP then MP.SP.practice = false end
+        if MP.GHOST and MP.GHOST.clear then MP.GHOST.clear() end
+        MP.MODIFIERS = {}
+        MP.reset_lobby_config()
+        MP.LOBBY.config.ruleset = 'ruleset_mp_vanilla'
+        MP.LOBBY.config.gamemode = 'gamemode_mp_attrition'
+        return G.FUNCS.start_lobby(e)
+    end
+    function G.UIDEF.override_main_menu_play_button()
+        return create_UIBox_generic_options({
+            contents = {
+                MP.LOBBY.connected and UIBox_button({
+                    label = {localize('b_create_lobby')},
+                    colour = G.C.GREEN, button = 'create_lobby', minw = 5,
+                }) or UIBox_button({
+                    label = {localize('b_reconnect')},
+                    colour = G.C.RED, button = 'reconnect', minw = 5,
+                }),
+                MP.LOBBY.connected and UIBox_button({
+                    label = {localize('b_join_lobby')},
+                    colour = G.C.BLUE, button = 'join_lobby', minw = 5, minh = 0.7,
+                }) or nil,
+            },
+        })
+    end
     local function find(node, id)
         if node.config and node.config.id == id then return node end
         -- Optional browser menu rows leave holes before UIBox normalizes them.

@@ -268,13 +268,13 @@ def rebuild_archive() -> bytes:
     return out.getvalue()
 
 
-def patch_game_js(blob: bytes) -> str:
+def patch_game_js(blob: bytes, template: str | None = None) -> str:
     size = len(blob)
     digest = hashlib.sha256(blob).hexdigest()
     package_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"octopus-oatmeal:{digest}"))
     cache_tag = digest[:8]
 
-    text = GAME_JS.read_text("utf-8")
+    text = GAME_JS.read_text("utf-8") if template is None else template
     text, count = re.subn(
         r'var REMOTE_PACKAGE_BASE = "game\.data\?v=[^"]+";',
         f'var REMOTE_PACKAGE_BASE = "game.data?v={cache_tag}";',
