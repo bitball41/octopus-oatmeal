@@ -48,7 +48,7 @@ MP.ACTIONS.connect()
         return once(text,
                     '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
                     '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
-                    '            if ok then\n'
+                    '            if ok and shader then\n'
                     '                G.SHADERS[self.key] = shader\n'
                     '            else\n'
                     '                print("Shader compile failed: " .. tostring(self.key) .. " " .. tostring(shader))\n'
@@ -204,7 +204,17 @@ MP.ACTIONS.connect()
             shader,
         )
         assert n == 3, 'Bunco headache.fs int-to-float for-loops missing'
+        shader, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', shader, count=1)
+        assert n == 1, 'Bunco headache.fs dummy uv.x * 2 missing'
         files['Mods/Bunco/assets/shaders/headache.fs'] = shader.encode()
+        for name in (
+            'Mods/Bunco/assets/shaders/glitter.fs',
+            'Mods/Bunco/assets/shaders/fluorescent.fs',
+        ):
+            extra = files[name].decode()
+            extra, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', extra, count=1)
+            assert n == 1, f'{name} dummy uv.x * 2 missing'
+            files[name] = extra.encode()
 
     if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()

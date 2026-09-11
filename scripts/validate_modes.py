@@ -87,6 +87,15 @@ def main():
     assert 'float(frame) * 71.0' in headache
     assert headache.count('for (float i = 0.0; i <= 1.0; i += steps)') == 3
     assert 'for (float i = 0; i <= 1; i += steps)' not in headache
+    assert 'uv.x * 2.0)' in headache
+    assert 'uv.x * 2)' not in headache
+    for shader_name in (
+        'Mods/Bunco/assets/shaders/glitter.fs',
+        'Mods/Bunco/assets/shaders/fluorescent.fs',
+    ):
+        extra = bunco.read(shader_name).decode()
+        assert 'uv.x * 2.0)' in extra
+        assert 'uv.x * 2)' not in extra
     assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
     bunco_shader = bunco.read('Mods/Steamodded/src/game_object.lua').decode()
     assert 'pcall(love.graphics.newShader' in bunco_shader
