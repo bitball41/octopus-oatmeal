@@ -31,7 +31,7 @@ Module.expectedDataFileDownloads++;
       throw "using preloaded data can only be done on a web page or in a web worker";
     }
     var PACKAGE_NAME = "game.data";
-    var REMOTE_PACKAGE_BASE = "game.data?v=e6644161";
+    var REMOTE_PACKAGE_BASE = "game.data?v=ec02f979";
     if (
       typeof Module["locateFilePackage"] === "function" &&
       !Module["locateFile"]
@@ -50,7 +50,7 @@ Module.expectedDataFileDownloads++;
     var PACKAGE_UUID = metadata.package_uuid;
     // jsDelivr 403s any single file over 20 MB. Fat archives ship as
     // game.data.part0, part1, ... and get concatenated before processPackageData.
-    var SPLIT_PACKAGE_PARTS = ["game.data.part0", "game.data.part1", "game.data.part2", "game.data.part3"];
+    var SPLIT_PACKAGE_PARTS = ["game.data.part0", "game.data.part1"];
 
     function fetchRemotePackage(packageName, packageSize, callback, errback) {
       function applyProgress(url, loaded, size) {
@@ -405,14 +405,14 @@ Module.expectedDataFileDownloads++;
     }
   };
   loadPackage({
-    package_uuid: "72c9422c-19e9-5e50-8f32-76af98f85a45",
-    remote_package_size: 67100445,
+    package_uuid: "e5a7d894-5281-5148-882c-daef646d281b",
+    remote_package_size: 30765799,
     files: [
       {
         filename: "/game.love",
         crunched: 0,
         start: 0,
-        end: 67100445,
+        end: 30765799,
         audio: false,
       },
     ],

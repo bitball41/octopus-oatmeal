@@ -93,7 +93,7 @@ def main():
     html = (ROOT / 'index.html').read_text()
     for name in pokermon_parts:
         assert name in html, f'launcher missing Pokermon part {name}'
-    assert len(pokermon_parts) >= 3, 'Pokermon should be split into at least 3 CDN parts'
+    assert len(pokermon_parts) >= 2, 'Pokermon should be split into at least 2 CDN parts'
 
     assert not any(n.startswith('Mods/Steamodded/') for n in vanilla_names)
     assert not any(n.startswith('Mods/Multiplayer/') for n in vanilla_names)
@@ -174,6 +174,12 @@ def main():
     poke_utils = pokermon.read('Mods/Steamodded/src/utils.lua').decode()
     assert 'part.control.V and args.vars.colours and args.vars.colours[tonumber(part.control.V)]' in poke_utils
     assert not pokermon.read('Mods/Pokermon/localization/vi.lua').startswith(b'\xef\xbb\xbf')
+    assert not any(n.startswith('Mods/Pokermon/assets/2x/') for n in pokermon_names)
+    assert not any(n.startswith('Mods/Pokermon/') and 'Natdex' in n and n.endswith('.png') for n in pokermon_names)
+    poke_sprites = pokermon.read('Mods/Pokermon/pokesprites.lua').decode()
+    assert 'texture_scaling = 1' in poke_sprites
+    assert '"Natdex"' not in poke_sprites
+    assert poke_sprites.count("frames = 1,") >= 4
     compile_packed_lua(pokermon, pokermon_names, 'pokermon', compile_lua)
 
     assert any(n.startswith('Mods/Steamodded/') for n in modded_names)

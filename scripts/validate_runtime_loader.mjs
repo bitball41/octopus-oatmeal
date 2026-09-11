@@ -226,12 +226,7 @@ assert.equal(
 assert.equal(localPokermon.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 localPokermon.vmContext.OctopusLaunch.prefetch("pokermon");
 await flush();
-for (const part of [
-  "pokermon/game.data.part0",
-  "pokermon/game.data.part1",
-  "pokermon/game.data.part2",
-  "pokermon/game.data.part3",
-]) {
+for (const part of ["pokermon/game.data.part0", "pokermon/game.data.part1"]) {
   assert.ok(
     localPokermon.hints.some((hint) => hint.href === part && hint.as === "fetch"),
     "hover/prefetch must start Pokermon archive part " + part,

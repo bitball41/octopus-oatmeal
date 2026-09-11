@@ -5,7 +5,7 @@
 - **Vanilla** loads `vanilla/game.data`. Stock Balatro plus the liminal cheat and browser seed paste. IndexedDB database `/home/web_user/love-vanilla`.
 - **Paperback (a vanilla+ mod)** loads `paperback/game.data` (Steamodded + Paperback). IndexedDB database `/home/web_user/love-paperback`.
 - **Bunco (a vanilla+ mod)** loads `bunco/game.data` (Steamodded + Bunco). IndexedDB database `/home/web_user/love-bunco`.
-- **Pokermon (a vanilla+ mod)** loads `pokermon/game.data.part0`… concatenated into the LÖVE archive (Steamodded + Pokermon). IndexedDB database `/home/web_user/love-pokermon`. jsDelivr 403s any single file over 20 MB, so this pack is split at 18 MiB.
+- **Pokermon (a vanilla+ mod)** loads `pokermon/game.data.part0` and `part1` concatenated into the LÖVE archive (Steamodded + Pokermon). IndexedDB database `/home/web_user/love-pokermon`. jsDelivr 403s any single file over 20 MB, so this pack is split at 18 MiB. 2x / Natdex / Unown-swarm sheets are dropped so love.js can decode the remaining PNGs.
 - **multiplayer mod** loads root `game.data` (Steamodded + Multiplayer). IndexedDB database `/home/web_user/love` so existing browser saves keep working. `#modded` still boots this mode.
 
 All five modes mount the LÖVE save directory at `/home/web_user/love`. They only split the IndexedDB name, so a run in one mode cannot read another mode's profile.
@@ -21,7 +21,7 @@ All five modes mount the LÖVE save directory at `/home/web_user/love`. They onl
 
 ```sh
 npm ci
-python3 -m pip install lupa
+python3 -m pip install lupa pillow
 npm run build:multiplayer
 npm run test:loader
 npm run test:sessions
