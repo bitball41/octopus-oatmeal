@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>148 Jokers</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:1100px;margin:40px auto;padding:0 20px;background:#111;color:#eee}
+h1{margin-bottom:8px}
+p{color:#aaa}
+table{width:100%;border-collapse:collapse;margin-top:24px}
+th,td{padding:10px 12px;border-bottom:1px solid #2b2b2b;text-align:left}
+th{position:sticky;top:0;background:#111}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+<h1>148 Jokers — Optimal Left-to-Right Order</h1>
+<p>Ceremonial Dagger and Madness excluded. Ties use original Joker ID as a deterministic tiebreaker.</p>
+<table>
+<thead><tr><th>Place</th><th>Original ID</th><th>Internal Key</th><th>Joker</th></tr></thead>
+<tbody>
+<tr><td>001</td><td>092</td><td><code>j_baseball</code></td><td>Baseball Card</td></tr>
+<tr><td>002</td><td>123</td><td><code>j_blueprint</code></td><td>Blueprint</td></tr>
+<tr><td>003</td><td>138</td><td><code>j_brainstorm</code></td><td>Brainstorm</td></tr>
+<tr><td>004</td><td>034</td><td><code>j_abstract</code></td><td>Abstract Joker</td></tr>
+<tr><td>005</td><td>110</td><td><code>j_swashbuckler</code></td><td>Swashbuckler</td></tr>
+<tr><td>006</td><td>097</td><td><code>j_popcorn</code></td><td>Popcorn</td></tr>
+<tr><td>007</td><td>016</td><td><code>j_half</code></td><td>Half Joker</td></tr>
+<tr><td>008</td><td>038</td><td><code>j_gros_michel</code></td><td>Gros Michel</td></tr>
+<tr><td>009</td><td>023</td><td><code>j_mystic_summit</code></td><td>Mystic Summit</td></tr>
+<tr><td>010</td><td>027</td><td><code>j_misprint</code></td><td>Misprint</td></tr>
+<tr><td>011</td><td>009</td><td><code>j_crazy</code></td><td>Crazy Joker</td></tr>
+<tr><td>012</td><td>007</td><td><code>j_zany</code></td><td>Zany Joker</td></tr>
+<tr><td>013</td><td>008</td><td><code>j_mad</code></td><td>Mad Joker</td></tr>
+<tr><td>014</td><td>010</td><td><code>j_droll</code></td><td>Droll Joker</td></tr>
+<tr><td>015</td><td>006</td><td><code>j_jolly</code></td><td>Jolly Joker</td></tr>
+<tr><td>016</td><td>001</td><td><code>j_joker</code></td><td>Joker</td></tr>
+<tr><td>017</td><td>043</td><td><code>j_supernova</code></td><td>Supernova</td></tr>
+<tr><td>018</td><td>044</td><td><code>j_ride_the_bus</code></td><td>Ride the Bus</td></tr>
+<tr><td>019</td><td>058</td><td><code>j_green_joker</code></td><td>Green Joker</td></tr>
+<tr><td>020</td><td>063</td><td><code>j_red_card</code></td><td>Red Card</td></tr>
+<tr><td>021</td><td>086</td><td><code>j_fortune_teller</code></td><td>Fortune Teller</td></tr>
+<tr><td>022</td><td>145</td><td><code>j_bootstraps</code></td><td>Bootstraps</td></tr>
+<tr><td>023</td><td>081</td><td><code>j_erosion</code></td><td>Erosion</td></tr>
+<tr><td>024</td><td>096</td><td><code>j_flash</code></td><td>Flash Card</td></tr>
+<tr><td>025</td><td>098</td><td><code>j_trousers</code></td><td>Spare Trousers</td></tr>
+<tr><td>026</td><td>002</td><td><code>j_greedy_joker</code></td><td>Greedy Joker</td></tr>
+<tr><td>027</td><td>003</td><td><code>j_lusty_joker</code></td><td>Lusty Joker</td></tr>
+<tr><td>028</td><td>004</td><td><code>j_wrathful_joker</code></td><td>Wrathful Joker</td></tr>
+<tr><td>029</td><td>005</td><td><code>j_gluttenous_joker</code></td><td>Gluttonous Joker</td></tr>
+<tr><td>030</td><td>031</td><td><code>j_fibonacci</code></td><td>Fibonacci</td></tr>
+<tr><td>031</td><td>039</td><td><code>j_even_steven</code></td><td>Even Steven</td></tr>
+<tr><td>032</td><td>041</td><td><code>j_scholar</code></td><td>Scholar</td></tr>
+<tr><td>033</td><td>101</td><td><code>j_walkie_talkie</code></td><td>Walkie Talkie</td></tr>
+<tr><td>034</td><td>104</td><td><code>j_smiley</code></td><td>Smiley Face</td></tr>
+<tr><td>035</td><td>119</td><td><code>j_onyx_agate</code></td><td>Onyx Agate</td></tr>
+<tr><td>036</td><td>029</td><td><code>j_raised_fist</code></td><td>Raised Fist</td></tr>
+<tr><td>037</td><td>140</td><td><code>j_shoot_the_moon</code></td><td>Shoot the Moon</td></tr>
+<tr><td>038</td><td>076</td><td><code>j_midas_mask</code></td><td>Midas Mask</td></tr>
+<tr><td>039</td><td>019</td><td><code>j_mime</code></td><td>Mime</td></tr>
+<tr><td>040</td><td>028</td><td><code>j_dusk</code></td><td>Dusk</td></tr>
+<tr><td>041</td><td>036</td><td><code>j_hack</code></td><td>Hack</td></tr>
+<tr><td>042</td><td>102</td><td><code>j_selzer</code></td><td>Seltzer</td></tr>
+<tr><td>043</td><td>109</td><td><code>j_sock_and_buskin</code></td><td>Sock and Buskin</td></tr>
+<tr><td>044</td><td>115</td><td><code>j_hanging_chad</code></td><td>Hanging Chad</td></tr>
+<tr><td>045</td><td>078</td><td><code>j_photograph</code></td><td>Photograph</td></tr>
+<tr><td>046</td><td>099</td><td><code>j_ancient</code></td><td>Ancient Joker</td></tr>
+<tr><td>047</td><td>117</td><td><code>j_bloodstone</code></td><td>Bloodstone</td></tr>
+<tr><td>048</td><td>127</td><td><code>j_idol</code></td><td>The Idol</td></tr>
+<tr><td>049</td><td>147</td><td><code>j_triboulet</code></td><td>Triboulet</td></tr>
+<tr><td>050</td><td>072</td><td><code>j_baron</code></td><td>Baron</td></tr>
+<tr><td>051</td><td>017</td><td><code>j_stencil</code></td><td>Joker Stencil</td></tr>
+<tr><td>052</td><td>025</td><td><code>j_loyalty_card</code></td><td>Loyalty Card</td></tr>
+<tr><td>053</td><td>032</td><td><code>j_steel_joker</code></td><td>Steel Joker</td></tr>
+<tr><td>054</td><td>048</td><td><code>j_blackboard</code></td><td>Blackboard</td></tr>
+<tr><td>055</td><td>055</td><td><code>j_constellation</code></td><td>Constellation</td></tr>
+<tr><td>056</td><td>061</td><td><code>j_cavendish</code></td><td>Cavendish</td></tr>
+<tr><td>057</td><td>062</td><td><code>j_card_sharp</code></td><td>Card Sharp</td></tr>
+<tr><td>058</td><td>068</td><td><code>j_vampire</code></td><td>Vampire</td></tr>
+<tr><td>059</td><td>070</td><td><code>j_hologram</code></td><td>Hologram</td></tr>
+<tr><td>060</td><td>075</td><td><code>j_obelisk</code></td><td>Obelisk</td></tr>
+<tr><td>061</td><td>091</td><td><code>j_lucky_cat</code></td><td>Lucky Cat</td></tr>
+<tr><td>062</td><td>100</td><td><code>j_ramen</code></td><td>Ramen</td></tr>
+<tr><td>063</td><td>105</td><td><code>j_campfire</code></td><td>Campfire</td></tr>
+<tr><td>064</td><td>108</td><td><code>j_acrobat</code></td><td>Acrobat</td></tr>
+<tr><td>065</td><td>114</td><td><code>j_throwback</code></td><td>Throwback</td></tr>
+<tr><td>066</td><td>120</td><td><code>j_glass</code></td><td>Glass Joker</td></tr>
+<tr><td>067</td><td>122</td><td><code>j_flower_pot</code></td><td>Flower Pot</td></tr>
+<tr><td>068</td><td>128</td><td><code>j_seeing_double</code></td><td>Seeing Double</td></tr>
+<tr><td>069</td><td>130</td><td><code>j_hit_the_road</code></td><td>Hit the Road</td></tr>
+<tr><td>070</td><td>131</td><td><code>j_duo</code></td><td>The Duo</td></tr>
+<tr><td>071</td><td>132</td><td><code>j_trio</code></td><td>The Trio</td></tr>
+<tr><td>072</td><td>133</td><td><code>j_family</code></td><td>The Family</td></tr>
+<tr><td>073</td><td>134</td><td><code>j_order</code></td><td>The Order</td></tr>
+<tr><td>074</td><td>135</td><td><code>j_tribe</code></td><td>The Tribe</td></tr>
+<tr><td>075</td><td>141</td><td><code>j_drivers_license</code></td><td>Driver's License</td></tr>
+<tr><td>076</td><td>146</td><td><code>j_caino</code></td><td>Caino</td></tr>
+<tr><td>077</td><td>148</td><td><code>j_yorick</code></td><td>Yorick</td></tr>
+<tr><td>078</td><td>011</td><td><code>j_sly</code></td><td>Sly Joker</td></tr>
+<tr><td>079</td><td>012</td><td><code>j_wily</code></td><td>Wily Joker</td></tr>
+<tr><td>080</td><td>013</td><td><code>j_clever</code></td><td>Clever Joker</td></tr>
+<tr><td>081</td><td>014</td><td><code>j_devious</code></td><td>Devious Joker</td></tr>
+<tr><td>082</td><td>015</td><td><code>j_crafty</code></td><td>Crafty Joker</td></tr>
+<tr><td>083</td><td>022</td><td><code>j_banner</code></td><td>Banner</td></tr>
+<tr><td>084</td><td>033</td><td><code>j_scary_face</code></td><td>Scary Face</td></tr>
+<tr><td>085</td><td>040</td><td><code>j_odd_todd</code></td><td>Odd Todd</td></tr>
+<tr><td>086</td><td>049</td><td><code>j_runner</code></td><td>Runner</td></tr>
+<tr><td>087</td><td>050</td><td><code>j_ice_cream</code></td><td>Ice Cream</td></tr>
+<tr><td>088</td><td>053</td><td><code>j_blue_joker</code></td><td>Blue Joker</td></tr>
+<tr><td>089</td><td>056</td><td><code>j_hiker</code></td><td>Hiker</td></tr>
+<tr><td>090</td><td>065</td><td><code>j_square</code></td><td>Square Joker</td></tr>
+<tr><td>091</td><td>089</td><td><code>j_stone</code></td><td>Stone Joker</td></tr>
+<tr><td>092</td><td>093</td><td><code>j_bull</code></td><td>Bull</td></tr>
+<tr><td>093</td><td>103</td><td><code>j_castle</code></td><td>Castle</td></tr>
+<tr><td>094</td><td>118</td><td><code>j_arrowhead</code></td><td>Arrowhead</td></tr>
+<tr><td>095</td><td>124</td><td><code>j_wee</code></td><td>Wee Joker</td></tr>
+<tr><td>096</td><td>136</td><td><code>j_stuntman</code></td><td>Stuntman</td></tr>
+<tr><td>097</td><td>018</td><td><code>j_four_fingers</code></td><td>Four Fingers</td></tr>
+<tr><td>098</td><td>020</td><td><code>j_credit_card</code></td><td>Credit Card</td></tr>
+<tr><td>099</td><td>024</td><td><code>j_marble</code></td><td>Marble Joker</td></tr>
+<tr><td>100</td><td>026</td><td><code>j_8_ball</code></td><td>8 Ball</td></tr>
+<tr><td>101</td><td>030</td><td><code>j_chaos</code></td><td>Chaos the Clown</td></tr>
+<tr><td>102</td><td>035</td><td><code>j_delayed_grat</code></td><td>Delayed Gratification</td></tr>
+<tr><td>103</td><td>037</td><td><code>j_pareidolia</code></td><td>Pareidolia</td></tr>
+<tr><td>104</td><td>042</td><td><code>j_business</code></td><td>Business Card</td></tr>
+<tr><td>105</td><td>045</td><td><code>j_space</code></td><td>Space Joker</td></tr>
+<tr><td>106</td><td>046</td><td><code>j_egg</code></td><td>Egg</td></tr>
+<tr><td>107</td><td>047</td><td><code>j_burglar</code></td><td>Burglar</td></tr>
+<tr><td>108</td><td>051</td><td><code>j_dna</code></td><td>DNA</td></tr>
+<tr><td>109</td><td>052</td><td><code>j_splash</code></td><td>Splash</td></tr>
+<tr><td>110</td><td>054</td><td><code>j_sixth_sense</code></td><td>Sixth Sense</td></tr>
+<tr><td>111</td><td>057</td><td><code>j_faceless</code></td><td>Faceless Joker</td></tr>
+<tr><td>112</td><td>059</td><td><code>j_superposition</code></td><td>Superposition</td></tr>
+<tr><td>113</td><td>060</td><td><code>j_todo_list</code></td><td>To Do List</td></tr>
+<tr><td>114</td><td>066</td><td><code>j_seance</code></td><td>Seance</td></tr>
+<tr><td>115</td><td>067</td><td><code>j_riff_raff</code></td><td>Riff-raff</td></tr>
+<tr><td>116</td><td>069</td><td><code>j_shortcut</code></td><td>Shortcut</td></tr>
+<tr><td>117</td><td>071</td><td><code>j_vagabond</code></td><td>Vagabond</td></tr>
+<tr><td>118</td><td>073</td><td><code>j_cloud_9</code></td><td>Cloud 9</td></tr>
+<tr><td>119</td><td>074</td><td><code>j_rocket</code></td><td>Rocket</td></tr>
+<tr><td>120</td><td>077</td><td><code>j_luchador</code></td><td>Luchador</td></tr>
+<tr><td>121</td><td>079</td><td><code>j_gift</code></td><td>Gift Card</td></tr>
+<tr><td>122</td><td>080</td><td><code>j_turtle_bean</code></td><td>Turtle Bean</td></tr>
+<tr><td>123</td><td>082</td><td><code>j_reserved_parking</code></td><td>Reserved Parking</td></tr>
+<tr><td>124</td><td>083</td><td><code>j_mail</code></td><td>Mail-In Rebate</td></tr>
+<tr><td>125</td><td>084</td><td><code>j_to_the_moon</code></td><td>To the Moon</td></tr>
+<tr><td>126</td><td>085</td><td><code>j_hallucination</code></td><td>Hallucination</td></tr>
+<tr><td>127</td><td>087</td><td><code>j_juggler</code></td><td>Juggler</td></tr>
+<tr><td>128</td><td>088</td><td><code>j_drunkard</code></td><td>Drunkard</td></tr>
+<tr><td>129</td><td>090</td><td><code>j_golden</code></td><td>Golden Joker</td></tr>
+<tr><td>130</td><td>094</td><td><code>j_diet_cola</code></td><td>Diet Cola</td></tr>
+<tr><td>131</td><td>095</td><td><code>j_trading</code></td><td>Trading Card</td></tr>
+<tr><td>132</td><td>106</td><td><code>j_ticket</code></td><td>Golden Ticket</td></tr>
+<tr><td>133</td><td>107</td><td><code>j_mr_bones</code></td><td>Mr. Bones</td></tr>
+<tr><td>134</td><td>111</td><td><code>j_troubadour</code></td><td>Troubadour</td></tr>
+<tr><td>135</td><td>112</td><td><code>j_certificate</code></td><td>Certificate</td></tr>
+<tr><td>136</td><td>113</td><td><code>j_smeared</code></td><td>Smeared Joker</td></tr>
+<tr><td>137</td><td>121</td><td><code>j_ring_master</code></td><td>Showman</td></tr>
+<tr><td>138</td><td>125</td><td><code>j_merry_andy</code></td><td>Merry Andy</td></tr>
+<tr><td>139</td><td>126</td><td><code>j_oops</code></td><td>Oops! All 6s</td></tr>
+<tr><td>140</td><td>129</td><td><code>j_matador</code></td><td>Matador</td></tr>
+<tr><td>141</td><td>137</td><td><code>j_invisible</code></td><td>Invisible Joker</td></tr>
+<tr><td>142</td><td>139</td><td><code>j_satellite</code></td><td>Satellite</td></tr>
+<tr><td>143</td><td>142</td><td><code>j_cartomancer</code></td><td>Cartomancer</td></tr>
+<tr><td>144</td><td>143</td><td><code>j_astronomer</code></td><td>Astronomer</td></tr>
+<tr><td>145</td><td>144</td><td><code>j_burnt</code></td><td>Burnt Joker</td></tr>
+<tr><td>146</td><td>149</td><td><code>j_chicot</code></td><td>Chicot</td></tr>
+<tr><td>147</td><td>150</td><td><code>j_perkeo</code></td><td>Perkeo</td></tr>
+</tbody>
+</table>
+</body>
+</html>
