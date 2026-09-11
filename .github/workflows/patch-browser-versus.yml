@@ -1,0 +1,83 @@
+name: Patch browser versus build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/browser-versus-p2p
+    paths:
+      - octopus_multiplayer.lua
+      - multiplayer.js
+      - scripts/patch_multiplayer.py
+      - scripts/patch_multiplayer_html.py
+      - .github/workflows/patch-browser-versus.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/browser-versus-p2p
+
+      - name: Patch game archive
+        run: python3 scripts/patch_multiplayer.py
+
+      - name: Patch HTML entry points
+        run: python3 scripts/patch_multiplayer_html.py
+
+      - name: Validate archive
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile('game.data')
+          names = set(z.namelist())
+          required = {
+              'octopus_multiplayer.lua',
+              'main.lua',
+              'game.lua',
+              'functions/state_events.lua',
+              'functions/button_callbacks.lua',
+          }
+          missing = required - names
+          if missing:
+              raise SystemExit(f'missing patched files: {sorted(missing)}')
+          main = z.read('main.lua').decode('utf-8')
+          game = z.read('game.lua').decode('utf-8')
+          state = z.read('functions/state_events.lua').decode('utf-8')
+          buttons = z.read('functions/button_callbacks.lua').decode('utf-8')
+          checks = [
+              ('loader', 'require("octopus_multiplayer")' in main),
+              ('update hook', 'OCTOPUS_MP.update(dt)' in game),
+              ('round hook', 'OCTOPUS_MP.should_end_round()' in game),
+              ('score hook', 'OCTOPUS_MP.on_hand_scored(hand_chips*mult)' in state),
+              ('blind-end hook', 'OCTOPUS_MP.on_round_end(game_over)' in state),
+              ('run-start hook', 'OCTOPUS_MP.on_run_start()' in buttons),
+          ]
+          failed = [name for name, ok in checks if not ok]
+          if failed:
+              raise SystemExit(f'patch validation failed: {failed}')
+          print('multiplayer archive validation passed')
+          PY
+
+      - name: Validate HTML bridge
+        run: |
+          grep -q 'OctopusMultiplayer' balatro.html
+          grep -q 'multiplayer.js' balatro.html
+          grep -q 'octopus-oatmeal@main/multiplayer.js' index.html
+
+      - name: Commit generated build
+        run: |
+          if git diff --quiet -- game.data game.js balatro.html index.html; then
+            echo "Generated build already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add game.data game.js balatro.html index.html
+          git commit -m "Build browser multiplayer game archive"
+          git push origin HEAD:feature/browser-versus-p2p
