@@ -90,9 +90,9 @@ def patch_index() -> None:
     text = path.read_text("utf-8")
 
     # The downloadable launcher resolves main through GitHub's API, then
-    # loads multiplayer_upstream.js, game.js, love.js, WASM, and game.data from
-    # that one immutable commit. Never rewrite it back to mutable @main URLs:
-    # jsDelivr can resolve separate mutable requests to different revisions.
+    # loads multiplayer_upstream.js, game.js, love.js, WASM, and game.data
+    # from that one immutable jsDelivr commit. Archives must stay under
+    # jsDelivr's 20 MB cap. Never rewrite the launcher back to mutable @main URLs.
     if text.count(PINNED_RUNTIME_START) != 1 or text.count(PINNED_RUNTIME_END) != 1:
         raise RuntimeError("index.html is missing its immutable runtime loader")
     if "OctopusLaunch" not in text or "mode-paperback" not in text or "mode-bunco" not in text or "mode-multiplayer" not in text:
