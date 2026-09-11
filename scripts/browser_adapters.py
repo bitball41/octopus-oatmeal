@@ -174,6 +174,18 @@ MP.ACTIONS.connect()
         return once(text, '::skip_game_actions_during_remove::', 'end', 'card removal scope')
     edit('card.lua', card)
 
+    if flavor == 'bunco':
+        # WebGL 1 rejects Bunco's desktop background replacements and int*float
+        # multiplies in headache.fs (love.js compiles shaders at boot).
+        cfg = files['Mods/Bunco/config.lua'].decode()
+        cfg, n = re.subn(r'high_quality_shaders = true', 'high_quality_shaders = false', cfg, count=1)
+        assert n == 1, 'Bunco high_quality_shaders default missing'
+        files['Mods/Bunco/config.lua'] = cfg.encode()
+        shader = files['Mods/Bunco/assets/shaders/headache.fs'].decode()
+        shader, n = re.subn(r'\bframe \* 71\.0\b', 'float(frame) * 71.0', shader)
+        assert n == 2, 'Bunco headache.fs int*float sites missing'
+        files['Mods/Bunco/assets/shaders/headache.fs'] = shader.encode()
+
     if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()
                     if name.endswith('.lua') and re.search(r'\bgoto\b|::\w+::', data.decode())]

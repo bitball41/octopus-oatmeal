@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Vanilla / Paperback / Bunco / multiplayer archive split, Red Deck copy, and simplified lobby."""
+import re
 import zipfile
 from pathlib import Path
 
@@ -78,6 +79,11 @@ def main():
         bunco, bunco_names, 'Bunco', 'Bunco.lua', 'Bunco.json', 'bunco')
     assert not any(n.startswith('Mods/paperback/') for n in bunco_names)
     assert 'Mods/Bunco/lovely.toml' in bunco_names
+    bunco_cfg = bunco.read('Mods/Bunco/config.lua').decode()
+    assert 'high_quality_shaders = false' in bunco_cfg
+    headache = bunco.read('Mods/Bunco/assets/shaders/headache.fs').decode()
+    assert 'float(frame) * 71.0' in headache
+    assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
 
     try:
         from lupa.lua51 import LuaRuntime
