@@ -6,6 +6,18 @@ from browser_adapters import once
 ROOT = Path(__file__).resolve().parents[1]
 
 def apply(files, vanilla=False):
+    if not vanilla:
+        text = files['game.lua'].decode()
+        text = once(text,
+                    "G.SETTINGS.tutorial_complete = get_cloud_flag('tutorial_complete')",
+                    "G.SETTINGS.tutorial_complete = true\n    G.SETTINGS.tutorial_progress = nil",
+                    'modded main menu tutorial skip')
+        text = once(text, 'function Game:start_run(args)',
+                    'function Game:start_run(args)\n'
+                    '    G.SETTINGS.tutorial_complete = true\n'
+                    '    G.SETTINGS.tutorial_progress = nil',
+                    'modded run tutorial skip')
+        files['game.lua'] = text.encode()
     # The bundled runtime is WebGL 1: upstream enables mipmaps on NPOT atlases,
     # which fails during splash/menu creation on conforming browsers.
     for name in ('game.lua', 'Mods/Steamodded/src/game_object.lua'):
