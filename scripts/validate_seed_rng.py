@@ -29,11 +29,11 @@ source = z.read('functions/misc_functions.lua').decode()
 # Load the actual packed implementations and card definitions, not copies.
 helpers = source[source.index('function pseudoshuffle('):source.index('function tprint(')]
 game = z.read('game.lua').decode()
-start = game.index('self.P_CARDS = self.P_CARDS or {')
+start = re.search(r'self\.P_CARDS = (?:self\.P_CARDS or )?\{', game).start()
 end = game.index('\n    }', start) + len('\n    }')
-cards = game[start:end].replace('self.P_CARDS = self.P_CARDS or', 'G.P_CARDS =', 1)
+cards = re.sub(r'self\.P_CARDS = (?:self\.P_CARDS or )?', 'G.P_CARDS = ', game[start:end], count=1)
 for runtime in (browser, desktop):
-    runtime.execute('G = {GAME = {pseudorandom = {}}}')
+    runtime.execute('G = {GAME = {pseudorandom = {}}}; SMODS = {Suits={}, Ranks={}, add_to_pool=function() return true end}')
     runtime.execute(helpers)
     runtime.execute(cards)
     runtime.execute('''
