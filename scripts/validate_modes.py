@@ -74,6 +74,8 @@ def main():
     assert 'pb_is_illegal_seq' in overrides
     assert '::pb_continue_rank_next::' not in overrides
     assert 'repeat' in overrides and 'until true' in overrides
+    pb_shader = paperback.read('Mods/Steamodded/src/game_object.lua').decode()
+    assert 'pcall(love.graphics.newShader' in pb_shader
 
     assert_smods_content_pack(
         bunco, bunco_names, 'Bunco', 'Bunco.lua', 'Bunco.json', 'bunco')
@@ -83,7 +85,22 @@ def main():
     assert 'high_quality_shaders = false' in bunco_cfg
     headache = bunco.read('Mods/Bunco/assets/shaders/headache.fs').decode()
     assert 'float(frame) * 71.0' in headache
+    assert headache.count('for (int bunc_k = 0; bunc_k <= 4; bunc_k++)') == 3
+    assert 'for (float i =' not in headache
+    assert 'float steps = 0.25' not in headache
+    assert 'uv.x * 2.0)' in headache
+    assert 'uv.x * 2)' not in headache
+    for shader_name in (
+        'Mods/Bunco/assets/shaders/glitter.fs',
+        'Mods/Bunco/assets/shaders/fluorescent.fs',
+    ):
+        extra = bunco.read(shader_name).decode()
+        assert 'uv.x * 2.0)' in extra
+        assert 'uv.x * 2)' not in extra
     assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
+    bunco_shader = bunco.read('Mods/Steamodded/src/game_object.lua').decode()
+    assert 'pcall(love.graphics.newShader' in bunco_shader
+    assert 'self.full_path:find("Bunco", 1, true)' in bunco_shader
 
     try:
         from lupa.lua51 import LuaRuntime

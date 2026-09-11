@@ -42,6 +42,32 @@ MP.ACTIONS.connect()
                     'Lua 5.1 lazy GameObject validation')
     edit('Mods/Steamodded/src/game_object.lua', object_validation)
 
+    def smods_shader(text):
+        # love.js aborts the whole window if newShader throws. Keep boot
+        # alive and skip the broken program (Bunco headache/pinch on WebGL 1).
+        if flavor == 'bunco':
+            # Bunco's edition shaders use GLSL 3 array constructors and float
+            # loops. Do not compile them; reuse a stock program so inject cannot abort.
+            text = once(text,
+                        '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
+                        '            if self.full_path and self.full_path:find("Bunco", 1, true) then\n'
+                        '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
+                        '                return\n'
+                        '            end\n'
+                        '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
+                        'skip Bunco WebGL shaders')
+        return once(text,
+                    '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
+                    '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
+                    '            if ok and shader then\n'
+                    '                G.SHADERS[self.key] = shader\n'
+                    '            else\n'
+                    '                print("Shader compile failed: " .. tostring(self.key) .. " " .. tostring(shader))\n'
+                    '                G.SHADERS[self.key] = G.SHADERS["dissolve"] or G.SHADERS["flash"]\n'
+                    '            end',
+                    'pcall SMODS shader compile')
+    edit('Mods/Steamodded/src/game_object.lua', smods_shader)
+
     def mp_menu(text):
         begin = text.index('-- Modify play button to take you to mode select first')
         end = text.index('G.FUNCS.wipe_off', begin)
@@ -184,7 +210,24 @@ MP.ACTIONS.connect()
         shader = files['Mods/Bunco/assets/shaders/headache.fs'].decode()
         shader, n = re.subn(r'\bframe \* 71\.0\b', 'float(frame) * 71.0', shader)
         assert n == 2, 'Bunco headache.fs int*float sites missing'
+        shader = shader.replace('    float steps = 0.25;\n\n', '')
+        shader, n = re.subn(
+            r'for \(float i = 0; i <= 1; i \+= steps\) \{',
+            'for (int bunc_k = 0; bunc_k <= 4; bunc_k++) { float i = float(bunc_k) * 0.25;',
+            shader,
+        )
+        assert n == 3, 'Bunco headache.fs WebGL1 loop rewrite missing'
+        shader, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', shader, count=1)
+        assert n == 1, 'Bunco headache.fs dummy uv.x * 2 missing'
         files['Mods/Bunco/assets/shaders/headache.fs'] = shader.encode()
+        for name in (
+            'Mods/Bunco/assets/shaders/glitter.fs',
+            'Mods/Bunco/assets/shaders/fluorescent.fs',
+        ):
+            extra = files[name].decode()
+            extra, n = re.subn(r'uv\.x \* 2\)', 'uv.x * 2.0)', extra, count=1)
+            assert n == 1, f'{name} dummy uv.x * 2 missing'
+            files[name] = extra.encode()
 
     if flavor != 'multiplayer':
         leftover = [name for name, data in files.items()

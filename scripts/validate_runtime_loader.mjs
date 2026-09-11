@@ -31,6 +31,7 @@ assert.equal(scripts.length, 1, "pinned runtime must be one inline script");
 const source = scripts[0][1];
 assert.match(source, /FALLBACK_RUNTIME_REF\s*=\s*\n?\s*"([0-9a-f]{40})"/i);
 assert.doesNotMatch(source, /55afe41755e8fe3ce13976b4883259dd3830139a/);
+assert.doesNotMatch(source, /e79da809feb66621460f605a30e5437052d6938f/);
 
 function overlay() {
   return { classList: { add() {}, remove() {} }, onclick: null };
