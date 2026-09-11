@@ -276,6 +276,9 @@ def patch_game_js(blob: bytes, template: str | None = None, parts: list[str] | N
     cache_tag = digest[:8]
 
     text = GAME_JS.read_text("utf-8") if template is None else template
+    # Each mode needs its own package slot; UUID still invalidates changed data.
+    text = text.replace('PACKAGE_PATH + PACKAGE_NAME',
+                        '(Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME')
     text, count = re.subn(
         r'var REMOTE_PACKAGE_BASE = "game\.data\?v=[^"]+";',
         f'var REMOTE_PACKAGE_BASE = "game.data?v={cache_tag}";',

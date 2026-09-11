@@ -2,14 +2,16 @@
   "name": "octopus-oatmeal",
   "private": true,
   "type": "module",
-    "scripts": {
+  "scripts": {
     "build:multiplayer": "python3 scripts/build_upstream.py --release && node scripts/build_server.mjs && python3 scripts/patch_multiplayer_html.py",
-    "test:loader": "node scripts/validate_runtime_loader.mjs",
+    "test:loader": "node scripts/validate_runtime_loader.mjs && npm run test:cache",
     "test:sessions": "node scripts/validate_sessions.mjs && python3 scripts/validate_session_input.py",
-    "test:features": "python3 scripts/validate_browser_features.py && python3 scripts/validate_seed_rng.py && python3 scripts/validate_modes.py"
-    },
+    "test:features": "python3 scripts/validate_browser_features.py && python3 scripts/validate_seed_rng.py && python3 scripts/validate_modes.py",
+    "test:cache": "node scripts/validate_asset_cache.mjs"
+  },
   "devDependencies": {
-    "esbuild": "0.25.12"
+    "esbuild": "0.25.12",
+    "fake-indexeddb": "^6.2.5"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4"

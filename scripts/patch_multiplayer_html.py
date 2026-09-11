@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import re
+import json
+import hashlib
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -109,9 +111,25 @@ def patch_index() -> None:
     path.write_text(text, "utf-8")
 
 
+def install_asset_cache():
+    paths = ['love.js', 'love.wasm', 'multiplayer_upstream.js', 'game.js']
+    paths += [mode + '/game.js' for mode in ('vanilla', 'paperback', 'bunco', 'pokermon')]
+    revisions = {path: hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in paths}
+    helper = 'var ASSET_REVISIONS = ' + json.dumps(revisions, sort_keys=True) + ';\n'
+    helper += (ROOT/'browser/asset-cache.js').read_text()
+    for name in ('index.html', 'balatro.html'):
+        path = ROOT/name
+        text = path.read_text()
+        text, count = re.subn(r'/\* OCTOPUS_ASSET_CACHE_START \*/.*?/\* OCTOPUS_ASSET_CACHE_END \*/',
+            lambda _: '/* OCTOPUS_ASSET_CACHE_START */\n' + helper + '\n/* OCTOPUS_ASSET_CACHE_END */', text, flags=re.S)
+        assert count == 1, name + ': missing cache helper'
+        path.write_text(text)
+
+
 def main() -> None:
     patch_balatro()
     patch_index()
+    install_asset_cache()
     print("Patched native multiplayer HTML entry points")
 
 

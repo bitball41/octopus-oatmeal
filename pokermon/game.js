@@ -358,14 +358,14 @@ Module.expectedDataFileDownloads++;
       openDatabase(function (db) {
         checkCachedPackage(
           db,
-          PACKAGE_PATH + PACKAGE_NAME,
+          (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
           function (useCached) {
             Module.preloadResults[PACKAGE_NAME] = { fromCache: useCached };
             if (useCached) {
               console.info("loading " + PACKAGE_NAME + " from cache");
               fetchCachedPackage(
                 db,
-                PACKAGE_PATH + PACKAGE_NAME,
+                (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
                 processPackageData,
                 preloadFallback,
               );
@@ -377,7 +377,7 @@ Module.expectedDataFileDownloads++;
                 function (packageData) {
                   cacheRemotePackage(
                     db,
-                    PACKAGE_PATH + PACKAGE_NAME,
+                    (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
                     packageData,
                     { uuid: PACKAGE_UUID },
                     processPackageData,
