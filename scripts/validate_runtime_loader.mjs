@@ -117,7 +117,7 @@ await flush();
 assert.equal(local.state.started, 0, "picker must not boot until a mode is chosen");
 assert.deepEqual(
   local.hints.map(({ href }) => href).sort(),
-  ["bunco/game.js", "game.js", "love.js", "love.wasm", "paperback/game.js", "vanilla/game.js"],
+  ["bunco/game.js", "game.js", "love.js", "paperback/game.js", "vanilla/game.js"],
 );
 await local.vmContext.OctopusLaunch.start("vanilla");
 await flush();
@@ -230,8 +230,8 @@ assert.equal(
   `${base}love.wasm`,
 );
 assert.ok(
-  remote.hints.some((hint) => hint.href === `${base}love.wasm` && hint.as === "fetch"),
-  "remote picker must preload the shared wasm",
+  remote.hints.some((hint) => hint.href === `${base}love.js` && hint.as === "script"),
+  "remote picker must preload shared love.js",
 );
 
 const remotePaperback = context({
@@ -252,6 +252,19 @@ assert.ok(
   remotePaperback.hints.some((hint) => hint.href === `${base}paperback/game.data`),
   "choosing Paperback must preload its archive",
 );
+
+const wasmRemote = context({
+  hostname: "cdn.example",
+  fetchImpl: async (url) => {
+    const href = String(url || "");
+    if (href.includes("love.wasm")) {
+      return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+    }
+    return { ok: true, json: async () => ({ sha: resolvedRef }) };
+  },
+});
+await flush();
+assert.equal(wasmRemote.vmContext.Module.wasmBinary.byteLength, 8);
 
 const hashed = context({ hostname: "localhost", hash: "#vanilla" });
 await flush();

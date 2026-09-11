@@ -583,7 +583,24 @@
           // Shared LÖVE runtime is identical across modes. Pull it while the
           // picker is still on screen so Play doesn't wait on a 4.7 MB wasm.
           hint("preload", assetBase + "love.js", "script");
-          hint("preload", assetBase + "love.wasm", "fetch", !!assetBase);
+          var wasmHref = assetBase + "love.wasm";
+          if (typeof fetch === "function") {
+            fetch(wasmHref)
+              .then(function (response) {
+                if (
+                  !response ||
+                  !response.ok ||
+                  typeof response.arrayBuffer !== "function"
+                ) {
+                  return null;
+                }
+                return response.arrayBuffer();
+              })
+              .then(function (buffer) {
+                if (buffer && !Module.wasmBinary) Module.wasmBinary = buffer;
+              })
+              .catch(function () {});
+          }
           hint("preload", assetBase + "vanilla/game.js", "script");
           hint("preload", assetBase + "paperback/game.js", "script");
           hint("preload", assetBase + "bunco/game.js", "script");

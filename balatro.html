@@ -459,7 +459,23 @@
         }
         window.OctopusLaunch = { start: start, prefetch: prefetchMode };
         hint("preload", "love.js", "script");
-        hint("preload", "love.wasm", "fetch");
+        if (typeof fetch === "function") {
+          fetch("love.wasm")
+            .then(function (response) {
+              if (
+                !response ||
+                !response.ok ||
+                typeof response.arrayBuffer !== "function"
+              ) {
+                return null;
+              }
+              return response.arrayBuffer();
+            })
+            .then(function (buffer) {
+              if (buffer && !Module.wasmBinary) Module.wasmBinary = buffer;
+            })
+            .catch(function () {});
+        }
         hint("preload", "vanilla/game.js", "script");
         hint("preload", "paperback/game.js", "script");
         hint("preload", "bunco/game.js", "script");
