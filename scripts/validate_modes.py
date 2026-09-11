@@ -83,6 +83,8 @@ def main():
     assert 'high_quality_shaders = false' in bunco_cfg
     headache = bunco.read('Mods/Bunco/assets/shaders/headache.fs').decode()
     assert 'float(frame) * 71.0' in headache
+    assert headache.count('for (float i = 0.0; i <= 1.0; i += steps)') == 3
+    assert 'for (float i = 0; i <= 1; i += steps)' not in headache
     assert re.search(r'(?<!float\()frame \* 71\.0', headache) is None
 
     try:

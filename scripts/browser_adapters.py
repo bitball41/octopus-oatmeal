@@ -184,6 +184,12 @@ MP.ACTIONS.connect()
         shader = files['Mods/Bunco/assets/shaders/headache.fs'].decode()
         shader, n = re.subn(r'\bframe \* 71\.0\b', 'float(frame) * 71.0', shader)
         assert n == 2, 'Bunco headache.fs int*float sites missing'
+        shader, n = re.subn(
+            r'for \(float i = 0; i <= 1; i \+= steps\)',
+            'for (float i = 0.0; i <= 1.0; i += steps)',
+            shader,
+        )
+        assert n == 3, 'Bunco headache.fs int-to-float for-loops missing'
         files['Mods/Bunco/assets/shaders/headache.fs'] = shader.encode()
 
     if flavor != 'multiplayer':
