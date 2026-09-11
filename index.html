@@ -245,6 +245,14 @@
         min-width: 240px;
       }
 
+      #mode-bunco {
+        background: #d97706;
+        color: #fff;
+        text-transform: none;
+        letter-spacing: 0.03em;
+        min-width: 240px;
+      }
+
       #mode-multiplayer {
         background: #8b5cf6;
         color: #fff;
@@ -267,14 +275,17 @@
       <div id="mode-overlay">
         <h1>Balatro</h1>
         <p>
-          Vanilla is the stock game plus cheats. Paperback is a vanilla+
-          content pack. Multiplayer mod loads Balatro Multiplayer. Each mode
-          keeps a completely separate save.
+          Vanilla is the stock game plus cheats. Paperback and Bunco are
+          vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
+          Each mode keeps a completely separate save.
         </p>
         <div class="mode-row">
           <button id="mode-vanilla" type="button">Vanilla</button>
           <button id="mode-paperback" type="button">
             Paperback (a vanilla+ mod)
+          </button>
+          <button id="mode-bunco" type="button">
+            Bunco (a vanilla+ mod)
           </button>
           <button id="mode-multiplayer" type="button">multiplayer mod</button>
         </div>
@@ -494,6 +505,11 @@
             dir: "paperback/",
             multiplayer: false,
           },
+          bunco: {
+            persist: "/home/web_user/love-bunco",
+            dir: "bunco/",
+            multiplayer: false,
+          },
           multiplayer: {
             persist: "/home/web_user/love",
             dir: "",
@@ -573,9 +589,11 @@
         function bindPicker() {
           var vanilla = document.getElementById("mode-vanilla");
           var paperback = document.getElementById("mode-paperback");
+          var bunco = document.getElementById("mode-bunco");
           var multiplayer = document.getElementById("mode-multiplayer");
           if (vanilla) vanilla.onclick = function () { start("vanilla"); };
           if (paperback) paperback.onclick = function () { start("paperback"); };
+          if (bunco) bunco.onclick = function () { start("bunco"); };
           if (multiplayer) multiplayer.onclick = function () { start("multiplayer"); };
           var hash =
             typeof location !== "undefined"

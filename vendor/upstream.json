@@ -17,6 +17,12 @@
     "archive": "Paperback.zip",
     "sha256": "ac415a02c3dcc272defa7d6d40faac7eb4e7b91c176acecc0c773f6eec49735a"
   },
+  "Bunco": {
+    "url": "https://github.com/Firch/Bunco",
+    "commit": "016e4cda5525fcb74ec6b6e70e7fdba1f0609547",
+    "archive": "Bunco.zip",
+    "sha256": "6fd3293325ac7b87200d2b4e2d0a22d5e18e2e7f5ae3b7851f1a01572a3068ee"
+  },
   "MultiplayerServer": {
     "url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI-Server",
     "commit": "d664c29523b827d53dfa1a181e5b2baf1aefac4f",

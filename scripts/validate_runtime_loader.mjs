@@ -12,8 +12,10 @@ assert.equal(html.split(start).length - 1, 1, "missing pinned-runtime start mark
 assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker");
 assert.match(html, /id="mode-vanilla"/);
 assert.match(html, /id="mode-paperback"/);
+assert.match(html, /id="mode-bunco"/);
 assert.match(html, /id="mode-multiplayer"/);
 assert.match(html, /Paperback \(a vanilla\+ mod\)/);
+assert.match(html, /Bunco \(a vanilla\+ mod\)/);
 assert.match(html, /multiplayer mod/);
 assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
@@ -41,6 +43,7 @@ function context({ hostname, hash, fetchImpl }) {
   const buttons = {
     "mode-vanilla": overlay(),
     "mode-paperback": overlay(),
+    "mode-bunco": overlay(),
     "mode-multiplayer": overlay(),
   };
   const vmContext = {
@@ -146,6 +149,24 @@ assert.equal(
 );
 assert.equal(localPaperback.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 
+const localBunco = context({ hostname: "localhost" });
+await localBunco.vmContext.OctopusLaunch.start("bunco");
+await flush();
+assert.deepEqual(
+  localBunco.loaded.map(({ src }) => src),
+  ["bunco/game.js", "love.js"],
+);
+assert.equal(localBunco.vmContext.__octopusMode, "bunco");
+assert.equal(
+  localBunco.vmContext.Module.persistenceDatabase,
+  "/home/web_user/love-bunco",
+);
+assert.equal(
+  localBunco.vmContext.Module.locateFile("game.data?v=1"),
+  "bunco/game.data?v=1",
+);
+assert.equal(localBunco.vmContext.Module.locateFile("love.wasm"), "love.wasm");
+
 const resolvedRef = "a".repeat(40);
 const remote = context({
   hostname: "cdn.example",
@@ -178,6 +199,11 @@ const hashedPaperback = context({ hostname: "localhost", hash: "#paperback" });
 await flush();
 assert.equal(hashedPaperback.vmContext.__octopusMode, "paperback");
 assert.equal(hashedPaperback.state.started, 1);
+
+const hashedBunco = context({ hostname: "localhost", hash: "#bunco" });
+await flush();
+assert.equal(hashedBunco.vmContext.__octopusMode, "bunco");
+assert.equal(hashedBunco.state.started, 1);
 
 const hashedAlias = context({ hostname: "localhost", hash: "#modded" });
 await flush();
