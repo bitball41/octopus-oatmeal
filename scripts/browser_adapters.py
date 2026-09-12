@@ -113,6 +113,24 @@ MP.ACTIONS.connect()
         # It has no desktop convert_save_to_meta function or disk STR_UNPACK path.
         text = once(text, '    convert_save_to_meta()\n\n    local meta = STR_UNPACK(get_compressed(G.SETTINGS.profile .. \'/\' .. \'meta.jkr\') or \'return {}\')',
                     "    local meta = G.FILES[G.SETTINGS.profile .. '/meta.jkr'] or {}", 'browser profile metadata')
+        # The browser save_progress updates G.FILES synchronously. Saving here
+        # destroys the persisted mod flags before SAVE_UNLOCKS can restore them.
+        text = once(text, '    boot_print_stage("Saving Unlocks")\n    G:save_progress()',
+                    '    boot_print_stage("Saving Unlocks")', 'restore unlocks before saving')
+        text = once(text, '    G.P_LOCKED = {}',
+                    "    if G.PROFILES[G.SETTINGS.profile].all_unlocked then\n"
+                    "        for _, pool in ipairs{G.P_CENTERS, G.P_BLINDS, G.P_TAGS, G.P_SEALS} do\n"
+                    "            for key, item in pairs(pool) do\n"
+                    "                if not item.demo and not item.wip then\n"
+                    "                    item.unlocked, item.discovered, item.alerted = true, true, true\n"
+                    "                    meta.unlocked[key], meta.discovered[key], meta.alerted[key] = true, true, true\n"
+                    "                end\n"
+                    "            end\n"
+                    "        end\n"
+                    "    end\n\n    G.P_LOCKED = {}", 'restore all-unlocked mod profile')
+        text = once(text, '            v._discovered_unlocked_overwritten = true\n        end\n    end\nend',
+                    '            v._discovered_unlocked_overwritten = true\n        end\n    end\n'
+                    '    G:save_progress()\nend', 'save restored mod unlocks')
         # LuaJIT supports goto, while the bundled Web runtime is Lua 5.1.
         # These forward skips are exactly conditional scopes, not loop exits.
         text, n = re.subn(r'if SMODS.check_looping_context\(([^\n]+)\) then\s+goto skip\s+end',
