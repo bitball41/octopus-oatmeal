@@ -2,7 +2,7 @@ name: Build and validate browser sessions
 
 on:
   push:
-    branches: [fix/modded-tutorial-skip, fix/combined-multiplayer-cheats, cursor/vanilla-modded-launcher-9ef4, cursor/paperback-vanilla-plus-mod-9311, cursor/bunco-vanilla-plus-mod-9311, cursor/fix-vanilla-plus-boot-9311, cursor/paperback-cdn-limit-9311, cursor/pokermon-vanilla-plus-mod-9311]
+    branches: [fix/mod-unlock-persistence, fix/modded-tutorial-skip, fix/combined-multiplayer-cheats, cursor/vanilla-modded-launcher-9ef4, cursor/paperback-vanilla-plus-mod-9311, cursor/bunco-vanilla-plus-mod-9311, cursor/fix-vanilla-plus-boot-9311, cursor/paperback-cdn-limit-9311, cursor/pokermon-vanilla-plus-mod-9311]
     paths:
       - 'browser/**'
       - 'scripts/**'
@@ -38,6 +38,7 @@ jobs:
       - run: npm run build:multiplayer
       - run: npm run test:loader
       - run: npm run test:sessions
+      - run: python scripts/validate_unlock_persistence.py
       - run: npm run test:features
       - run: python scripts/validate_nativefs.py
       - run: python scripts/validate_object_registration.py
