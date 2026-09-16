@@ -18,9 +18,12 @@ local LOTION_VOUCHERS = {
     'v_clearance_sale', 'v_liquidation',
 }
 
-local function run_ready()
-    return G and G.STAGES and G.STAGE == G.STAGES.RUN and G.GAME
-        and G.jokers and G.consumeables and G.deck and G.hand
+local function liminal_ready()
+    return G and G.STAGES and G.STAGE == G.STAGES.RUN and G.GAME and G.jokers
+end
+
+local function lotion_ready()
+    return liminal_ready() and G.consumeables and G.deck and G.hand
         and G.playing_cards and G.P_CENTERS and G.P_CARDS
 end
 
@@ -168,7 +171,7 @@ local function set_high_card_101()
 end
 
 function M.grant()
-    if not (G and G.STAGE == G.STAGES.RUN and G.jokers and G.GAME) then return false end
+    if not liminal_ready() then return false end
     if G.GAME.liminal_granted then return false end
     -- Validate before touching the run, including on older or mismatched builds.
     for _, key in ipairs(order) do
@@ -203,7 +206,7 @@ function M.grant()
 end
 
 function M.grant_lotion()
-    if not run_ready() then return false end
+    if not lotion_ready() then return false end
     if G.GAME.lotion_granted then return true end
 
     -- Fail before mutating anything if this build is missing a required vanilla center.
@@ -231,7 +234,7 @@ function M.grant_lotion()
 end
 
 function M.poll()
-    if not lotion_pending or lotion_applying or not run_ready() then return false end
+    if not lotion_pending or lotion_applying or not lotion_ready() then return false end
     if G.GAME.lotion_granted then lotion_pending = false; return false end
     lotion_applying = true
 
@@ -267,7 +270,7 @@ function M.keypressed(key)
 
     if buffer == 'liminal' then
         buffer = ''
-        if run_ready() and G.E_MANAGER and Event then
+        if liminal_ready() and G.E_MANAGER and Event then
             -- Finish the current input event before changing the card area.
             G.E_MANAGER:add_event(Event({trigger = 'immediate', func = function() M.grant(); return true end}))
         end
