@@ -32,6 +32,8 @@ MP={ACTIONS={},LOBBY={username='Test',blind_col=1},UI={update_connection_status=
 function sendTraceMessage() end
 function sendWarnMessage(e) error(e) end
 ''')
+cheat_src = z.read('browser/cheats.lua').decode()
+lua.globals().package.loaded['browser.cheats'] = lua.execute(cheat_src)
 lua.execute(z.read('Mods/Multiplayer/networking/action_handlers.lua').decode())
 lua.execute('''
 G.update=function(self,dt) Game.update(self,dt) end
@@ -40,6 +42,7 @@ function timer_checkpoint() end
 files['octopus_upstream_000000000000.json']='{"action":"connected"}'
 ''')
 main = z.read('main.lua').decode()
+assert 'require("browser.cheats").poll()' in main, 'global cheat poll hook missing from packed main.lua'
 a=main.index('function love.update( dt )'); b=main.index('\nfunction ',a+1)
 lua.execute(main[a:b]); lua.globals().love.update(0)
 lua.execute('''assert(MP.LOBBY.connected==true,'love.update failed to deliver connected through the actual inbox and dispatcher')
@@ -59,7 +62,7 @@ function Event(e) return e end
 local card=create_card('Joker',G.jokers,nil,nil,nil,nil,'j_blueprint')
 card.keep_me=true;G.jokers:emplace(card)
 ''')
-cheats = lua.execute(z.read('browser/cheats.lua').decode()); lua.globals().cheats=cheats
+cheats = lua.globals().package.loaded['browser.cheats']; lua.globals().cheats=cheats
 lua.execute('''
 G.CONTROLLER.text_input_hook={}
 for c in ('liminal'):gmatch('.') do cheats.keypressed(c) end
@@ -73,6 +76,55 @@ for c in ('liminal'):gmatch('.') do cheats.keypressed(c) end
 assert(#G.jokers.cards==148,'repeated cheat duplicated cards')
 ''')
 print('Liminal: exact 148-key order, existing card preserved, capacity, text-field suppression and repeat guard passed')
+
+# Lotion is a queued global code: entering it outside a run must not mutate the
+# current menu state, and the packed source must contain the exact god-run spec.
+lua.execute('''
+G.STAGE=0
+for c in ('lotion'):gmatch('.') do cheats.keypressed(c) end
+assert(#G.jokers.cards==148, 'lotion mutated inventory outside a run')
+G.STAGE=1
+assert(cheats.poll()==false, 'lotion applied before its full run objects existed')
+''')
+joker_block = re.search(r"local LOTION_JOKERS = \{(.*?)\n\}", cheat_src, re.S)
+voucher_block = re.search(r"local LOTION_VOUCHERS = \{(.*?)\n\}", cheat_src, re.S)
+assert joker_block and voucher_block
+joker_keys = re.findall(r"'(j_[^']+)'", joker_block.group(1))
+voucher_keys = re.findall(r"'(v_[^']+)'", voucher_block.group(1))
+assert joker_keys == [
+    'j_baron',
+    'j_brainstorm', 'j_brainstorm', 'j_brainstorm', 'j_brainstorm',
+    'j_blueprint', 'j_blueprint', 'j_blueprint', 'j_blueprint',
+    'j_mime',
+]
+assert voucher_keys == [
+    'v_paint_brush', 'v_palette',
+    'v_grabber', 'v_nacho_tong',
+    'v_directors_cut', 'v_retcon',
+    'v_overstock_norm', 'v_overstock_plus',
+    'v_clearance_sale', 'v_liquidation',
+]
+for required in [
+    "buffer:sub(-6) == 'lotion'",
+    "G.P_CENTERS.b_plasma",
+    "while #G.playing_cards > 52 do",
+    "while #G.playing_cards < 52 do",
+    "G.P_CARDS.H_K",
+    "G.P_CARDS.H_A",
+    "G.P_CENTERS.m_steel",
+    "G.P_CENTERS.m_glass",
+    "card:set_seal('Red'",
+    "polychrome = true",
+    "for i = 1, 60 do",
+    "'c_cryptid'",
+    "hand.level = 101",
+    "hand.chips = 1005",
+    "hand.mult = 101",
+    "G.GAME.dollars = 300",
+]:
+    assert required in cheat_src, f'missing lotion preset fragment: {required}'
+print('Lotion: global queue and exact Plasma/Joker/voucher/deck/High Card/$300/60-Cryptid preset passed')
+
 # Real clipboard module: async completion, normalization, cancellation/stale UI.
 lua.execute('''
 local clipboard=require('browser.clipboard')
