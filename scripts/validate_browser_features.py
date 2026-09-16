@@ -32,6 +32,8 @@ MP={ACTIONS={},LOBBY={username='Test',blind_col=1},UI={update_connection_status=
 function sendTraceMessage() end
 function sendWarnMessage(e) error(e) end
 ''')
+cheat_src = z.read('browser/cheats.lua').decode()
+lua.globals().package.loaded['browser.cheats'] = lua.execute(cheat_src)
 lua.execute(z.read('Mods/Multiplayer/networking/action_handlers.lua').decode())
 lua.execute('''
 G.update=function(self,dt) Game.update(self,dt) end
@@ -60,8 +62,7 @@ function Event(e) return e end
 local card=create_card('Joker',G.jokers,nil,nil,nil,nil,'j_blueprint')
 card.keep_me=true;G.jokers:emplace(card)
 ''')
-cheat_src = z.read('browser/cheats.lua').decode()
-cheats = lua.execute(cheat_src); lua.globals().cheats=cheats
+cheats = lua.globals().package.loaded['browser.cheats']; lua.globals().cheats=cheats
 lua.execute('''
 G.CONTROLLER.text_input_hook={}
 for c in ('liminal'):gmatch('.') do cheats.keypressed(c) end
