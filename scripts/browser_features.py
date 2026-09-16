@@ -54,9 +54,11 @@ def apply(files, vanilla=False):
     text = files['main.lua'].decode()
     text = once(text, 'function love.keypressed(key)',
                 'function love.keypressed(key)\n    require("browser.cheats").keypressed(key)', 'cheat keyboard hook')
+    text = once(text, 'function love.update( dt )',
+                'function love.update( dt )\n    require("browser.cheats").poll()', 'cheat update hook')
     if vanilla:
-        text = once(text, 'function love.update( dt )',
-                    'function love.update( dt )\n    require("browser.clipboard").poll()',
+        text = once(text, '    require("browser.cheats").poll()',
+                    '    require("browser.cheats").poll()\n    require("browser.clipboard").poll()',
                     'vanilla clipboard poll')
     files['main.lua'] = text.encode()
     text = files['functions/button_callbacks.lua'].decode()
