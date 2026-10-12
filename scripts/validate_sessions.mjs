@@ -16,11 +16,28 @@ const tick=()=>new Promise(r=>setTimeout(r,2));
 async function until(check,label){for(let i=0;i<300;i++){if(check())return;await tick();}throw new Error('Timeout: '+label);}
 const channels=[];
 let delayedAccept=false;
+let transientJoins=0;
+let fatalJoins=0;
 const fakeSupabase={
   channel(topic){
     const c={topic,handlers:{},state:{},active:false,
       on(type,{event},fn){this.handlers[type+':'+event]=fn;return this;},
-      subscribe(fn){this.status=fn;this.active=true;queueMicrotask(()=>fn('SUBSCRIBED'));return this;},
+      subscribe(fn){
+        this.status=fn;this.active=true;
+        queueMicrotask(()=>{
+          if(fatalJoins) {
+            fatalJoins--;
+            fn('CHANNEL_ERROR',new Error('Unauthorized: permission denied'));
+            return;
+          }
+          if(transientJoins) {
+            transientJoins--;
+            fn('CHANNEL_ERROR',new Error('channel error: transport failure'));
+            setTimeout(()=>fn('SUBSCRIBED'),5);
+          } else fn('SUBSCRIBED');
+        });
+        return this;
+      },
       async track(state){this.state=state;sync();return 'ok';},
       presenceState(){return Object.fromEntries(channels.filter(x=>x.active&&x.topic===topic&&x.state.id).map(x=>[x.state.id,[x.state]]));},
       async send({payload}){
@@ -50,9 +67,11 @@ for(const [c,name] of [[host,'Host'],[guest,'Guest']]){
   c.send({action:'connect'});c.send({action:'username',username:name+'~1',modHash:'test'});
   c.send({action:'version',version:'0.5.5'});
 }
+transientJoins=1;
 host.send({action:'createLobby',gameMode:'attrition'});
 await until(()=>host.inbox.some(p=>p.action==='joinedLobby'),'host lobby');
 const code=host.inbox.find(p=>p.action==='joinedLobby').code;
+transientJoins=1;
 guest.send({action:'joinLobby',code});
 await until(()=>guest.inbox.some(p=>p.action==='joinedLobby'),'guest joined');
 assert(delayedAccept);
@@ -69,7 +88,24 @@ guest.send({action:'leaveLobby'});
 await until(()=>host.inbox.some(p=>p.action==='lobbyInfo'&&!p.guest),'guest leave');
 host.send({action:'leaveLobby'});
 await until(()=>channels.every(c=>!c.active),'cleanup');
-console.log('Actual bridge + upstream server: delayed-ACK handshake, usernames, guest role, ready, shared run seed and leave passed');
+console.log('Actual bridge + upstream server: transient host/guest socket recovery, delayed-ACK handshake, usernames, guest role, ready, shared run seed and leave passed');
+
+const retry=client();
+retry.send({action:'connect'});retry.send({action:'username',username:'Retry~1',modHash:'test'});
+retry.send({action:'version',version:'0.5.5'});
+fatalJoins=1;
+retry.send({action:'createLobby',gameMode:'attrition'});
+await until(()=>retry.errors.length===1 && retry.bridge.diagnostics().role===null,'failed host cleanup');
+assert(channels.every(c=>!c.active),'failed create must release its Realtime channel');
+retry.send({action:'createLobby',gameMode:'attrition'});
+await until(()=>retry.inbox.some(p=>p.action==='joinedLobby'),'retry host lobby');
+assert.equal(retry.errors.length,1,'initial error is delivered once and retry succeeds');
+retry.send({action:'lobbyInfo'});
+await until(()=>retry.inbox.some(p=>p.action==='lobbyInfo'),'retry lobby information');
+assert.equal(retry.inbox.findLast(p=>p.action==='lobbyInfo').host,'Retry~1','retry retains the username handshake');
+retry.send({action:'leaveLobby'});
+await until(()=>channels.every(c=>!c.active),'retry cleanup');
+console.log('Failed host creates a new lobby successfully without ghost channels or lost account handshake');
 
 // Focused negotiation and fallback checks, including ICE arriving before SDP.
 const errors=[],received=[],sent=[];

@@ -21663,8 +21663,8 @@ function randomId() {
 
 // browser/transport.js
 var PeerRoom = class {
-  constructor(supabase2, { onPeer, onPacket, onClose, onError }) {
-    Object.assign(this, { supabase: supabase2, onPeer, onPacket, onClose, onError });
+  constructor(supabase2, { onPeer, onPacket, onClose, onError, connectionTimeoutMs = 15e3, presenceRetryDelayMs = 500 }) {
+    Object.assign(this, { supabase: supabase2, onPeer, onPacket, onClose, onError, connectionTimeoutMs, presenceRetryDelayMs });
     this.id = randomId();
     this.nextSend = 0;
     this.nextReceive = 0;
@@ -21696,27 +21696,61 @@ var PeerRoom = class {
       }
     });
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Room connection timed out")), 15e3);
-      this.channel.subscribe(async (status, error) => {
-        this.status.subscription = status;
-        if (this.closed) return;
-        if (status === "SUBSCRIBED") {
-          try {
-            const result = await this.channel.track({ id: this.id, role: role2 });
-            this.status.presence = result;
-            if (result !== "ok") throw new Error("Presence tracking failed: " + result);
-            clearTimeout(timeout);
-            resolve();
-          } catch (error2) {
-            clearTimeout(timeout);
-            reject(error2);
-            this.onError(error2);
+      let opened = false, failed = false, tracking = false, lastFailure;
+      const failOpen = (error) => {
+        if (failed || this.closed) return;
+        failed = true;
+        clearTimeout(this.openTimer);
+        this.openTimer = null;
+        reject(error);
+        this.close().catch(() => {
+        });
+      };
+      this.openTimer = setTimeout(() => failOpen(lastFailure || new Error("Room connection timed out")), this.connectionTimeoutMs);
+      this.cancelOpen = () => {
+        if (opened || failed) return;
+        failed = true;
+        reject(Object.assign(new Error("Room connection closed"), { name: "AbortError" }));
+      };
+      const trackPresence = async () => {
+        if (this.closed || failed || tracking) return;
+        tracking = true;
+        try {
+          const result = await this.channel.track({ id: this.id, role: role2 });
+          if (this.closed || failed) return;
+          this.status.presence = result;
+          if (result === "timed out" && !opened) {
+            lastFailure = new Error("Presence tracking failed: timed out");
+            this.trackRetry = setTimeout(() => {
+              this.trackRetry = null;
+              if (this.status.subscription === "SUBSCRIBED") trackPresence();
+            }, this.presenceRetryDelayMs);
+            return;
           }
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          clearTimeout(timeout);
-          const failure = new Error("Signaling " + status + (error?.message ? ": " + error.message : ""));
-          reject(failure);
-          this.onError(failure);
+          if (result !== "ok") throw new Error("Presence tracking failed: " + result);
+          clearTimeout(this.openTimer);
+          clearTimeout(this.trackRetry);
+          this.openTimer = null;
+          this.trackRetry = null;
+          this.cancelOpen = null;
+          opened = true;
+          resolve();
+        } catch (error) {
+          if (opened) this.onError(error);
+          else failOpen(error);
+        } finally {
+          tracking = false;
+        }
+      };
+      this.channel.subscribe((status, error) => {
+        this.status.subscription = status;
+        if (this.closed || failed) return;
+        if (status === "SUBSCRIBED") trackPresence();
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          const failure = new Error("Signaling " + status + (error?.message ? ": " + error.message : ""), { cause: error });
+          if (opened) this.onError(failure);
+          else if (/unauthori[sz]ed|permission|invalid.*(?:jwt|token)|(?:jwt|token).*(?:invalid|expired)/i.test(error?.message || "")) failOpen(failure);
+          else lastFailure = failure;
         }
       });
     });
@@ -21858,12 +21892,20 @@ var PeerRoom = class {
     this.onClose();
   }
   async close() {
-    clearTimeout(this.joinTimer);
-    if (this.remote) await this.signal("leave", {}).catch(() => {
-    });
+    if (this.closed) return;
+    const leave = this.remote ? this.signal("leave", {}).catch(() => {
+    }) : Promise.resolve();
     this.closed = true;
     this.rtc?.close();
     this.pc?.close();
+    clearTimeout(this.joinTimer);
+    clearTimeout(this.openTimer);
+    clearTimeout(this.trackRetry);
+    this.openTimer = null;
+    this.trackRetry = null;
+    this.cancelOpen?.();
+    this.cancelOpen = null;
+    await leave;
     if (this.channel) await this.supabase.removeChannel(this.channel);
   }
 };
@@ -21897,6 +21939,7 @@ function deliver(packet) {
   diagnostics.lastDeliveredAction = packet.action;
 }
 function fail(error) {
+  if (error.name === "AbortError") return;
   diagnostics.lastError = error.message || String(error);
   console.error("[Octopus upstream]", error);
   deliver({ action: "error", message: error.message || String(error) });
@@ -21929,16 +21972,35 @@ function makeRoom() {
     onError: fail
   });
 }
+async function openRoom(candidate, code, desiredRole) {
+  try {
+    await candidate.open(code, desiredRole);
+  } catch (error) {
+    await candidate.close().catch(() => {
+    });
+    if (room === candidate) {
+      room = null;
+      role = null;
+      server?.close();
+      server = null;
+    }
+    throw error;
+  }
+}
 function bootLocal() {
   if (server) return;
   server = new BrowserServer();
   server.connect("local", (packet) => {
     if (packet.action === "joinedLobby") {
       role = "host";
-      room = makeRoom();
-      room.open(packet.code, "host").then(() => deliver(packet)).catch(fail);
+      const candidate = makeRoom();
+      room = candidate;
+      openRoom(candidate, packet.code, "host").then(() => {
+        if (room === candidate) deliver(packet);
+      }).catch(fail);
     } else deliver(packet);
   });
+  for (const packet of handshake.values()) server.dispatch("local", packet);
 }
 async function send(message) {
   const packet = JSON.parse(message);
@@ -21964,7 +22026,7 @@ async function send(message) {
     server = null;
     role = "guest";
     room = makeRoom();
-    await room.open(joiningCode, "guest");
+    await openRoom(room, joiningCode, "guest");
     return;
   }
   if (role === "guest") {

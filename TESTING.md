@@ -12,6 +12,7 @@ All five modes mount the LÖVE save directory at `/home/web_user/love`. They onl
 
 ## Fixes
 
+- Lobby creation and joining let Supabase recover an initial transport failure within a bounded 15-second window. Failed or cancelled rooms release their channels, and a failed host can retry with the existing username/version handshake. Authorization failures still fail immediately. `node scripts/validate_signaling.mjs` and `node scripts/validate_sessions.mjs` exercise these paths.
 - Red Deck in the multiplayer run setup was showing "Not available in this demo" because a Steamodded back.lua patch was remapped onto `if not back_config.unlocked then` and deleted that check. The unlocked Red Deck description is restored.
 - Multiplayer create-lobby skips ruleset / gamemode / weekly walls. Hosting uses vanilla ruleset + attrition and goes straight to a lobby code.
 - Signaling uses the legacy Supabase anon JWT for Realtime. The live GitHub Pages build was still on the publishable `sb_publishable_` key.

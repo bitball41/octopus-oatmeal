@@ -2,8 +2,8 @@
 // protocol. Realtime is also the ordered fallback when direct RTC is blocked.
 import {randomId} from './random.js';
 export class PeerRoom {
-  constructor(supabase, {onPeer, onPacket, onClose, onError}) {
-    Object.assign(this, {supabase, onPeer, onPacket, onClose, onError});
+  constructor(supabase, {onPeer, onPacket, onClose, onError, connectionTimeoutMs=15000, presenceRetryDelayMs=500}) {
+    Object.assign(this, {supabase, onPeer, onPacket, onClose, onError, connectionTimeoutMs, presenceRetryDelayMs});
     this.id = randomId();
     this.nextSend = 0; this.nextReceive = 0; this.pending = new Map();
     this.ice = []; this.closed = false;
@@ -35,21 +35,53 @@ export class PeerRoom {
       }
     });
     await new Promise((resolve,reject)=>{
-      const timeout=setTimeout(()=>reject(new Error('Room connection timed out')),15000);
-      this.channel.subscribe(async (status,error)=>{
-        this.status.subscription=status;
-        if(this.closed) return;
-        if(status==='SUBSCRIBED') {
-          try {
+      let opened=false, failed=false, tracking=false, lastFailure;
+      const failOpen=error=>{
+        if(failed || this.closed) return;
+        failed=true;clearTimeout(this.openTimer);this.openTimer=null;
+        reject(error);
+        this.close().catch(()=>{});
+      };
+      // Supabase retries a dropped transport itself. An initial socket error
+      // is not a failed lobby until the bounded connection window expires.
+      this.openTimer=setTimeout(()=>failOpen(lastFailure || new Error('Room connection timed out')),this.connectionTimeoutMs);
+      this.cancelOpen=()=>{
+        if(opened || failed) return;
+        failed=true;
+        reject(Object.assign(new Error('Room connection closed'),{name:'AbortError'}));
+      };
+      const trackPresence=async()=>{
+        if(this.closed || failed || tracking) return;
+        tracking=true;
+        try {
             const result=await this.channel.track({id:this.id,role});
+            if(this.closed || failed) return;
             this.status.presence=result;
+            if(result==='timed out' && !opened) {
+              lastFailure=new Error('Presence tracking failed: timed out');
+              this.trackRetry=setTimeout(()=>{
+                this.trackRetry=null;
+                if(this.status.subscription==='SUBSCRIBED') trackPresence();
+              },this.presenceRetryDelayMs);
+              return;
+            }
             if(result!=='ok') throw new Error('Presence tracking failed: '+result);
-            clearTimeout(timeout); resolve();
-          } catch(error) {clearTimeout(timeout); reject(error);this.onError(error);}
-        } else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT' || status==='CLOSED') {
-          clearTimeout(timeout);
-          const failure=new Error('Signaling '+status+(error?.message ? ': '+error.message : ''));
-          reject(failure);this.onError(failure);
+            clearTimeout(this.openTimer);clearTimeout(this.trackRetry);this.openTimer=null;this.trackRetry=null;this.cancelOpen=null;
+            opened=true;resolve();
+        } catch(error) {
+            if(opened) this.onError(error);
+            else failOpen(error);
+        } finally {tracking=false;}
+      };
+      this.channel.subscribe((status,error)=>{
+        this.status.subscription=status;
+        if(this.closed || failed) return;
+        if(status==='SUBSCRIBED') trackPresence();
+        else if(status==='CHANNEL_ERROR' || status==='TIMED_OUT' || status==='CLOSED') {
+          const failure=new Error('Signaling '+status+(error?.message ? ': '+error.message : ''),{cause:error});
+          if(opened) this.onError(failure);
+          else if(/unauthori[sz]ed|permission|invalid.*(?:jwt|token)|(?:jwt|token).*(?:invalid|expired)/i.test(error?.message || '')) failOpen(failure);
+          else lastFailure=failure;
         }
       });
     });
@@ -153,9 +185,11 @@ export class PeerRoom {
     this.onClose();
   }
   async close() {
-    clearTimeout(this.joinTimer);
-    if(this.remote) await this.signal('leave',{}).catch(()=>{});
+    if(this.closed) return;
+    const leave=this.remote ? this.signal('leave',{}).catch(()=>{}) : Promise.resolve();
     this.closed=true;this.rtc?.close();this.pc?.close();
+    clearTimeout(this.joinTimer);clearTimeout(this.openTimer);clearTimeout(this.trackRetry);this.openTimer=null;this.trackRetry=null;this.cancelOpen?.();this.cancelOpen=null;
+    await leave;
     if(this.channel) await this.supabase.removeChannel(this.channel);
   }
 }

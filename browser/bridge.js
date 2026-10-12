@@ -4,8 +4,7 @@ import {BrowserServer} from './server.js';
 import {PeerRoom} from './transport.js';
 
 const SUPABASE_URL='https://yswxdsagoywzevwgarbf.supabase.co';
-// Realtime websocket auth still expects the legacy JWT anon key. The newer
-// sb_publishable_ key 401s the channel subscribe and looks like "won't connect".
+// Public Realtime rooms use the project's anon JWT without a persisted Auth session.
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzd3hkc2Fnb3l3emV2d2dhcmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMjIwMTIsImV4cCI6MjEwMDU5ODAxMn0.BylSAqxf0sAq74kGRlRL7xEnzedKjWY_x05xf_63oxc';
 const supabase=createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
@@ -24,6 +23,7 @@ function deliver(packet) {
   diagnostics.jsToLua++;diagnostics.lastDeliveredAction=packet.action;
 }
 function fail(error) {
+  if(error.name==='AbortError') return;
   diagnostics.lastError=error.message||String(error);
   console.error('[Octopus upstream]',error);
   deliver({action:'error',message:error.message||String(error)});
@@ -53,15 +53,28 @@ function makeRoom() {
     onError:fail,
   });
 }
+async function openRoom(candidate,code,desiredRole) {
+  try {await candidate.open(code,desiredRole);}
+  catch(error) {
+    await candidate.close().catch(()=>{});
+    if(room===candidate) {
+      room=null;role=null;server?.close();server=null;
+    }
+    throw error;
+  }
+}
 function bootLocal() {
   if(server) return;
   server=new BrowserServer();
   server.connect('local',packet=>{
     if(packet.action==='joinedLobby') {
-      role='host';room=makeRoom();
-      room.open(packet.code,'host').then(()=>deliver(packet)).catch(fail);
+      role='host';const candidate=makeRoom();room=candidate;
+      openRoom(candidate,packet.code,'host').then(()=>{
+        if(room===candidate) deliver(packet);
+      }).catch(fail);
     } else deliver(packet);
   });
+  for(const packet of handshake.values()) server.dispatch('local',packet);
 }
 async function send(message) {
   const packet=JSON.parse(message);
@@ -80,7 +93,7 @@ async function send(message) {
     if(!/^[A-Z]{5}$/.test(joiningCode)) throw new Error('Enter the five-letter lobby code');
     if(room) await room.close();
     server?.close();server=null;role='guest';room=makeRoom();
-    await room.open(joiningCode,'guest');return;
+    await openRoom(room,joiningCode,'guest');return;
   }
   if(role==='guest') {
     if(!room?.remote) throw new Error('Cannot send '+packet.action+': peer is not connected');
