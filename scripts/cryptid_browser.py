@@ -239,7 +239,20 @@ package.loaded['SMODS.https'] = {asyncRequest=function(_, callback) callback(0, 
             "    cryptidsave = cryptidsave and STR_UNPACK(cryptidsave) or {}\n"
             "    Cryptid.shinytagdata = cryptidsave.shinytags or {}\n"
             "    local meta = G.FILES[G.SETTINGS.profile..'/'..'meta.jkr'] or {}", 'Cryptid shiny save load')
-        return s
+        # Saved settings already select M1/M2/M3 on the next boot. Prototype
+        # initialization calls save_progress, so load that profile first.
+        # The desktop injection was after init_item_prototypes in this web base.
+        start = s.index('    Cryptid.profile_prefix = "M"')
+        end = s.index("    --self:load_profile(G.SETTINGS.profile or 1)", start)
+        profiles = s[start:end] + '    self:load_profile(G.SETTINGS.profile)\n'
+        profiles = once(profiles,
+            'type(G.SETTINGS.profile) ~= "string" or G.SETTINGS.profile:sub(1, #Cryptid.profile_prefix) ~= Cryptid.profile_prefix',
+            'type(G.SETTINGS.profile) ~= "string" or not G.SETTINGS.profile:match("^M[123]$")',
+            'valid Cryptid profile selection')
+        s = s[:start] + s[end:]
+        return once(s, '    self.SETTINGS.paused = nil',
+                    '    self.SETTINGS.paused = nil\n\n' + profiles,
+                    'load Cryptid profile before prototype discovery')
     edit('game.lua', game)
 
     # Stable, portable PNG encoding for the old wasm image decoder.
@@ -253,6 +266,10 @@ package.loaded['SMODS.https'] = {asyncRequest=function(_, callback) callback(0, 
 
 
 def compile_comparisons(files):
+    files['game.lua'] = once(files['game.lua'].decode(),
+        '    self:load_profile(G.SETTINGS.profile or 1)\n    require "SMODS.preflight.loader".initSteamodded()',
+        '    require "SMODS.preflight.loader".initSteamodded()',
+        'retain the profile loaded before prototype discovery').encode()
     compiler = Path(__file__).with_name('compile_cryptid_lua.mjs')
     sources = {name: data.decode() for name, data in files.items()
                if name.endswith('.lua') and name != 'browser/bignum_compare.lua'}

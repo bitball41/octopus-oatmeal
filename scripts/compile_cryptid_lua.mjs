@@ -7,14 +7,56 @@ let input = '';
 for await (const chunk of process.stdin) input += chunk;
 const files = JSON.parse(input);
 const operators = {'<':'lt', '<=':'le', '>':'gt', '>=':'ge', '==':'eq', '~=':'ne'};
+// These engine classes operate on screen coordinates, frame counters and
+// object identity. They never compare scores, money, antes or hand levels.
+// They load before Amulet, so retain the native math used by their geometry.
+const geometry = new Set(['engine/node.lua', 'engine/moveable.lua']);
+// Keep comparisons native when their operands cannot be OmegaNums. Most
+// frame-loop comparisons check names, nil, booleans, lengths or type() results.
+// Numeric literals alone are not enough: chips > 0 still needs the adapter.
+function primitive(node) {
+  if (node.type === 'NumericLiteral') return 'number';
+  if (node.type === 'StringLiteral') return 'string';
+  if (node.type === 'BooleanLiteral') return 'boolean';
+  if (node.type === 'NilLiteral') return 'nil';
+  if (node.type === 'UnaryExpression') {
+    if (node.operator === '#') return 'number';
+    if (node.operator === 'not') return 'boolean';
+    if (node.operator === '-' && primitive(node.argument) === 'number') return 'number';
+  }
+  if (node.type === 'BinaryExpression') {
+    if (operators[node.operator]) return 'boolean';
+    if (node.operator === '..') {
+      const a = primitive(node.left), b = primitive(node.right);
+      return ['number','string'].includes(a) && ['number','string'].includes(b) ? 'string' : null;
+    }
+    if (primitive(node.left) === 'number' && primitive(node.right) === 'number') return 'number';
+  }
+  if (node.type === 'CallExpression' && node.base.type === 'Identifier') {
+    if (node.base.name === 'type' || node.base.name === 'tostring') return 'string';
+  }
+  return null;
+}
+function needsAdapter(node) {
+  const a = primitive(node.left), b = primitive(node.right);
+  if (a && b) return false;
+  if (node.operator === '==' || node.operator === '~=') {
+    if ((a && a !== 'number') || (b && b !== 'number')) return false;
+  }
+  return true;
+}
 for (const [name, source] of Object.entries(files)) {
+  if (geometry.has(name)) {
+    files[name] = 'local math = {abs=math.abs, cos=math.cos, sin=math.sin, sqrt=math.sqrt, min=math.min, max=math.max, pi=math.pi}\n' + source;
+    continue;
+  }
   let ast;
   // 5.2 also accepts the empty semicolon statements in this browser base.
   // Emitted code is separately compiled against the actual Lua 5.1 runtime.
   try { ast = luaparse.parse(source, {luaVersion:'5.2', ranges:true, comments:false}); }
   catch (error) { throw new Error(name + ': ' + error.message); }
   function render(node) {
-    if (node.type === 'BinaryExpression' && operators[node.operator]) {
+    if (node.type === 'BinaryExpression' && operators[node.operator] && needsAdapter(node)) {
       return `__octopus_${operators[node.operator]}(${render(node.left)}, ${render(node.right)})`;
     }
     const children = [];

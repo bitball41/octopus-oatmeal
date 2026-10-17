@@ -8,6 +8,7 @@ on:
       - '.github/workflows/build-cryptid.yml'
       - 'scripts/cryptid_browser.py'
       - 'scripts/compile_cryptid_lua.mjs'
+      - 'scripts/validate_cryptid.py'
       - 'scripts/fetch_cryptid_sources.py'
       - 'scripts/install_cryptid_launcher.py'
       - 'browser/lua/browser/bignum_compare.lua'
