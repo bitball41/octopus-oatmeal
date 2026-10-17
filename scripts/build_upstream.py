@@ -48,6 +48,8 @@ MOD_FOLDERS = {
     'Paperback': 'paperback',
     'Bunco': 'Bunco',
     'Pokermon': 'Pokermon',
+    'Amulet': 'Amulet',
+    'Cryptid': 'Cryptid',
 }
 
 
@@ -234,7 +236,7 @@ def build_vanilla(template_js, release=False):
                         ROOT/'vanilla' if release else None)
 
 
-def apply_lovely(files, mods, lock):
+def apply_lovely(files, mods, lock, flavor=None):
     manifests, modules, early = [], {}, []
     for mod in mods:
         spec = lock[mod]
@@ -272,12 +274,26 @@ def apply_lovely(files, mods, lock):
 
     report = []
     for _, mod, name, manifest, folder in sorted(manifests, key=lambda x: x[:3]):
+        operations = []
         for index, item in enumerate(manifest.get('patches', []), 1):
             kind, patch = next(iter(item.items()))
-            if kind == 'module': continue
+            targets = patch.get('target', [])
+            if not isinstance(targets, list):
+                targets = [targets]
+            if kind == 'module':
+                continue
+            for target in targets:
+                operations.append((index, {kind: dict(patch, target=target)}))
+        for index, item in operations:
+            kind, patch = next(iter(item.items()))
             target = target_path(patch['target'])
-            row = dict(mod=mod, manifest=name, index=index, target=target, kind=kind)
             patch, skip_reason = adapt_patch(mod, name, index, patch, files.get(target,b'').decode() if target.endswith('.lua') else '')
+            if flavor == 'cryptid':
+                from cryptid_browser import adapt_cryptid_patch
+                patch, cryptid_skip = adapt_cryptid_patch(mod, name, index, patch, files, target_path)
+                skip_reason = cryptid_skip or skip_reason
+                target = target_path(patch['target'])
+            row = dict(mod=mod, manifest=name, index=index, target=target, kind=kind)
             if skip_reason:
                 row.update(status='not-applicable', matches=0, reason=skip_reason)
             elif target not in files:
@@ -328,7 +344,11 @@ def finish_smods_pack(files, modules, early, flavor, skip_lua=()):
         files[module.replace('.', '/')+'.lua'] = files[path]
     pack_browser_lua(files, skip_lua)
     files['main.lua'] = (b'require "browser.platform"\n' +
+                         (b'require "browser.cryptid_platform"\n' if flavor == 'cryptid' else b'') +
                          ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
+    if flavor == 'cryptid':
+        from cryptid_browser import compile_comparisons
+        compile_comparisons(files)
     return files
 
 
@@ -345,9 +365,23 @@ def summarize_report(report, label, out_name, candidate):
 
 def build_smods_pack(mods, flavor, skip_lua, lock):
     files = browser_base()
-    files, report, modules, early = apply_lovely(files, mods, lock)
+    files, report, modules, early = apply_lovely(files, mods, lock, flavor)
+    if flavor == 'cryptid':
+        from cryptid_browser import prepare_cryptid_sources
+        prepare_cryptid_sources(files)
     files = finish_smods_pack(files, modules, early, flavor, skip_lua)
     return files, report
+
+
+def build_cryptid(candidate=False, release=False):
+    lock = json.loads((ROOT/'vendor/upstream.json').read_text())
+    # Cryptid requires the newer API; keep the other modes on their own pin.
+    lock['Steamodded'] = lock['SteamoddedCryptid']
+    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Cryptid'],
+                                    'cryptid', ('browser/menu.lua',), lock)
+    summarize_report(report, 'cryptid', 'patch-report-cryptid.json', candidate)
+    return emit_archive(files, ROOT/'build/cryptid', (ROOT/'game.js').read_text(),
+                        ROOT/'cryptid' if release else None)
 
 
 def build(candidate=False, release=False):
@@ -373,6 +407,7 @@ def build(candidate=False, release=False):
     emit_archive(poke_files, out/'pokermon', template_js, ROOT/'pokermon' if release else None)
 
     build_vanilla(template_js, release=release)
+    build_cryptid(candidate=candidate, release=release)
     if release:
         print(ROOT/'game.data')
         print(ROOT/'vanilla'/'game.data')
@@ -387,5 +422,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--candidate', action='store_true', help='Emit a diagnostic candidate even with unresolved patches; never ship this output')
     parser.add_argument('--release', action='store_true', help='Replace game.data and update game.js after strict validation')
+    parser.add_argument('--cryptid-only', action='store_true', help='Build only the isolated Cryptid mode')
     args = parser.parse_args()
-    build(args.candidate, args.release)
+    if args.cryptid_only:
+        build_cryptid(args.candidate, args.release)
+    else:
+        build(args.candidate, args.release)

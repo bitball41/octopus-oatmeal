@@ -34,3 +34,27 @@ python3 scripts/validate_modes.py
 ```
 
 In the browser: open the launcher, pick Vanilla, confirm PLAY has no MULTIPLAYER button and a seeded run can start. Reload, pick Paperback (a vanilla+ mod), confirm Steamodded/Paperback content loads without a MULTIPLAYER button. Reload, pick Bunco (a vanilla+ mod), confirm Steamodded/Bunco content (exotic suits, custom jokers) loads without a MULTIPLAYER button. Reload, pick Pokermon (a pokemon mod), confirm Steamodded/Pokermon content loads without a MULTIPLAYER button and without a shader abort. Reload, pick multiplayer mod, confirm MULTIPLAYER is present, Red Deck shows +1 discard, and Create Lobby yields a five-letter code without extra menus. Use `OctopusMP.diagnostics()` if a join fails.
+
+## Cryptid
+
+The **Cryptid** button in both launchers (or `index.html#cryptid`) loads Cryptid
+0.5.17c, Amulet 3.6.1, and Steamodded 26.829.0. Its IndexedDB name is
+`/home/web_user/love-cryptid`; the other modes retain their existing builds and
+saves. The archive uses two CDN-safe parts, with 512 MiB initial runtime memory.
+
+Fetch pinned sources with `python scripts/fetch_cryptid_sources.py`, then build
+only this mode with `npm ci && npm run build:cryptid`. As with the other
+source builds, the two base archives must be available in git history (use a
+full clone, or fetch the base commits named in `scripts/build_upstream.py`).
+`npm run test:cryptid` compiles every packaged Lua file against Lua 5.1 and
+checks OmegaNum arithmetic, mixed comparisons, and save serialization.
+`npm run test:loader` also verifies the mode's local/CDN loading and archive
+cache behavior. `lupa` and Pillow are required for Python checks/builds.
+
+Browser adaptations replace native FFI storage and mounts, preserve Amulet's
+OmegaNum arithmetic, compile mixed numeric comparisons for Lua 5.1, retain
+Cryptid's M1/M2/M3 profile data, and repair WebGL 1 shader loops/mipmaps.
+Discord member-count lookup uses Cryptid's upstream offline fallback.
+
+The Build Cryptid browser mode workflow reproduces and commits the generated
+assets, then updates the launcher fallback to that exact runtime commit.

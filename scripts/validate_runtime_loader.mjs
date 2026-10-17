@@ -13,6 +13,7 @@ assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker")
 assert.match(html, /id="mode-vanilla"/);
 assert.match(html, /id="mode-paperback"/);
 assert.match(html, /id="mode-bunco"/);
+assert.match(html, /id="mode-cryptid"/);
 assert.doesNotMatch(html, /id="mode-pokermon"/);
 assert.match(html, /id="mode-multiplayer"/);
 assert.match(html, /Paperback \(a vanilla\+ mod\)/);
@@ -53,6 +54,7 @@ function context({ hostname, hash, fetchImpl }) {
     "mode-paperback": overlay(),
     "mode-bunco": overlay(),
     "mode-pokermon": overlay(),
+    "mode-cryptid": overlay(),
     "mode-multiplayer": overlay(),
   };
   const vmContext = {
@@ -236,6 +238,15 @@ assert.ok(
   "Pokermon must not prefetch an unsplit game.data (jsDelivr 20 MB cap)",
 );
 
+const localCryptid = context({ hostname: "localhost", hash: "#cryptid" });
+await flush();
+assert.equal(localCryptid.state.started, 1);
+assert.deepEqual(localCryptid.loaded.map(({src}) => src), ["cryptid/game.js", "love.js"]);
+assert.equal(localCryptid.vmContext.Module.persistenceDatabase, "/home/web_user/love-cryptid");
+assert.equal(localCryptid.vmContext.Module.INITIAL_MEMORY, 536870912);
+assert.equal(localCryptid.vmContext.Module.locateFile("game.data.part1"), "cryptid/game.data.part1");
+assert.equal(localCryptid.vmContext.Module.locateFile("love.wasm"), "love.wasm");
+
 const resolvedRef = "a".repeat(40);
 const remote = context({
   hostname: "cdn.example",
@@ -279,6 +290,16 @@ assert.equal(
   `${base}love.wasm`,
 );
 assert.equal(remotePaperback.hints.length, 0, "Do not bypass persistent cache with preloads");
+
+const remoteCryptid = context({
+  hostname: "cdn.example",
+  hash: "#cryptid",
+  fetchImpl: async () => ({ok:true, json:async () => ({sha:resolvedRef})}),
+});
+await flush();
+assert.equal(remoteCryptid.vmContext.Module.locateFile("game.data.part0"), `${base}cryptid/game.data.part0`);
+assert.equal(remoteCryptid.vmContext.Module.persistenceDatabase, "/home/web_user/love-cryptid");
+assert.equal(remoteCryptid.state.started, 1);
 
 const wasmRemote = context({
   hostname: "cdn.example",

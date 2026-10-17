@@ -34,5 +34,23 @@
     "commit": "d664c29523b827d53dfa1a181e5b2baf1aefac4f",
     "archive": "MultiplayerServer.zip",
     "sha256": "93deab31e4f1137e78a1fb54be1916f82a33fd7dc17a41d329ecc66941461717"
+  },
+  "Cryptid": {
+    "url": "https://github.com/SpectralPack/Cryptid",
+    "commit": "f52f0251c9a99a04ebe1047942204ed8b393d3d6",
+    "archive": "Cryptid.zip",
+    "sha256": "b7a1006d6f60d2996416c74df828dfb4770e52b96e0cae4081be059343c624e2"
+  },
+  "Amulet": {
+    "url": "https://github.com/frostice482/amulet",
+    "commit": "13f5a2a5a796031ec86160bca8967f88f5421ab4",
+    "archive": "Amulet.zip",
+    "sha256": "293348bfdfa66f65497727c325f5aa01f65a1fd31fd90defc97ae5ed8984ccee"
+  },
+  "SteamoddedCryptid": {
+    "url": "https://github.com/Steamodded/smods",
+    "commit": "39182f0cc7b1af86d3d3d6afc5422661a07b4312",
+    "archive": "SteamoddedCryptid.zip",
+    "sha256": "be0679b10a5e3f1391985a96c57919f0da63022e9cdec0972199c1904cc3387f"
   }
 }

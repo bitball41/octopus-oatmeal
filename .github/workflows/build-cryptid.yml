@@ -1,0 +1,68 @@
+name: Build Cryptid browser mode
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-cryptid.yml'
+      - 'scripts/cryptid_browser.py'
+      - 'scripts/compile_cryptid_lua.mjs'
+      - 'scripts/fetch_cryptid_sources.py'
+      - 'scripts/install_cryptid_launcher.py'
+      - 'browser/lua/browser/bignum_compare.lua'
+      - 'vendor/upstream.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cryptid-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build tools and verify pinned sources
+        run: |
+          npm ci
+          python -m pip install pillow lupa
+          python scripts/fetch_cryptid_sources.py
+      - name: Build and verify Cryptid
+        run: |
+          npm run build:cryptid
+          npm run test:cryptid
+          npm run test:loader
+          python scripts/validate_modes.py
+      - name: Commit runtime assets and pin the launcher fallback
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cryptid vendor/Cryptid.zip vendor/Amulet.zip vendor/SteamoddedCryptid.zip index.html balatro.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Build pinned Cryptid browser runtime"
+          fi
+          python - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+          sha = subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip()
+          Path('runtime.json').write_text(json.dumps({'sha':sha})+'\n')
+          p = Path('index.html')
+          p.write_text(re.sub(r'(var FALLBACK_RUNTIME_REF\s*=\s*)"[0-9a-f]{40}"', lambda m:m[1]+'"'+sha+'"', p.read_text()))
+          PY
+          git add index.html runtime.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Pin launcher fallback to the Cryptid runtime"
+          fi
+          git push origin HEAD:main

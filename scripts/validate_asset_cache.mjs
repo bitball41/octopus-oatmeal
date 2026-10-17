@@ -57,10 +57,10 @@ async function launch(mode, altered = false) {
       XMLHttpRequest: XHR, window:{indexedDB, encodeURIComponent, location:{pathname:'/index.html'}}});
   });
 }
-for (const mode of ['vanilla','bunco','paperback','pokermon','multiplayer']) await launch(mode);
-assert.equal(network, 6); // Four single archives and two Pokermon parts.
-for (const mode of ['vanilla','bunco','paperback','pokermon','multiplayer']) await launch(mode);
-assert.equal(network, 6, 'switching modes must retain every cached archive');
+for (const mode of ['vanilla','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
+assert.equal(network, 8); // Four single archives, plus two parts each for Pokermon/Cryptid.
+for (const mode of ['vanilla','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
+assert.equal(network, 8, 'switching modes must retain every cached archive');
 await launch('bunco', true);
-assert.equal(network, 7, 'changed package UUID downloads the updated archive');
-console.log('Persistent assets, revisions, quota/disabled storage, five-mode reuse and split archive cache passed');
+assert.equal(network, 9, 'changed package UUID downloads the updated archive');
+console.log('Persistent assets, revisions, quota/disabled storage, six-mode reuse and split archive cache passed');

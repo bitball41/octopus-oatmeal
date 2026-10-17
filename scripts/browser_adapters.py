@@ -59,9 +59,10 @@ MP.ACTIONS.connect()
                         '            end\n'
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
                         f'skip {skip_mod} WebGL shaders')
+        shader_arg = 'file' if flavor == 'cryptid' else 'self.key .. "-temp.fs"'
         return once(text,
-                    '            G.SHADERS[self.key] = love.graphics.newShader(self.key .. "-temp.fs")',
-                    '            local ok, shader = pcall(love.graphics.newShader, self.key .. "-temp.fs")\n'
+                    '            G.SHADERS[self.key] = love.graphics.newShader(' + shader_arg + ')',
+                    '            local ok, shader = pcall(love.graphics.newShader, ' + shader_arg + ')\n'
                     '            if ok and shader then\n'
                     '                G.SHADERS[self.key] = shader\n'
                     '            else\n'

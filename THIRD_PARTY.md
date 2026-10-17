@@ -2,6 +2,9 @@
 
 This browser port bundles pinned source snapshots of:
 
+- Cryptid `f52f0251c9a99a04ebe1047942204ed8b393d3d6` (v0.5.17c, GPL-3.0)
+- Amulet `13f5a2a5a796031ec86160bca8967f88f5421ab4` (v3.6.1, GPL-3.0)
+- Steamodded for Cryptid `39182f0cc7b1af86d3d3d6afc5422661a07b4312` (26.829.0, GPL-3.0)
 - Steamodded `adfa438771b14ea13ca9eb5993ef2632320a2865` (GPL-3.0)
 - Balatro Multiplayer `3dff16a99edde91894e0ccf94cc9a9171443070b` (release 0.5.5, GPL-3.0)
 - Balatro Multiplayer API Server `d664c29523b827d53dfa1a181e5b2baf1aefac4f` (GPL-3.0)
