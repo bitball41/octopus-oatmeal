@@ -264,6 +264,14 @@
         min-width: 240px;
       }
 
+      #mode-cryptid {
+        background: #17827a;
+        color: #fff;
+        text-transform: none;
+        letter-spacing: 0.03em;
+        min-width: 240px;
+      }
+
       #mode-multiplayer {
         background: #8b5cf6;
         color: #fff;
@@ -288,6 +296,7 @@
         <p>
           Vanilla is the stock game plus cheats. Paperback and Bunco
           are vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
+          Cryptid adds unbalanced cards and huge scores.
           Each mode keeps a completely separate save.
         </p>
         <div class="mode-row">
@@ -298,6 +307,7 @@
           <button id="mode-bunco" type="button">
             Bunco (a vanilla+ mod)
           </button>
+          <button id="mode-cryptid" type="button">Cryptid</button>
           <button id="mode-multiplayer" type="button">multiplayer mod</button>
         </div>
       </div>
@@ -509,7 +519,7 @@
         }
 
         /* OCTOPUS_ASSET_CACHE_START */
-var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "d9ef38a8a175fc9081da434b228a41866e947d9a9b8ee5eb3c8523b66f94fb8b", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "5d31658f664260d697726e0babbbb5943620ee4bc473280ef4108bfe3dc26eeb", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
+var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "4468005326c659c6e951dc9eb3a04718dc40f490c8bdc082741b2181417e0638", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "d9ef38a8a175fc9081da434b228a41866e947d9a9b8ee5eb3c8523b66f94fb8b", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "5d31658f664260d697726e0babbbb5943620ee4bc473280ef4108bfe3dc26eeb", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
 // Embedded in both launchers by patch_multiplayer_html.py (including file://).
 var assetDatabase;
 function assetDB() {
@@ -609,6 +619,13 @@ async function cachedScriptURL(src) {
           pokermon: {
             persist: "/home/web_user/love-pokermon",
             dir: "pokermon/",
+            multiplayer: false,
+            memory: 536870912,
+            parts: ["game.data.part0", "game.data.part1"],
+          },
+          cryptid: {
+            persist: "/home/web_user/love-cryptid",
+            dir: "cryptid/",
             multiplayer: false,
             memory: 536870912,
             parts: ["game.data.part0", "game.data.part1"],
@@ -755,6 +772,7 @@ async function cachedScriptURL(src) {
           bindMode("mode-paperback", "paperback");
           bindMode("mode-bunco", "bunco");
           bindMode("mode-pokermon", "pokermon");
+          bindMode("mode-cryptid", "cryptid");
           bindMode("mode-multiplayer", "multiplayer");
           var hash =
             typeof location !== "undefined"
