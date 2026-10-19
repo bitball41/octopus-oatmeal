@@ -52,5 +52,11 @@
     "commit": "39182f0cc7b1af86d3d3d6afc5422661a07b4312",
     "archive": "SteamoddedCryptid.zip",
     "sha256": "be0679b10a5e3f1391985a96c57919f0da63022e9cdec0972199c1904cc3387f"
+  },
+  "Handy": {
+    "url": "https://github.com/SleepyG11/HandyBalatro",
+    "commit": "13372172ccd83627f362509cf5a5698a438da2c8",
+    "archive": "Handy.zip",
+    "sha256": "8950b807fcf972358de8e11ed04470b97802f3dac2c3bd3cf1c9666a5f66bc46"
   }
 }

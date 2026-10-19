@@ -3,6 +3,7 @@
 This browser port bundles pinned source snapshots of:
 
 - Cryptid `f52f0251c9a99a04ebe1047942204ed8b393d3d6` (v0.5.17c, GPL-3.0)
+- Handy Balatro `13372172ccd83627f362509cf5a5698a438da2c8` (v2.0.6, GPL-3.0), by SleepyG11
 - Amulet `13f5a2a5a796031ec86160bca8967f88f5421ab4` (v3.6.1, GPL-3.0)
 - Steamodded for Cryptid `39182f0cc7b1af86d3d3d6afc5422661a07b4312` (26.829.0, GPL-3.0)
 - Steamodded `adfa438771b14ea13ca9eb5993ef2632320a2865` (GPL-3.0)
@@ -17,3 +18,9 @@ Their source archives, upstream URLs, exact checksums, and license files are in
 the browser Lua archives, and `scripts/build_server.mjs` bundles the upstream
 server for the peer host. Browser-specific adapters replace unavailable native
 filesystem, LuaJIT, TCP-thread, and platform APIs; gameplay remains upstream.
+
+Handy is bundled in Cryptid mode. `scripts/handy_browser.py` adapts its native
+filesystem/updater and payout buffering; `browser/lua/browser/handy.lua` replaces
+the recursive bulk queue with serial, time-sliced calls to the modded sell
+callback. The browser distribution caps speed at 512x and animation skipping
+at Everything, retaining event ordering and per-payment effects.

@@ -22,7 +22,7 @@ def archive_checkout(checkout, commit, destination):
 
 def main():
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
-    for name in ('SteamoddedCryptid', 'Amulet', 'Cryptid'):
+    for name in ('SteamoddedCryptid', 'Amulet', 'Cryptid', 'Handy'):
         spec = lock[name]
         destination = ROOT/'vendor'/spec['archive']
         if destination.exists() and hashlib.sha256(destination.read_bytes()).hexdigest() == spec['sha256']:

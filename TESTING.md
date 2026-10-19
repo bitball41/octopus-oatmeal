@@ -58,3 +58,36 @@ Discord member-count lookup uses Cryptid's upstream offline fallback.
 
 The Build Cryptid browser mode workflow reproduces and commits the generated
 assets, then updates the launcher fallback to that exact runtime commit.
+
+## Handy in Cryptid
+
+Cryptid also includes pinned Handy 2.0.6. Open **Options → Handy** to configure
+its keybinds, quick buy/sell/use, hand selection, speed, and animation skipping.
+The existing game settings include speed/animation controls; no launcher
+toolbar or extra in-game HUD buttons are added.
+
+- **Shift + right-click a Joker:** sell every copy of that Joker in the area.
+- **Ctrl + Shift + right-click:** sell every sellable card in that area.
+- **Alt + mouse wheel:** adjust Handy's speed multiplier, up to **512×**.
+- **Left bracket + mouse wheel:** adjust animation skipping.
+- **Escape during bulk selling:** stop after the current sale finishes.
+
+Bulk targets are a snapshot in area order. Every card is revalidated immediately
+before its native `G.FUNCS.sell_card` callback, with eternal/custom restrictions
+intact. All callbacks, sell contexts, retriggers, payouts, scaling, removal and
+descendant events finish before the next sale. New/generated cards are not
+automatically added. Saves occur only after the batch finishes or cancels;
+Cryptid's existing IndexedDB database and M1/M2/M3 profiles are unchanged.
+
+`npm run test:cryptid` includes Lua 5.1 regression comparisons of native serial
+sales versus bulk sales for 1, 35 and 100 Jokers with packed Crypto Coin and
+Loopy calculations and SMODS retrigger/context loops. It also covers a 1,000-card
+selection, yielding/cancellation, eternal restrictions, snapshot semantics,
+cleanup, saving and individual payout accounting. These are headless Lua
+simulations with rendering stubbed, not browser gameplay tests.
+
+For a manual browser check, reload `index.html#cryptid` with an existing save,
+open Options → Handy and inspect its controls. Compare a duplicate-Jolly sale
+batch with normal sales using Crypto Coin and Loopy, then test 512× speed,
+animation skip, eternal Jokers and Escape cancellation. Check that progress
+clears and the saved run resumes with the resulting money and Jokers.

@@ -50,6 +50,7 @@ MOD_FOLDERS = {
     'Pokermon': 'Pokermon',
     'Amulet': 'Amulet',
     'Cryptid': 'Cryptid',
+    'Handy': 'Handy',
 }
 
 
@@ -288,6 +289,12 @@ def apply_lovely(files, mods, lock, flavor=None):
             kind, patch = next(iter(item.items()))
             target = target_path(patch['target'])
             patch, skip_reason = adapt_patch(mod, name, index, patch, files.get(target,b'').decode() if target.endswith('.lua') else '')
+            if mod == 'Amulet' and name == 'lovely/noanims.toml' and index in (6, 7, 8) and 'Handy' in mods:
+                skip_reason = 'The earlier Handy patch already supplies the same card juice nil guard.'
+            if mod == 'Handy':
+                from handy_browser import adapt_handy_patch
+                patch, handy_skip = adapt_handy_patch(name, index, patch, files, target_path)
+                skip_reason = handy_skip or skip_reason
             if flavor == 'cryptid':
                 from cryptid_browser import adapt_cryptid_patch
                 patch, cryptid_skip = adapt_cryptid_patch(mod, name, index, patch, files, target_path)
@@ -369,6 +376,8 @@ def build_smods_pack(mods, flavor, skip_lua, lock):
     if flavor == 'cryptid':
         from cryptid_browser import prepare_cryptid_sources
         prepare_cryptid_sources(files)
+        from handy_browser import prepare_handy_sources
+        prepare_handy_sources(files)
     files = finish_smods_pack(files, modules, early, flavor, skip_lua)
     return files, report
 
@@ -377,7 +386,7 @@ def build_cryptid(candidate=False, release=False):
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
     # Cryptid requires the newer API; keep the other modes on their own pin.
     lock['Steamodded'] = lock['SteamoddedCryptid']
-    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Cryptid'],
+    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Cryptid', 'Handy'],
                                     'cryptid', ('browser/menu.lua',), lock)
     summarize_report(report, 'cryptid', 'patch-report-cryptid.json', candidate)
     return emit_archive(files, ROOT/'build/cryptid', (ROOT/'game.js').read_text(),

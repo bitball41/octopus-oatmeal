@@ -9,9 +9,14 @@ on:
       - 'scripts/cryptid_browser.py'
       - 'scripts/compile_cryptid_lua.mjs'
       - 'scripts/validate_cryptid.py'
+      - 'scripts/validate_handy.py'
+      - 'scripts/validate_handy_boot.py'
+      - 'scripts/handy_browser.py'
+      - 'scripts/build_upstream.py'
       - 'scripts/fetch_cryptid_sources.py'
       - 'scripts/install_cryptid_launcher.py'
       - 'browser/lua/browser/bignum_compare.lua'
+      - 'browser/lua/browser/handy.lua'
       - 'vendor/upstream.json'
 
 permissions:
@@ -50,7 +55,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add cryptid vendor/Cryptid.zip vendor/Amulet.zip vendor/SteamoddedCryptid.zip index.html balatro.html
+          git add cryptid vendor/Cryptid.zip vendor/Amulet.zip vendor/SteamoddedCryptid.zip vendor/Handy.zip index.html balatro.html
           if ! git diff --cached --quiet; then
             git commit -m "Build pinned Cryptid browser runtime"
           fi

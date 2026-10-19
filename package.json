@@ -9,7 +9,7 @@
     "test:features": "python3 scripts/validate_browser_features.py && python3 scripts/validate_seed_rng.py && python3 scripts/validate_modes.py",
     "test:cache": "node scripts/validate_asset_cache.mjs",
     "build:cryptid": "python3 scripts/install_cryptid_launcher.py && python3 scripts/build_upstream.py --cryptid-only --release && python3 scripts/patch_multiplayer_html.py",
-    "test:cryptid": "python3 scripts/validate_cryptid.py"
+    "test:cryptid": "python3 scripts/validate_cryptid.py && python3 scripts/validate_handy_boot.py && python3 scripts/validate_handy.py"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
