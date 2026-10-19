@@ -226,6 +226,11 @@
         min-width: 240px;
       }
 
+      #mode-handy {
+        background: #287fa3;
+        color: #fff;
+      }
+
       #mode-multiplayer { background: #8b5cf6; color: #fff; }
     </style>
   </head>
@@ -248,10 +253,11 @@
           Vanilla is the stock game plus cheats. Paperback, Bunco, and Pokermon
           are vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
           Cryptid adds unbalanced cards and huge scores.
-          Each mode keeps a completely separate save.
+          Vanilla and Vanilla + Handy share a save. Other modes keep separate saves.
         </p>
         <div class="mode-row">
           <button id="mode-vanilla" type="button">Vanilla</button>
+          <button id="mode-handy" type="button">Vanilla + Handy</button>
           <button id="mode-paperback" type="button">
             Paperback (a vanilla+ mod)
           </button>
@@ -395,7 +401,7 @@
         var booting = false;
         var wasmReady = Promise.resolve();
         /* OCTOPUS_ASSET_CACHE_START */
-var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "1d1405cffc8fcfc552314fdc209310dae015d55bfafd3acfbd26a4236e8ef4f6", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "d9ef38a8a175fc9081da434b228a41866e947d9a9b8ee5eb3c8523b66f94fb8b", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "5d31658f664260d697726e0babbbb5943620ee4bc473280ef4108bfe3dc26eeb", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
+var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "fa0365e0278c5a85b4556d1239be610d04f9f1605a6b2b2c5b8be4c142404320", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "d9ef38a8a175fc9081da434b228a41866e947d9a9b8ee5eb3c8523b66f94fb8b", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "5d31658f664260d697726e0babbbb5943620ee4bc473280ef4108bfe3dc26eeb", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla-handy/game.js": "c3552c2e0ddcecf9adeabeefdcbed768ae4de77dd838aac3fc8edd98a6e87fc3", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
 // Embedded in both launchers by patch_multiplayer_html.py (including file://).
 var assetDatabase;
 function assetDB() {
@@ -485,6 +491,12 @@ async function cachedScriptURL(src) {
             dir: "vanilla/",
             multiplayer: false,
           },
+          handy: {
+            persist: "/home/web_user/love-vanilla",
+            dir: "vanilla-handy/",
+            cache: "/home/web_user/love-vanilla-handy",
+            multiplayer: false,
+          },
           paperback: {
             persist: "/home/web_user/love-paperback",
             dir: "paperback/",
@@ -516,6 +528,7 @@ async function cachedScriptURL(src) {
           },
         };
         function canonicalMode(mode) {
+          if (mode === "vanilla-handy") return "handy";
           if (mode === "modded") return "multiplayer";
           return mode;
         }
@@ -533,6 +546,7 @@ async function cachedScriptURL(src) {
           document.getElementById("mode-overlay").classList.add("hidden");
           document.getElementById("loading-overlay").classList.remove("hidden");
           Module.persistenceDatabase = spec.persist;
+          Module.archiveCacheNamespace = spec.cache || spec.persist;
           if (spec.memory) Module.INITIAL_MEMORY = spec.memory;
           prefetchMode(mode);
           Module.locateFile = function (path) {
@@ -574,7 +588,7 @@ async function cachedScriptURL(src) {
         hint("preload", "bunco/game.js", "script");
         hint("preload", "pokermon/game.js", "script");
         hint("preload", "game.js", "script");
-        ["vanilla", "paperback", "bunco", "pokermon", "cryptid", "multiplayer"].forEach(function (mode) {
+        ["vanilla", "handy", "paperback", "bunco", "pokermon", "cryptid", "multiplayer"].forEach(function (mode) {
           var button = document.getElementById("mode-" + mode);
           if (!button) return;
           button.onclick = function () {
