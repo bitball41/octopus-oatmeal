@@ -2,8 +2,23 @@
 from browser_adapters import once
 
 
-def adapt_handy_patch(name, index, patch, files, resolve):
+def adapt_handy_patch(name, index, patch, files, resolve, flavor=None):
     target = resolve(patch['target'])
+    if flavor == 'handy':
+        source = files.get(target, b'').decode()
+        if target not in files and patch['target'].startswith('=[SMODS '):
+            return patch, 'Standalone Handy has no Steamodded or optional content mods.'
+        if name == 'lovely/ui_fixes.toml' and index <= 13:
+            return patch, 'The Vanilla browser base retains its existing text input and alignment implementation.'
+        if name == 'lovely/controls/scoring_hold.toml' and index == 2:
+            return patch, 'Vanilla uses the stock scoring path; the preceding patch supplies its hold event.'
+        if name == 'lovely/controls/animation_skip.toml':
+            if index in (5, 7, 9):
+                return patch, 'Alternative Talisman animation hooks do not apply to Vanilla.'
+            if index == 8 and 'card:juice_up(0.1, 0.1, true)' in source:
+                patch = dict(patch)
+                patch['pattern'] = patch['pattern'].replace('0.1, 0.1)', '0.1, 0.1, true)')
+        return patch, None
     if target not in files and (patch['target'].startswith('=[SMODS Multiplayer') or
                                 patch['target'].startswith('=[SMODS DebugPlus')):
         return patch, 'Optional desktop mod is not bundled in Cryptid mode.'

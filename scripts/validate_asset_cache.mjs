@@ -40,13 +40,14 @@ assert.equal(await (await context({open() {throw Error('Disabled');}}).cachedAss
 // Execute the shipped archive loaders, including the split Pokermon loader.
 let network = 0;
 async function launch(mode, altered = false) {
-  const dir = mode === 'multiplayer' ? '' : mode + '/';
+  const dir = mode === 'multiplayer' ? '' : mode === 'handy' ? 'vanilla-handy/' : mode + '/';
   let source = await readFile(new URL('../' + dir + 'game.js', import.meta.url), 'utf8');
   if (altered) source = source.replace(/package_uuid: "[^"]+"/, 'package_uuid: "updated"');
   const memory = new Uint8Array(40 * 1024 * 1024);
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(Error('Archive load stalled')), 3000);
-    const Module = {persistenceDatabase: '/home/web_user/love-' + mode, calledRun: true,
+    const Module = {persistenceDatabase: '/home/web_user/love-' + (mode === 'handy' ? 'vanilla' : mode),
+      archiveCacheNamespace: '/home/web_user/love-' + (mode === 'handy' ? 'vanilla-handy' : mode), calledRun: true,
       locateFile: p => dir + p, HEAPU8: memory, getMemory: () => 0,
       addRunDependency() {}, FS_createDataFile() {},
       removeRunDependency(name) { if (name === 'datafile_game.data') {clearTimeout(timeout);resolve();}}};
@@ -57,10 +58,10 @@ async function launch(mode, altered = false) {
       XMLHttpRequest: XHR, window:{indexedDB, encodeURIComponent, location:{pathname:'/index.html'}}});
   });
 }
-for (const mode of ['vanilla','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
-assert.equal(network, 8); // Four single archives, plus two parts each for Pokermon/Cryptid.
-for (const mode of ['vanilla','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
-assert.equal(network, 8, 'switching modes must retain every cached archive');
+for (const mode of ['vanilla','handy','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
+assert.equal(network, 9); // Five single archives, plus two parts each for Pokermon/Cryptid.
+for (const mode of ['vanilla','handy','bunco','paperback','pokermon','cryptid','multiplayer']) await launch(mode);
+assert.equal(network, 9, 'Vanilla and Handy must retain both archives while sharing their saves');
 await launch('bunco', true);
-assert.equal(network, 9, 'changed package UUID downloads the updated archive');
-console.log('Persistent assets, revisions, quota/disabled storage, six-mode reuse and split archive cache passed');
+assert.equal(network, 10, 'changed package UUID downloads the updated archive');
+console.log('Persistent assets, revisions, quota/disabled storage, shared-save Vanilla/Handy reuse and split archive cache passed');

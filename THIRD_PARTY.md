@@ -19,7 +19,8 @@ the browser Lua archives, and `scripts/build_server.mjs` bundles the upstream
 server for the peer host. Browser-specific adapters replace unavailable native
 filesystem, LuaJIT, TCP-thread, and platform APIs; gameplay remains upstream.
 
-Handy is bundled in Cryptid mode. `scripts/handy_browser.py` adapts its native
+Handy is bundled in Cryptid and standalone Vanilla + Handy modes.
+`scripts/handy_browser.py` adapts its native
 filesystem/updater and payout buffering; `browser/lua/browser/handy.lua` replaces
 the recursive bulk queue with serial, time-sliced calls to the modded sell
 callback. The browser distribution caps speed at 512x and animation skipping

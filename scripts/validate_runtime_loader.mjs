@@ -11,6 +11,7 @@ const end = "<!-- OCTOPUS_PINNED_RUNTIME_END -->";
 assert.equal(html.split(start).length - 1, 1, "missing pinned-runtime start marker");
 assert.equal(html.split(end).length - 1, 1, "missing pinned-runtime end marker");
 assert.match(html, /id="mode-vanilla"/);
+assert.match(html, /id="mode-handy"/);
 assert.match(html, /id="mode-paperback"/);
 assert.match(html, /id="mode-bunco"/);
 assert.match(html, /id="mode-cryptid"/);
@@ -44,13 +45,14 @@ function overlay() {
   return { classList: { add() {}, remove() {} }, onclick: null, onmouseenter: null, ontouchstart: null };
 }
 
-function context({ hostname, hash, fetchImpl }) {
+function context({ hostname, hash, fetchImpl, loaderSource = source }) {
   const loaded = [];
   const hints = [];
   const statuses = [];
   const state = { started: 0 };
   const buttons = {
     "mode-vanilla": overlay(),
+    "mode-handy": overlay(),
     "mode-paperback": overlay(),
     "mode-bunco": overlay(),
     "mode-pokermon": overlay(),
@@ -111,7 +113,7 @@ function context({ hostname, hash, fetchImpl }) {
     },
   };
   vmContext.window = vmContext;
-  vm.runInNewContext(source, vmContext, { filename: "index-runtime-loader.js" });
+  vm.runInNewContext(loaderSource, vmContext, { filename: "index-runtime-loader.js" });
   return { vmContext, loaded, hints, statuses, state };
 }
 
@@ -140,6 +142,27 @@ assert.equal(
 assert.equal(local.vmContext.Module.locateFile("game.data?v=1"), "vanilla/game.data?v=1");
 assert.equal(local.vmContext.Module.locateFile("love.wasm"), "love.wasm");
 assert.equal(local.state.started, 1);
+
+const localHandy = context({hostname: 'localhost', hash: '#handy'});
+await flush();
+assert.equal(localHandy.state.started, 1);
+assert.deepEqual(localHandy.loaded.map(({src}) => src), ['vanilla-handy/game.js', 'love.js']);
+assert.equal(localHandy.vmContext.Module.persistenceDatabase, local.vmContext.Module.persistenceDatabase);
+assert.notEqual(localHandy.vmContext.Module.archiveCacheNamespace, local.vmContext.Module.archiveCacheNamespace);
+assert.equal(localHandy.vmContext.Module.locateFile('game.data'), 'vanilla-handy/game.data');
+const handyAlias = context({hostname: 'localhost', hash: '#vanilla-handy'});
+await flush();
+assert.equal(handyAlias.vmContext.__octopusMode, 'handy');
+const hostedHTML = await readFile(new URL('../balatro.html', import.meta.url), 'utf8');
+assert.match(hostedHTML, /id="mode-handy"/);
+const hostedSource = [...hostedHTML.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+  .map(match => match[1]).find(script => script.includes('var MODES ='));
+assert.ok(hostedSource);
+const hostedHandy = context({hostname:'localhost', hash:'#handy', loaderSource:hostedSource});
+await flush();
+assert.equal(hostedHandy.vmContext.Module.persistenceDatabase, local.vmContext.Module.persistenceDatabase);
+assert.equal(hostedHandy.state.started, 1);
+assert.deepEqual(hostedHandy.loaded.map(({src}) => src), ['vanilla-handy/game.js', 'love.js']);
 local.vmContext.OctopusLaunch.prefetch("paperback");
 await flush();
 assert.equal(local.hints.length, 0, "Do not bypass persistent cache with preloads");
@@ -300,6 +323,13 @@ await flush();
 assert.equal(remoteCryptid.vmContext.Module.locateFile("game.data.part0"), `${base}cryptid/game.data.part0`);
 assert.equal(remoteCryptid.vmContext.Module.persistenceDatabase, "/home/web_user/love-cryptid");
 assert.equal(remoteCryptid.state.started, 1);
+
+const remoteHandy = context({hostname: 'cdn.example', hash: '#handy',
+  fetchImpl: async () => ({ok:true, json:async () => ({sha:resolvedRef})})});
+await flush();
+assert.equal(remoteHandy.vmContext.Module.locateFile('game.data'), `${base}vanilla-handy/game.data`);
+assert.equal(remoteHandy.vmContext.Module.persistenceDatabase, '/home/web_user/love-vanilla');
+assert.equal(remoteHandy.state.started, 1);
 
 const wasmRemote = context({
   hostname: "cdn.example",

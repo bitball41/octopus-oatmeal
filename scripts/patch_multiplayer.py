@@ -279,6 +279,9 @@ def patch_game_js(blob: bytes, template: str | None = None, parts: list[str] | N
     # Each mode needs its own package slot; UUID still invalidates changed data.
     text = text.replace('PACKAGE_PATH + PACKAGE_NAME',
                         '(Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME')
+    # Vanilla and Handy share saves, but retain different cached archives.
+    text = text.replace('(Module.persistenceDatabase || PACKAGE_PATH)',
+                        '(Module.archiveCacheNamespace || Module.persistenceDatabase || PACKAGE_PATH)')
     text, count = re.subn(
         r'var REMOTE_PACKAGE_BASE = "game\.data\?v=[^"]+";',
         f'var REMOTE_PACKAGE_BASE = "game.data?v={cache_tag}";',

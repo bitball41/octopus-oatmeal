@@ -3,12 +3,15 @@
 `index.html` and `balatro.html` pick a mode before the runtime starts.
 
 - **Vanilla** loads `vanilla/game.data`. Stock Balatro plus the liminal cheat and browser seed paste. IndexedDB database `/home/web_user/love-vanilla`.
+- **Vanilla + Handy** loads `vanilla-handy/game.data`. Vanilla with standalone Handy; shares `/home/web_user/love-vanilla`, including the current run, profiles and unlocks.
 - **Paperback (a vanilla+ mod)** loads `paperback/game.data` (Steamodded + Paperback). IndexedDB database `/home/web_user/love-paperback`.
 - **Bunco (a vanilla+ mod)** loads `bunco/game.data` (Steamodded + Bunco). IndexedDB database `/home/web_user/love-bunco`.
 - **Pokermon (a pokemon mod)** loads `pokermon/game.data.part0` and `part1` concatenated into the LÖVE archive (Steamodded + Pokermon). IndexedDB database `/home/web_user/love-pokermon`. jsDelivr 403s any single file over 20 MB, so this pack is split at 18 MiB. 2x / Natdex / Unown-swarm sheets are dropped so love.js can decode the remaining PNGs.
 - **multiplayer mod** loads root `game.data` (Steamodded + Multiplayer). IndexedDB database `/home/web_user/love` so existing browser saves keep working. `#modded` still boots this mode.
 
-All five modes mount the LÖVE save directory at `/home/web_user/love`. They only split the IndexedDB name, so a run in one mode cannot read another mode's profile.
+All modes mount the LÖVE save directory at `/home/web_user/love`. Vanilla and
+Vanilla + Handy use the same IndexedDB name. The content-mod modes use their
+own databases, so their runs cannot read Vanilla's profiles.
 
 ## Fixes
 
@@ -91,3 +94,16 @@ open Options → Handy and inspect its controls. Compare a duplicate-Jolly sale
 batch with normal sales using Crypto Coin and Loopy, then test 512× speed,
 animation skip, eternal Jokers and Escape cancellation. Check that progress
 clears and the saved run resumes with the resulting money and Jokers.
+
+## Vanilla + Handy
+
+The new button beside Vanilla (or `#handy` / `#vanilla-handy`) loads Handy
+without Steamodded or Cryptid. It is built from the exact Vanilla base and
+retains Vanilla's save/load functions, serializer and filesystem identity.
+Both buttons continue the same run and share every profile and unlock.
+Game archive caches stay separate so switching buttons keeps both downloads.
+
+Build with `npm run build:handy`; verify with `npm run test:handy` and
+`npm run test:loader`. These checks compile the standalone archive, bootstrap
+Handy, compare Vanilla's save/load functions, round-trip a saved run in both
+directions, and exercise both launcher entry points and their shared-save cache.

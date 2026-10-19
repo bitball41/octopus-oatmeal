@@ -237,6 +237,25 @@ def build_vanilla(template_js, release=False):
                         ROOT/'vanilla' if release else None)
 
 
+def build_handy(candidate=False, release=False):
+    # Use the exact Vanilla base: no Steamodded, content mods or profile prefix.
+    files = vanilla_base()
+    lock = json.loads((ROOT/'vendor/upstream.json').read_text())
+    files, report, modules, early = apply_lovely(files, ['Handy'], lock, 'handy')
+    from handy_browser import prepare_handy_sources
+    prepare_handy_sources(files)
+    from browser_features import apply as apply_features
+    apply_features(files, vanilla=True)
+    for module, path in modules.items():
+        files[module.replace('.', '/')+'.lua'] = files[path]
+    pack_browser_lua(files, ('browser/menu.lua', 'browser/platform.lua'))
+    files['main.lua'] = (b'require "browser.handy_platform"\n' +
+                        ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
+    summarize_report(report, 'vanilla-handy', 'patch-report-handy.json', candidate)
+    return emit_archive(files, ROOT/'build/vanilla-handy', (ROOT/'game.js').read_text(),
+                        ROOT/'vanilla-handy' if release else None)
+
+
 def apply_lovely(files, mods, lock, flavor=None):
     manifests, modules, early = [], {}, []
     for mod in mods:
@@ -293,7 +312,7 @@ def apply_lovely(files, mods, lock, flavor=None):
                 skip_reason = 'The earlier Handy patch already supplies the same card juice nil guard.'
             if mod == 'Handy':
                 from handy_browser import adapt_handy_patch
-                patch, handy_skip = adapt_handy_patch(name, index, patch, files, target_path)
+                patch, handy_skip = adapt_handy_patch(name, index, patch, files, target_path, flavor)
                 skip_reason = handy_skip or skip_reason
             if flavor == 'cryptid':
                 from cryptid_browser import adapt_cryptid_patch
@@ -416,6 +435,7 @@ def build(candidate=False, release=False):
     emit_archive(poke_files, out/'pokermon', template_js, ROOT/'pokermon' if release else None)
 
     build_vanilla(template_js, release=release)
+    build_handy(candidate=candidate, release=release)
     build_cryptid(candidate=candidate, release=release)
     if release:
         print(ROOT/'game.data')
@@ -432,8 +452,11 @@ if __name__ == '__main__':
     parser.add_argument('--candidate', action='store_true', help='Emit a diagnostic candidate even with unresolved patches; never ship this output')
     parser.add_argument('--release', action='store_true', help='Replace game.data and update game.js after strict validation')
     parser.add_argument('--cryptid-only', action='store_true', help='Build only the isolated Cryptid mode')
+    parser.add_argument('--handy-only', action='store_true', help='Build Vanilla with standalone Handy and Vanilla-compatible saves')
     args = parser.parse_args()
-    if args.cryptid_only:
+    if args.handy_only:
+        build_handy(args.candidate, args.release)
+    elif args.cryptid_only:
         build_cryptid(args.candidate, args.release)
     else:
         build(args.candidate, args.release)

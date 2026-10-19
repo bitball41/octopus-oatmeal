@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Load the complete packed Handy module tree with a virtual filesystem and UI stubs."""
-import io,json,zipfile
+import io,json,zipfile,sys
 from pathlib import Path
 from lupa.lua51 import LuaRuntime
-p=Path(__file__).resolve().parents[1]/'cryptid'
-z=zipfile.ZipFile(io.BytesIO(b''.join((p/n).read_bytes() for n in json.loads((p/'parts.json').read_text()))))
+p=Path(__file__).resolve().parents[1]/(sys.argv[1] if len(sys.argv)>1 else 'cryptid')
+z=zipfile.ZipFile(p/'game.data') if (p/'game.data').exists() else zipfile.ZipFile(io.BytesIO(b''.join((p/n).read_bytes() for n in json.loads((p/'parts.json').read_text()))))
 lua=LuaRuntime(unpack_returned_tuples=True)
 lua.execute(z.read('browser/bignum_compare.lua').decode())
 lua.execute(z.read('engine/object.lua').decode())
