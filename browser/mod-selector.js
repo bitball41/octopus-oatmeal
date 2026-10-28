@@ -1,7 +1,7 @@
         var customModulePromise;
         function customModule() {
           if(window.OctopusCustom)return Promise.resolve();
-          if (!customModulePromise) customModulePromise=warmupPromise.then(function(w){return loadScript(w.assetBase+'custom-runtime.js',false);});
+          if (!customModulePromise) customModulePromise=warmupPromise.then(function(w){return loadScript(w.assetBase+'custom-runtime.js',false);}).then(function(){if(!window.OctopusCustom)throw new Error('The custom build loader did not initialize. Please try again.');}).catch(function(error){customModulePromise=null;throw error;});
           return customModulePromise;
         }
         function bindModSelector() {
