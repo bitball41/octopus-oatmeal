@@ -2340,15 +2340,34 @@ var Love = (function () {
           return callback(null, db);
         }
         var req;
+        var settled = false;
+        var openTimer;
+        function finish(err, result) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(openTimer);
+          callback(err, result);
+        }
         try {
-          req = IDBFS.indexedDB().open(name, IDBFS.DB_VERSION);
+          // The FILE_DATA schema is compatible across existing save versions.
+          // A forced version upgrade waits indefinitely when an older game
+          // tab still holds the database open. Open its current version and
+          // create the schema only when this is a genuinely new database.
+          req = IDBFS.indexedDB().open(name);
         } catch (e) {
-          return callback(e);
+          return finish(e);
         }
         if (!req) {
-          return callback("Unable to connect to IndexedDB");
+          return finish("Unable to connect to IndexedDB");
         }
+        openTimer = setTimeout(function () {
+          finish(new Error("Browser save database did not respond"));
+        }, 10000);
         req.onupgradeneeded = function (e) {
+          if (settled) {
+            e.target.transaction.abort();
+            return;
+          }
           var db = e.target.result;
           var transaction = e.target.transaction;
           var fileStore;
@@ -2363,11 +2382,29 @@ var Love = (function () {
         };
         req.onsuccess = function () {
           db = req.result;
+          if (settled) {
+            db.close();
+            return;
+          }
+          try {
+            db.transaction([IDBFS.DB_STORE_NAME], "readonly")
+              .objectStore(IDBFS.DB_STORE_NAME).index("timestamp");
+          } catch (e) {
+            db.close();
+            return finish(e);
+          }
+          db.onversionchange = function () {
+            db.close();
+            delete IDBFS.dbs[name];
+          };
           IDBFS.dbs[name] = db;
-          callback(null, db);
+          finish(null, db);
+        };
+        req.onblocked = function () {
+          finish(new Error("Browser save database is locked by another game tab"));
         };
         req.onerror = function (e) {
-          callback(this.error);
+          finish(this.error);
           e.preventDefault();
         };
       },
