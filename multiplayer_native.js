@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/+esm";
 
-const SUPABASE_URL = "https://yswxdsagoywzevwgarbf.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Ah6QGx7Tpr-rBvaa4cQcPw_7djryJ9K";
+const SUPABASE_URL = "https://trsirhyucncmyyfyiuje.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_IRSgHfkgRkLvRYcoKkwAqA_UFpMAetG";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

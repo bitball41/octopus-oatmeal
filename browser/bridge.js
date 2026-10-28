@@ -3,12 +3,12 @@ import {createClient} from '@supabase/supabase-js';
 import {BrowserServer} from './server.js';
 import {PeerRoom} from './transport.js';
 
-const SUPABASE_URL='https://yswxdsagoywzevwgarbf.supabase.co';
-// Public Realtime rooms use the project's anon JWT without a persisted Auth session.
-const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzd3hkc2Fnb3l3emV2d2dhcmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMjIwMTIsImV4cCI6MjEwMDU5ODAxMn0.BylSAqxf0sAq74kGRlRL7xEnzedKjWY_x05xf_63oxc';
-const supabase=createClient(SUPABASE_URL, SUPABASE_ANON, {
+const SUPABASE_URL='https://trsirhyucncmyyfyiuje.supabase.co';
+// Public Realtime rooms use Liminal's publishable key without a persisted Auth session.
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IRSgHfkgRkLvRYcoKkwAqA_UFpMAetG';
+const supabase=createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-  realtime:{params:{apikey:SUPABASE_ANON}},
+  realtime:{params:{apikey:SUPABASE_PUBLISHABLE_KEY}},
 });
 let saveDirectory, server, room, role, joiningCode;
 let sequence=0, pending=[], operation=Promise.resolve();
