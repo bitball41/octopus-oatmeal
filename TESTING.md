@@ -18,7 +18,7 @@ own databases, so their runs cannot read Vanilla's profiles.
 - Lobby creation and joining let Supabase recover an initial transport failure within a bounded 15-second window. Failed or cancelled rooms release their channels, and a failed host can retry with the existing username/version handshake. Authorization failures still fail immediately. `node scripts/validate_signaling.mjs` and `node scripts/validate_sessions.mjs` exercise these paths.
 - Red Deck in the multiplayer run setup was showing "Not available in this demo" because a Steamodded back.lua patch was remapped onto `if not back_config.unlocked then` and deleted that check. The unlocked Red Deck description is restored.
 - Multiplayer create-lobby skips ruleset / gamemode / weekly walls. Hosting uses vanilla ruleset + attrition and goes straight to a lobby code.
-- Signaling uses the legacy Supabase anon JWT for Realtime. The live GitHub Pages build was still on the publishable `sb_publishable_` key.
+- Signaling uses the Liminal Supabase project (`trsirhyucncmyyfyiuje`) and its browser-safe publishable key, without a persisted Auth session. Both the upstream bridge and the legacy native fallback target this project. Rebuild `multiplayer_upstream.js` with `node scripts/build_server.mjs` after changing the bridge connection, and refresh its cache revision in both launchers.
 - Launcher fallback SHA is a real commit, with GitHub API then `runtime.json` then that SHA. Localhost loads files from this checkout instead of the CDN. Mode archives must stay under jsDelivr's 20 MB cap (Pokermon ships as concatenated parts). The picker preloads shared `love.js` / `love.wasm` immediately and prefetches a mode's archive on hover so Play is not a cold start.
 
 ## Verification
