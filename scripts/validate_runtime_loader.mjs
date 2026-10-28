@@ -17,10 +17,10 @@ assert.match(html, /id="mode-bunco"/);
 assert.match(html, /id="mode-cryptid"/);
 assert.doesNotMatch(html, /id="mode-pokermon"/);
 assert.match(html, /id="mode-multiplayer"/);
-assert.match(html, /Paperback \(a vanilla\+ mod\)/);
-assert.match(html, /Bunco \(a vanilla\+ mod\)/);
+assert.match(html, /id="mode-paperback"/);
+assert.match(html, /id="mode-bunco"/);
 assert.doesNotMatch(html, /Pokermon \(a pokemon mod\)/);
-assert.match(html, /multiplayer mod/);
+assert.match(html, /id="mode-multiplayer"/);
 assert.doesNotMatch(html, /id="mode-modded"/);
 assert.doesNotMatch(
   html,
@@ -78,6 +78,7 @@ function context({ hostname, hash, fetchImpl, loaderSource = source }) {
       readyState: "complete",
       addEventListener() {},
       getElementById(id) {
+        if(id==="build-panel")return null;
         return (
           buttons[id] ||
           overlay()

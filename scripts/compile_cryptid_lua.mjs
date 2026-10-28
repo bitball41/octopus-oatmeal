@@ -2,6 +2,10 @@
 // Rewrite comparison AST nodes, preserving comments, strings and evaluation
 // order. Never rewrite source text with regexes: strings can contain Lua code.
 import luaparse from 'luaparse';
+import {createHash} from 'node:crypto';
+import {mkdirSync,readFileSync,writeFileSync,existsSync,renameSync} from 'node:fs';
+const cacheDir = new URL('../build/comparison-cache/', import.meta.url);
+mkdirSync(cacheDir,{recursive:true});
 
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
@@ -50,6 +54,8 @@ for (const [name, source] of Object.entries(files)) {
     files[name] = 'local math = {abs=math.abs, cos=math.cos, sin=math.sin, sqrt=math.sqrt, min=math.min, max=math.max, pi=math.pi}\n' + source;
     continue;
   }
+  const cachePath = new URL(createHash('sha256').update('v1:'+source).digest('hex')+'.lua', cacheDir);
+  if(existsSync(cachePath)) { files[name]=readFileSync(cachePath,'utf8'); continue; }
   let ast;
   // 5.2 also accepts the empty semicolon statements in this browser base.
   // Emitted code is separately compiled against the actual Lua 5.1 runtime.
@@ -75,5 +81,7 @@ for (const [name, source] of Object.entries(files)) {
     return text + source.slice(cursor, node.range[1]);
   }
   files[name] = render({...ast, range:[0,source.length]});
+  const tempPath=new URL(cachePath.href+'.'+process.pid+'.tmp');
+  writeFileSync(tempPath,files[name]);renameSync(tempPath,cachePath);
 }
 process.stdout.write(JSON.stringify(files));

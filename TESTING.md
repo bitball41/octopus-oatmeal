@@ -108,3 +108,13 @@ Build with `npm run build:handy`; verify with `npm run test:handy` and
 `npm run test:loader`. These checks compile the standalone archive, bootstrap
 Handy, compare Vanilla's save/load functions, round-trip a saved run in both
 directions, and exercise both launcher entry points and their shared-save cache.
+
+## Custom mod builds and value randomizer
+
+Run `npm run build:custom` after changing mod pins, compatibility rules or randomizer instrumentation. It compiles all 64 subsets of Bunco, CardSleeves, Cryptid, Handy, Multiplayer and Paperback, validates Lua 5.1 syntax, and emits shared content-addressed asset packs. Randomizer is a separate optional selection in any build; its bounds are injected by the launcher.
+
+Run `npm run test:custom`, `npm run test:loader`, `npm run test:startup` and `npm run test:sessions`. The custom suite checks all recipe/payload hashes and CDN limits, exact selected-only mod contents, real browser archive assembly, deterministic values, literal bounds, unchanged enhancements/starting money, continuation of saved state and preservation of multiple Lua return values. Session integration checks include matching custom builds sharing a seed and mismatched settings being refused.
+
+Browser QA for this update exercised Cryptid + Multiplayer + Handy + CardSleeves + Randomizer together through actual WASM startup and a seeded 52-card run. Steel remained ×1.5 and starting money remained $4; run limits and Joker values were randomized. Desktop/mobile selector checks cover custom tooltips, selection, invalid bounds and horizontal overflow. The complete set of arbitrary combinations has compile/assembly coverage; exhaustive gameplay compatibility is experimental.
+
+Custom save databases include the sorted mod set and randomizer bounds. Existing preset databases remain unchanged. Custom archives are assembled from verified packs before the engine starts and bypass the old full-archive cache; game progress still uses the existing save system.

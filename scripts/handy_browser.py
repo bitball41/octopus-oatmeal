@@ -36,7 +36,7 @@ def adapt_handy_patch(name, index, patch, files, resolve, flavor=None):
             patch['pattern'] = patch['pattern'].replace('0.1, 0.1)', '0.1, 0.1, true)')
         if index == 9:
             return patch, 'Browser juice_card_until was adapted by the preceding patch.'
-        if index == 17:
+        if index == 17 and flavor == 'cryptid':
             patch['pattern'] = 'if to_big(amt) ~= to_big(0) then'
     return patch, None
 
