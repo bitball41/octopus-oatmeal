@@ -59,16 +59,28 @@ jobs:
           npm ci
           python -m pip install pillow lupa
           python scripts/fetch_cryptid_sources.py
-      - name: Build and verify Cryptid and Vanilla + Handy
+      - name: Restore compiled mod cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            custom
+            build/comparison-cache
+            build/pack-cache
+          key: custom-mods-v1-${{ runner.os }}-${{ hashFiles('scripts/*.py', 'scripts/compile_cryptid_lua.mjs', 'scripts/randomize_literals.mjs', 'browser/lua/**/*.lua', 'browser/value-randomizer.lua', 'vendor/upstream.json') }}
+          restore-keys: custom-mods-v1-${{ runner.os }}-
+      - name: Build and verify existing Cryptid and Handy presets
         run: |
           npm run build:handy
           npm run test:handy
           npm run build:cryptid
           npm run test:cryptid
           node scripts/build_server.mjs
-          npm run build:custom
+      - name: Compile all 64 custom mod combinations
+        run: npm run build:custom
+      - name: Verify packages, multiplayer and save compatibility
+        run: |
           npm run test:custom
-          npm run test:sessions
+          npm run test:sessions -- game.data
           npm run test:loader
           python scripts/validate_modes.py
       - name: Commit runtime assets and pin the launcher fallback

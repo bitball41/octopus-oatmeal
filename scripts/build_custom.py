@@ -89,17 +89,32 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--only');args=parser.parse_args()
     OUT.mkdir(exist_ok=True)
     (OUT/'value-randomizer.lua').write_bytes((ROOT/'browser/value-randomizer.lua').read_bytes())
-    manifest={'version':1,'builds':{}}
-    if args.only and (OUT/'manifest.json').exists():manifest=json.loads((OUT/'manifest.json').read_text())
+    inputs=sorted([*ROOT.glob('scripts/*.py'), ROOT/'scripts/compile_cryptid_lua.mjs', ROOT/'scripts/randomize_literals.mjs', *ROOT.glob('browser/lua/**/*.lua'), ROOT/'browser/value-randomizer.lua', ROOT/'vendor/upstream.json', ROOT/'148 jokers.HTML'])
+    digest=hashlib.sha256()
+    for path in inputs:digest.update(path.relative_to(ROOT).as_posix().encode()+b'\0'+path.read_bytes())
+    fingerprint=digest.hexdigest()
+    manifest={'version':1,'fingerprint':fingerprint,'builds':{}}
+    if (OUT/'manifest.json').exists():
+        previous=json.loads((OUT/'manifest.json').read_text())
+        if args.only or previous.get('fingerprint')==fingerprint:manifest=previous
+    manifest['fingerprint']=fingerprint
     combos=[sorted(args.only.split(','))] if args.only else [list(c) for n in range(7) for c in itertools.combinations(MODS,n)]
     # Exercise the main requested combinations before the rest.
     if not args.only:combos.sort(key=lambda c:(not ('Multiplayer' in c and 'Cryptid' in c),len(c),c))
+    pending=[]
+    for mods in combos:
+        key='+'.join(mods) or 'base';recipe=manifest['builds'].get(key)
+        if recipe and all((OUT/part).exists() for pack in [*recipe['packs'],recipe['overlay']] for part in pack['parts']):
+            print('Cached:',key,flush=True)
+        else:pending.append(mods)
     failed=[]
     with ProcessPoolExecutor(max_workers=3,mp_context=multiprocessing.get_context('fork')) as pool:
-        futures={pool.submit(compile_combo,mods):mods for mods in combos}
+        futures={pool.submit(compile_combo,mods):mods for mods in pending}
         for future in as_completed(futures):
             mods=futures[future];key='+'.join(mods) or 'base'
-            try:manifest['builds'][key]=future.result()
+            try:
+                manifest['builds'][key]=future.result()
+                print(f'Completed {len(manifest["builds"])}/64: {key}',flush=True)
             except Exception as e:
                 print('FAILED',key,str(e),flush=True);failed.append(key)
             (OUT/'manifest.json').write_text(json.dumps(manifest,separators=(',',':'))+'\n')
