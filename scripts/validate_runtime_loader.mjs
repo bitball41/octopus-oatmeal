@@ -279,6 +279,7 @@ const remote = context({
 await remote.vmContext.OctopusLaunch.start("multiplayer");
 await flush();
 const base = `https://cdn.jsdelivr.net/gh/bitball41/octopus-oatmeal@${resolvedRef}/`;
+const archiveBase = `https://raw.githubusercontent.com/bitball41/octopus-oatmeal/${resolvedRef}/`;
 assert.deepEqual(
   remote.loaded.map(({ src }) => src),
   [
@@ -291,7 +292,7 @@ assert.equal(remote.vmContext.__octopusRuntimeRef, resolvedRef);
 assert.equal(remote.vmContext.REMOTE_ASSET_BASE, base);
 assert.equal(
   remote.vmContext.Module.locateFile("game.data?v=1"),
-  `${base}game.data?v=1`,
+  `${archiveBase}game.data?v=1`,
 );
 assert.equal(
   remote.vmContext.Module.locateFile("love.wasm"),
@@ -307,7 +308,7 @@ await remotePaperback.vmContext.OctopusLaunch.start("paperback");
 await flush();
 assert.equal(
   remotePaperback.vmContext.Module.locateFile("game.data?v=1"),
-  `${base}paperback/game.data?v=1`,
+  `${archiveBase}paperback/game.data?v=1`,
 );
 assert.equal(
   remotePaperback.vmContext.Module.locateFile("love.wasm"),
@@ -321,14 +322,14 @@ const remoteCryptid = context({
   fetchImpl: async () => ({ok:true, json:async () => ({sha:resolvedRef})}),
 });
 await flush();
-assert.equal(remoteCryptid.vmContext.Module.locateFile("game.data.part0"), `${base}cryptid/game.data.part0`);
+assert.equal(remoteCryptid.vmContext.Module.locateFile("game.data.part0"), `${archiveBase}cryptid/game.data.part0`);
 assert.equal(remoteCryptid.vmContext.Module.persistenceDatabase, "/home/web_user/love-cryptid");
 assert.equal(remoteCryptid.state.started, 1);
 
 const remoteHandy = context({hostname: 'cdn.example', hash: '#handy',
   fetchImpl: async () => ({ok:true, json:async () => ({sha:resolvedRef})})});
 await flush();
-assert.equal(remoteHandy.vmContext.Module.locateFile('game.data'), `${base}vanilla-handy/game.data`);
+assert.equal(remoteHandy.vmContext.Module.locateFile('game.data'), `${archiveBase}vanilla-handy/game.data`);
 assert.equal(remoteHandy.vmContext.Module.persistenceDatabase, '/home/web_user/love-vanilla');
 assert.equal(remoteHandy.state.started, 1);
 

@@ -537,6 +537,29 @@ function assetDB() {
   });
   return assetDatabase;
 }
+// Preserve the exact build commit when failing over to GitHub.
+function assetDownloadURLs(src) {
+  var url = new URL(src, document.baseURI);
+  var urls = [url.href];
+  var match = url.href.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+\/[^@/]+)@([0-9a-f]{40})\/(.+)$/i);
+  if (match) urls.push('https://raw.githubusercontent.com/' + match[1] + '/' + match[2] + '/' + match[3]);
+  return urls;
+}
+function archiveAssetURL(src) {
+  var urls=assetDownloadURLs(src);
+  return urls[1] || src;
+}
+async function downloadAsset(src) {
+  var urls=assetDownloadURLs(src),lastError;
+  for(var i=0;i<urls.length;i++) {
+    try {
+      var response=await fetch(urls[i]);
+      if(!response.ok) throw new Error('HTTP '+response.status);
+      return await response.blob();
+    } catch(error) {lastError=error;}
+  }
+  throw new Error('Download failed: '+src+' ('+(lastError && lastError.message)+')');
+}
 async function cachedAsset(src) {
   var url = new URL(src, document.baseURI).href;
   var immutable = /(?:@|\/)[0-9a-f]{40}\//i.test(url);
@@ -555,9 +578,7 @@ async function cachedAsset(src) {
     });
     if (cached && cached.revision === revision) return cached.blob;
   }
-  var response = await fetch(url + (!immutable && revision ? (url.includes('?') ? '&' : '?') + 'v=' + revision : ''));
-  if (!response.ok) throw new Error('Download failed: ' + response.status + ' ' + src);
-  var blob = await response.blob();
+  var blob = await downloadAsset(url + (!immutable && revision ? (url.includes('?') ? '&' : '?') + 'v=' + revision : ''));
   if (db) await new Promise(function (resolve) {
     try {
       // One entry per asset: new versions replace old ones, never touch saves.
@@ -754,7 +775,7 @@ async function cachedScriptURL(src) {
                 : path;
             // Archives stay under jsDelivr's 20 MB cap. Use the CDN for speed;
             // GitHub raw remains the manual fallback if a pack ever blows it.
-            return assetBase + mapped;
+            return String(path).indexOf("game.data") === 0 ? archiveAssetURL(assetBase + mapped) : assetBase + mapped;
           };
 
           try {
@@ -783,7 +804,7 @@ async function cachedScriptURL(src) {
         var customModulePromise;
         function customModule() {
           if(window.OctopusCustom)return Promise.resolve();
-          if (!customModulePromise) customModulePromise=warmupPromise.then(function(w){return loadScript(w.assetBase+'custom-runtime.js',false);});
+          if (!customModulePromise) customModulePromise=warmupPromise.then(function(w){return loadScript(w.assetBase+'custom-runtime.js',false);}).then(function(){if(!window.OctopusCustom)throw new Error('The custom build loader did not initialize. Please try again.');}).catch(function(error){customModulePromise=null;throw error;});
           return customModulePromise;
         }
         function bindModSelector() {
