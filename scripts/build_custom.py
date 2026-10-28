@@ -64,7 +64,7 @@ def compile_combo(mods):
     # Randomizer is initialized last, after SMODS and every selected mod loads.
     files['Mods/ValueRandomizer/ValueRandomizer.json']=json.dumps({
         'id':'ValueRandomizer','name':'Value Randomizer','author':['Liminal'],
-        'description':'Launcher-configured absolute gameplay value randomizer.',
+        'description':'Launcher-configured gameplay value multiplier randomizer.',
         'prefix':'lvr','main_file':'ValueRandomizer.lua','version':'1.0.0','priority':2147483647,
     }).encode()
     files['Mods/ValueRandomizer/ValueRandomizer.lua']=(ROOT/'browser/value-randomizer.lua').read_bytes()
