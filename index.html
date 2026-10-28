@@ -356,8 +356,9 @@
             <label class="build-option" data-tip="randomizer"><input type="checkbox" value="randomizer"> Randomizer</label>
           </div>
           <div id="randomizer-range" hidden>
-            <label>Minimum value<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="1"></label>
-            <label>Maximum value<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="100"></label>
+            <label>Minimum multiplier (×)<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="0.1"></label>
+            <label>Maximum multiplier (×)<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="10"></label>
+            <p style="flex-basis:100%;margin:0;color:#b0ccdd;font-size:13px">Each original value × a random multiplier. Default: 0.1×–10×. Blue Joker’s +2 chips can reach +20. Counts round to whole numbers.</p>
           </div>
           <div id="build-actions"><div id="build-summary" aria-live="polite">Select two or more mods.</div><button id="launch-build" type="button">Launch Build</button></div>
           <div id="build-error" role="alert"></div>
@@ -869,7 +870,7 @@ async function cachedScriptURL(src) {
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
             multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],
             sleeves:['CardSleeves','Combine a deck with a sleeve for two sets of effects. Choose your sleeve during run setup.'],
-            randomizer:['Custom Randomizer','Roll gameplay values between your minimum and maximum. Playing-card enhancements, starting cards and starting money stay unchanged. Configure it here before launching.'],
+            randomizer:['Custom Randomizer','Multiply each original gameplay value by a roll between your minimum and maximum. Defaults to 0.1×–10×: Blue Joker’s +2 chips can reach +20. Playing-card enhancements, starting cards and starting money stay unchanged.'],
             custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves.']
           };
           var activeTooltip;
@@ -890,14 +891,14 @@ async function cachedScriptURL(src) {
           panel.addEventListener('scroll',hideTip);window.addEventListener('resize',hideTip);
           var boxes=[].slice.call(panel.querySelectorAll('input[type=checkbox]'));
           var minimum=document.getElementById('randomizer-min'),maximum=document.getElementById('randomizer-max');
-          try{var saved=JSON.parse(localStorage.getItem('octopus-custom-build')||'null');if(saved){boxes.forEach(function(b){b.checked=saved.mods.includes(b.value);});minimum.value=saved.min;maximum.value=saved.max;}}catch(_){}
+          try{var saved=JSON.parse(localStorage.getItem('octopus-custom-build')||'null');if(saved){boxes.forEach(function(b){b.checked=saved.mods.includes(b.value);});if(saved.rangeMode==='multiplier'){minimum.value=saved.min;maximum.value=saved.max;}}}catch(_){}
           var standalone=false;
           function update(){
             var chosen=boxes.filter(function(b){return b.checked;});
             document.getElementById('randomizer-range').hidden=!chosen.some(function(b){return b.value==='randomizer';});
             document.getElementById('build-summary').textContent=chosen.length?chosen.map(function(b){return tips[b.value][0];}).join(' + ')+(chosen.length>1?' · Experimental · Separate save':' · Separate save'):'Select two or more mods.';
             document.getElementById('build-error').textContent='';
-            try{localStorage.setItem('octopus-custom-build',JSON.stringify({mods:chosen.map(function(b){return b.value;}),min:minimum.value,max:maximum.value}));}catch(_){}
+            try{localStorage.setItem('octopus-custom-build',JSON.stringify({mods:chosen.map(function(b){return b.value;}),min:minimum.value,max:maximum.value,rangeMode:'multiplier'}));}catch(_){}
           }
           boxes.forEach(function(b){b.addEventListener('change',update);});minimum.addEventListener('input',update);maximum.addEventListener('input',update);
           function open(single){hideTip();standalone=!!single;panel.hidden=false;document.getElementById('mode-custom').setAttribute('aria-expanded','true');

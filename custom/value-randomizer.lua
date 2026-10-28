@@ -2,30 +2,36 @@
 local fs = love.filesystem
 local config = fs.getInfo('browser/build_config.json') and require('json').decode(fs.read('browser/build_config.json')) or {}
 if not config.randomizer then return end
-local R = {min = tonumber(config.min) or 1, max = tonumber(config.max) or 100, seed = ''}
+local R = {min = tonumber(config.min) or 0.1, max = tonumber(config.max) or 10, seed = ''}
 LiminalRandomizer = R
 assert(R.min == R.min and R.max == R.max and R.min <= R.max, 'Invalid randomizer bounds')
 
 -- A stateless hash does not consume Balatro's card/shop RNG. Identical seeds,
 -- build settings and effect keys produce identical rolls on both peers.
-function R.value(key, integer)
+function R.factor(key)
     local hash = 5381
-    local text = R.seed .. ':' .. tostring(R.min) .. ':' .. tostring(R.max) .. ':' .. key
+    local text = 'multiplier-v2:' .. R.seed .. ':' .. tostring(R.min) .. ':' .. tostring(R.max) .. ':' .. key
     for i=1,#text do hash = (hash * 33 + text:byte(i)) % 2147483647 end
-    local n = R.min + (R.max - R.min) * hash / 2147483646
+    -- Mix the final hash so adjacent effect names do not all roll alike.
+    for i=1,3 do hash = (hash * 48271) % 2147483647 end
+    return R.min + (R.max - R.min) * hash / 2147483646
+end
+function R.value(key, original, integer)
+    local n = original * R.factor(key)
     if integer then
-        local lo,hi=math.ceil(R.min),math.floor(R.max)
-        if lo>hi then return math.max(1,math.floor(n+0.5)) end
-        n=math.min(hi,lo+math.floor(hash/2147483647*(hi-lo+1)))
+        local a,b=original*R.min,original*R.max
+        local lo,hi=math.ceil(math.min(a,b)),math.floor(math.max(a,b))
+        n=math.floor(n+0.5)
+        if lo<=hi then n=math.max(lo,math.min(hi,n)) end
     end
     return n
 end
 function R.literal(key, original)
     if R.seed=='' then return original end
-    return R.value('literal.'..key,original==math.floor(original))
+    return R.value('literal.'..key,original,original==math.floor(original))
 end
-function R.count(key) return math.max(1,R.value(key,true)) end
-local originals={}
+function R.count(key, original) return math.max(1,R.value(key,original or 1,true)) end
+local originals,original_blinds={},{}
 local excluded={dollars=true,money=true,starting_money=true,starting_dollars=true,
     rank=true,suit=true,id=true,order=true,rarity=true,pos=true,atlas=true,
     card_key=true,colour=true,color=true,scale=true,rotation=true,seed=true,
@@ -41,9 +47,9 @@ local function randomize(t,path,deck)
         local skip=excluded[k] and (deck or not (k=='dollars' or k=='money'))
         if not skip then
             if type(v)=='number' then
-                -- 0/1 identity values still count when explicitly configured.
-                t[k]=R.value(key,counts[k] or v==math.floor(v))
-                if counts[k] then t[k]=math.max(1,t[k]) end
+                t[k]=R.value(key,v,counts[k] or v==math.floor(v))
+                -- Keep signed deck modifiers and zero counters intact.
+                if counts[k] and v>0 then t[k]=math.max(1,t[k]) end
                 if k=='odds' or k=='denominator' then t[k]=math.max(1,t[k]) end
             elseif type(v)=='table' and not v.is and not v.array then randomize(v,key,deck) end
         end
@@ -62,8 +68,10 @@ function R.prototypes(seed)
         end
     end
     for key,blind in pairs(G.P_BLINDS or {}) do
-        blind.mult=R.value('boss.'..key..'.mult',true)
-        blind.dollars=math.max(0,R.value('boss.'..key..'.dollars',true))
+        if not original_blinds[key] then original_blinds[key]={mult=blind.mult,dollars=blind.dollars} end
+        local original=original_blinds[key]
+        if original.mult then blind.mult=R.value('boss.'..key..'.mult',original.mult,false) end
+        if original.dollars then blind.dollars=math.max(0,R.value('boss.'..key..'.dollars',original.dollars,true)) end
     end
 end
 local start=Game.start_run
@@ -79,7 +87,10 @@ function Game:start_run(args)
     if not saved then
         G.GAME.seeded=not not explicit_seed
         for _,key in ipairs({'hands','discards','hand_size','joker_slots','consumable_slots'}) do
-            G.GAME.starting_params[key]=R.count('run.'..key)
+            local area=key=='hand_size' and G.hand or key=='joker_slots' and G.jokers or key=='consumable_slots' and G.consumeables
+            local original=area and area.config.card_limit or G.GAME.round_resets[key] or G.GAME.starting_params[key]
+            local minimum=key=='discards' and 0 or 1
+            G.GAME.starting_params[key]=math.max(minimum,R.value('run.'..key,original,true))
         end
         G.GAME.round_resets.hands=G.GAME.starting_params.hands
         G.GAME.round_resets.discards=G.GAME.starting_params.discards
@@ -89,12 +100,12 @@ function Game:start_run(args)
         G.jokers.config.card_limit=G.GAME.starting_params.joker_slots
         G.consumeables.config.card_limit=G.GAME.starting_params.consumable_slots
         for name,hand in pairs(G.GAME.hands) do
-            for _,k in ipairs({'chips','mult','l_chips','l_mult'}) do hand[k]=R.value('hand.'..name..'.'..k,true) end
+            for _,k in ipairs({'chips','mult','l_chips','l_mult'}) do hand[k]=R.value('hand.'..name..'.'..k,hand[k],true) end
         end
-        G.GAME.base_reroll_cost=math.max(0,R.value('shop.reroll',true))
+        G.GAME.base_reroll_cost=math.max(0,R.value('shop.reroll',G.GAME.base_reroll_cost,true))
         G.GAME.round_resets.reroll_cost=G.GAME.base_reroll_cost
         G.GAME.current_round.reroll_cost=G.GAME.base_reroll_cost
-        for key in pairs(G.GAME.probabilities) do G.GAME.probabilities[key]=math.max(0,R.value('probability.'..key,false)) end
+        for key,value in pairs(G.GAME.probabilities) do G.GAME.probabilities[key]=math.max(0,R.value('probability.'..key,value,false)) end
     end
     return result
 end
@@ -103,7 +114,7 @@ function Card:set_cost(...)
     local result=cost(self,...)
     if G.GAME and G.GAME.liminal_randomizer_seed and self.config and self.config.center and not self.playing_card then
         local key=self.config.center.key or self.ability.name
-        self.cost=math.max(0,R.value('cost.'..key,true))
+        self.cost=math.max(0,R.value('cost.'..key,self.cost,true))
         self.sell_cost=math.max(0,math.floor(self.cost/2))+(self.ability.extra_value or 0)
         self.sell_cost_label=self.facing=='back' and '?' or self.sell_cost
     end
@@ -111,8 +122,14 @@ function Card:set_cost(...)
 end
 local blind_amount=get_blind_amount
 function get_blind_amount(ante)
-    if G.GAME and G.GAME.liminal_randomizer_seed then return math.max(1,R.value('blind.'..tostring(ante),true)) end
-    return blind_amount(ante)
+    local original=blind_amount(ante)
+    if G.GAME and G.GAME.liminal_randomizer_seed then
+        -- One run-wide factor preserves the upstream ante curve, including
+        -- Cryptid's big-number amounts, instead of replacing it with tiny rolls.
+        if type(original)=='number' then return math.max(1,R.value('blind.base',original,true)) end
+        return original * R.factor('blind.base')
+    end
+    return original
 end
 -- Hardcoded vanilla effects without a configurable prototype (Mime, Chad, etc.).
 local repeat_defaults={j_mime=1,j_hack=1,j_dusk=1,j_sock_and_buskin=1,j_seltzer=1,j_hanging_chad=2}
@@ -121,7 +138,7 @@ function Card:calculate_joker(context)
     local effect,post=calculate(self,context)
     local key=self.config and self.config.center and self.config.center.key
     if type(effect)=='table' and effect.repetitions and repeat_defaults[key] then
-        effect.repetitions=R.count(key..'.repetitions')
+        effect.repetitions=R.count(key..'.repetitions',repeat_defaults[key])
         effect.message=localize('k_again_ex')
     end
     return effect,post
@@ -133,7 +150,7 @@ for key in pairs(repeat_defaults) do
         local previous=center.loc_vars
         center.loc_vars=function(self,info_queue,card)
             local result=previous and previous(self,info_queue,card) or {vars={}}
-            result.vars=result.vars or {};result.vars[1]=R.count(key..'.repetitions')
+            result.vars=result.vars or {};result.vars[1]=R.count(key..'.repetitions',repeat_defaults[key])
             return result
         end
     end

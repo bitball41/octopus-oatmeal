@@ -136,9 +136,10 @@ delete globalThis.RTCPeerConnection;
 console.log('Transport: early ICE, offer/answer, channel-open state, failed-RTC fallback and ordered deduplication passed');
 
 // Matching custom builds keep the upstream shared seed; mismatches are refused.
-for(const mismatch of [false,true]) {
- const signature='cryptid-multiplayer-randomizer-1-100';
- const a=client(signature),b=client(mismatch?'cryptid-multiplayer-randomizer-1-10':signature);
+for(const mismatch of [false,'bounds','legacy']) {
+ const signature='cryptid-multiplayer-randomizer-multiplier-v2-0.1-10';
+ const other=mismatch==='legacy'?'cryptid-multiplayer-randomizer-0.1-10':mismatch==='bounds'?'cryptid-multiplayer-randomizer-multiplier-v2-1-2':signature;
+ const a=client(signature),b=client(other);
  for(const [c,n]of [[a,'A'],[b,'B']]){c.send({action:'connect'});c.send({action:'username',username:n+'~1',modHash:'custom'});c.send({action:'version',version:'0.5.5'});}
  a.send({action:'createLobby',gameMode:'attrition'});
  await until(()=>a.inbox.some(p=>p.action==='joinedLobby'),'custom host');
@@ -156,4 +157,4 @@ for(const mismatch of [false,true]) {
  b.send({action:'leaveLobby'});a.send({action:'leaveLobby'});
  await until(()=>channels.every(c=>!c.active),'custom cleanup');
 }
-console.log('Custom multiplayer: matching mods/ranges share a seed; mismatched settings cannot join');
+console.log('Custom multiplayer: matching mods/ranges share a seed; mismatched bounds and legacy absolute-value builds cannot join');
