@@ -21,7 +21,7 @@ require('browser.platform').connect()
 MP.ACTIONS.connect()
 '''
         return text
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/core.lua', core)
 
     def smods_menu(text):
@@ -49,8 +49,8 @@ MP.ACTIONS.connect()
         # love.js aborts the whole window if newShader throws. Keep boot
         # alive and skip the broken program (Bunco headache/pinch on WebGL 1,
         # Pokermon shiny.fs float-loop).
-        skip_mod = {'bunco': 'Bunco', 'pokermon': 'Pokermon'}.get(flavor)
-        if skip_mod:
+        skip_mod = 'Bunco' if 'Mods/Bunco/Bunco.json' in files else {'pokermon': 'Pokermon'}.get(flavor)
+        if skip_mod and flavor != 'cryptid':
             text = once(text,
                         '            love.filesystem.write(self.key .. "-temp.fs", file)\n',
                         '            if self.full_path and self.full_path:find("' + skip_mod + '", 1, true) then\n'
@@ -76,14 +76,14 @@ MP.ACTIONS.connect()
         begin = text.index('-- Modify play button to take you to mode select first')
         end = text.index('G.FUNCS.wipe_off', begin)
         return text[:begin] + '-- Dedicated MULTIPLAYER entry is installed by browser.menu.\n\n' + text[end:]
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/ui/main_menu/main_menu.lua', mp_menu)
 
     def title_card(text):
         return once(text, 'function Add_custom_multiplayer_cards(change_context)',
                     'function Add_custom_multiplayer_cards(change_context)\n    if MP.title_card and MP.title_card.area == G.title_top then return end',
                     'browser recursive menu decoration guard')
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/ui/main_menu/title_card.lua', title_card)
 
     def multiplayer_selector(text):
@@ -94,7 +94,7 @@ MP.ACTIONS.connect()
         begin = text.index('\n\t\t\t\tUIBox_button(')
         end = text.index('\n\t\t\t\tMP.LOBBY.connected', begin)
         return text[:begin] + text[end:]
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/ui/main_menu/play_button/play_button.lua', multiplayer_selector)
 
     def events(text):
@@ -145,7 +145,7 @@ MP.ACTIONS.connect()
         text = once(text, 'for _, card_str in pairs(card_strings) do', 'for _, card_str in pairs(card_strings) do\n        repeat', 'nemesis deck loop')
         text = text.replace('goto continue', 'break')
         return once(text, '::continue::', 'until true', 'nemesis deck continue')
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/networking/action_handlers.lua', handlers)
 
     def controller(text):
@@ -180,7 +180,7 @@ MP.ACTIONS.connect()
                     'if line:find("MULTIPLAYER", 1, true) then\n        repeat', 'log loop')
         text = text.replace('goto continue', 'break')
         return once(text, '::continue::', 'until true', 'log continue')
-    if flavor == 'multiplayer':
+    if 'Mods/Multiplayer/core.lua' in files:
         edit('Mods/Multiplayer/lib/log_parser.lua', logs)
 
     def game(text):
@@ -204,7 +204,7 @@ MP.ACTIONS.connect()
         return once(text, '::skip_game_actions_during_remove::', 'end', 'card removal scope')
     edit('card.lua', card)
 
-    if flavor == 'bunco':
+    if 'Mods/Bunco/Bunco.json' in files:
         # WebGL 1 rejects Bunco's desktop background replacements and int*float
         # multiplies in headache.fs (love.js compiles shaders at boot).
         cfg = files['Mods/Bunco/config.lua'].decode()

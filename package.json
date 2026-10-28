@@ -12,11 +12,14 @@
     "build:cryptid": "python3 scripts/install_cryptid_launcher.py && python3 scripts/build_upstream.py --cryptid-only --release && python3 scripts/patch_multiplayer_html.py",
     "test:cryptid": "python3 scripts/validate_cryptid.py && python3 scripts/validate_handy_boot.py && python3 scripts/validate_handy.py",
     "build:handy": "python3 scripts/install_handy_launcher.py && python3 scripts/build_upstream.py --handy-only --release && python3 scripts/patch_multiplayer_html.py",
-    "test:handy": "python3 scripts/validate_handy_boot.py vanilla-handy && python3 scripts/validate_vanilla_handy.py"
+    "test:handy": "python3 scripts/validate_handy_boot.py vanilla-handy && python3 scripts/validate_vanilla_handy.py",
+    "build:custom": "python3 scripts/build_custom.py && node scripts/bundle_custom.mjs && python3 scripts/install_mod_selector.py && python3 scripts/patch_multiplayer_html.py",
+    "test:custom": "python3 scripts/validate_custom.py && node scripts/validate_custom.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
     "fake-indexeddb": "^6.2.5",
+    "fflate": "^0.8.2",
     "luaparse": "0.3.1"
   },
   "dependencies": {

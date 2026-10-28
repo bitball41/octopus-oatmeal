@@ -281,6 +281,35 @@
         background: #8b5cf6;
         color: #fff;
       }
+      /* MOD_SELECTOR_STYLE */
+
+      #mode-overlay {overflow-y:auto;justify-content:safe center;gap:20px;padding:40px 20px;}
+      #mode-overlay h1 {margin:0 0 12px;}
+      .mode-row {gap:12px;width:100%;max-width:1000px;}
+      .mode-row button {min-width:180px;min-height:58px;padding:15px 22px;letter-spacing:.02em;text-transform:none;color:white;transition:transform .14s,box-shadow .14s;}
+      .mode-row button:hover,.mode-row button:focus-visible {transform:translateY(-2px);box-shadow:0 0 0 3px #ffffff42;outline:none;}
+      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid {min-width:180px;}
+      #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
+      #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
+      #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
+      #build-panel[hidden],#randomizer-range[hidden] {display:none;}
+      #build-panel h2 {font-size:18px;margin:0 0 18px;}
+      .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+      .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
+      .build-option:has(input:checked) {border-color:#8ec3e3;background:#214760;}
+      .build-option input {accent-color:#87c8ef;width:17px;height:17px;}
+      #randomizer-range {display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
+      #randomizer-range label {display:grid;gap:7px;text-align:left;font-size:13px;color:#b0ccdd;}
+      #randomizer-range input {width:150px;background:#091f2f;border:1px solid #638297;color:white;border-radius:7px;padding:10px;font:inherit;}
+      #build-actions {display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;}
+      #build-summary {font-size:13px;color:#abc5d6;text-align:left;line-height:1.5;}
+      #launch-build {background:#3d9be8;color:white;border:0;border-radius:8px;padding:13px 22px;font-weight:700;cursor:pointer;white-space:nowrap;}
+      #build-error {color:#ffb5b5;font-size:14px;margin-top:12px;}
+      #mode-tooltip {position:fixed;z-index:20;max-width:min(340px,calc(100vw - 24px));background:#071621;border:1px solid #52758d;border-radius:10px;box-shadow:0 10px 30px #0006;color:#daebf6;font-size:14px;line-height:1.5;padding:13px 16px;text-align:left;pointer-events:none;}
+      #mode-tooltip[hidden] {display:none;}
+      #mode-tooltip strong {display:block;margin-bottom:4px;color:white;}
+      #loading-error-back {pointer-events:auto;background:#3d9be8;border:0;border-radius:8px;color:white;padding:12px 20px;cursor:pointer;}
+      @media(max-width:620px) {.mode-row{gap:9px}.mode-row button{min-width:135px!important;padding:12px 14px;font-size:14px;}.build-options{grid-template-columns:repeat(2,1fr)}#build-actions{flex-direction:column;align-items:stretch;}#mode-overlay{padding:24px 14px;}}
     </style>
   </head>
   <body>
@@ -298,24 +327,42 @@
 
       <div id="mode-overlay">
         <h1>Balatro</h1>
-        <p>
-          Vanilla is the stock game plus cheats. Paperback and Bunco
-          are vanilla+ content packs. Multiplayer mod loads Balatro Multiplayer.
-          Cryptid adds unbalanced cards and huge scores.
-          Vanilla and Vanilla + Handy share a save. Other modes keep separate saves.
-        </p>
-        <div class="mode-row">
-          <button id="mode-vanilla" type="button">Vanilla</button>
-          <button id="mode-handy" type="button">Vanilla + Handy</button>
-          <button id="mode-paperback" type="button">
-            Paperback (a vanilla+ mod)
-          </button>
-          <button id="mode-bunco" type="button">
-            Bunco (a vanilla+ mod)
-          </button>
-          <button id="mode-cryptid" type="button">Cryptid</button>
-          <button id="mode-multiplayer" type="button">multiplayer mod</button>
+        <div class="mode-row" aria-label="Original game">
+          <button id="mode-vanilla" type="button" data-tip="vanilla">Vanilla</button>
         </div>
+        <div class="mode-row" aria-label="Featured modes">
+          <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
+          <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
+        </div>
+        <div class="mode-row" aria-label="More mods">
+          <button id="mode-paperback" type="button" data-tip="paperback">Paperback</button>
+          <button id="mode-bunco" type="button" data-tip="bunco">Bunco</button>
+          <button id="mode-multiplayer" type="button" data-tip="multiplayer">Multiplayer</button>
+          <button id="mode-sleeves" type="button" data-tip="sleeves">CardSleeves</button>
+          <button id="mode-randomizer" type="button" data-tip="randomizer">Custom Randomizer</button>
+        </div>
+        <div class="mode-row">
+          <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom">Custom Build</button>
+        </div>
+        <section id="build-panel" hidden aria-labelledby="build-heading">
+          <h2 id="build-heading">Custom Build</h2>
+          <div class="build-options">
+            <label class="build-option" data-tip="handy"><input type="checkbox" value="handy"> Handy</label>
+            <label class="build-option" data-tip="cryptid"><input type="checkbox" value="cryptid"> Cryptid</label>
+            <label class="build-option" data-tip="paperback"><input type="checkbox" value="paperback"> Paperback</label>
+            <label class="build-option" data-tip="bunco"><input type="checkbox" value="bunco"> Bunco</label>
+            <label class="build-option" data-tip="multiplayer"><input type="checkbox" value="multiplayer"> Multiplayer</label>
+            <label class="build-option" data-tip="sleeves"><input type="checkbox" value="sleeves"> CardSleeves</label>
+            <label class="build-option" data-tip="randomizer"><input type="checkbox" value="randomizer"> Randomizer</label>
+          </div>
+          <div id="randomizer-range" hidden>
+            <label>Minimum value<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="1"></label>
+            <label>Maximum value<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="100"></label>
+          </div>
+          <div id="build-actions"><div id="build-summary" aria-live="polite">Select two or more mods.</div><button id="launch-build" type="button">Launch Build</button></div>
+          <div id="build-error" role="alert"></div>
+        </section>
+        <div id="mode-tooltip" role="tooltip" hidden></div>
       </div>
       <div id="loading-overlay" class="hidden">
         <div id="loading-status">Loading...</div>
@@ -361,6 +408,7 @@
       window.addEventListener(
         "keydown",
         function (e) {
+          if (e.target && /^(INPUT|TEXTAREA|BUTTON|SELECT)$/.test(e.target.tagName)) return;
           if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
             e.preventDefault();
           }
@@ -525,7 +573,7 @@
         }
 
         /* OCTOPUS_ASSET_CACHE_START */
-var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "fa0365e0278c5a85b4556d1239be610d04f9f1605a6b2b2c5b8be4c142404320", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "dc4c9fa285677a708a0a7907f41f31ef2b9f24ff2e4a47efc3cd69b4784688af", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "0632b85b72291067fe13795907af508ec2189b9ade8e76ebdcfdd528d2b6aeaf", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla-handy/game.js": "c3552c2e0ddcecf9adeabeefdcbed768ae4de77dd838aac3fc8edd98a6e87fc3", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
+var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "fa0365e0278c5a85b4556d1239be610d04f9f1605a6b2b2c5b8be4c142404320", "game.js": "f0b982d25619afa95e6a59be5faa83718c9781ae58384335ca564a997e700d85", "love.js": "dc4c9fa285677a708a0a7907f41f31ef2b9f24ff2e4a47efc3cd69b4784688af", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "6ee8ce46b653e9a9e52aed9e408445f50d14bb75f78ec62676c4c5e286b72651", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla-handy/game.js": "c3552c2e0ddcecf9adeabeefdcbed768ae4de77dd838aac3fc8edd98a6e87fc3", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
 // Embedded in both launchers by patch_multiplayer_html.py (including file://).
 var assetDatabase;
 function assetDB() {
@@ -781,12 +829,108 @@ async function cachedScriptURL(src) {
         window.OctopusLaunch = { start: start, prefetch: prefetchMode };
         window.__octopusGithubRawBase = githubRawBase;
 
+/* MOD_SELECTOR_SCRIPT */
+        var customModulePromise;
+        function customModule() {
+          if(window.OctopusCustom)return Promise.resolve();
+          if (!customModulePromise) customModulePromise=warmupPromise.then(function(w){return loadScript(w.assetBase+'custom-runtime.js',false);});
+          return customModulePromise;
+        }
+        function bindModSelector() {
+          var panel=document.getElementById('build-panel');
+          if(!panel) return;
+          var tooltip=document.getElementById('mode-tooltip');
+          var tips={
+            vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
+            handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Shares your Vanilla save.'],
+            cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Includes Handy. Separate save.'],
+            paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
+            bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
+            multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],
+            sleeves:['CardSleeves','Combine a deck with a sleeve for two sets of effects. Choose your sleeve during run setup.'],
+            randomizer:['Custom Randomizer','Roll gameplay values between your minimum and maximum. Playing-card enhancements, starting cards and starting money stay unchanged. Configure it here before launching.'],
+            custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves.']
+          };
+          var activeTooltip;
+          function hideTip(){tooltip.hidden=true;if(activeTooltip)activeTooltip.removeAttribute('aria-describedby');activeTooltip=null;}
+          function showTip(el){
+            var tip=tips[el.dataset.tip];if(!tip)return;hideTip();activeTooltip=el;
+            var title=document.createElement('strong');title.textContent=tip[0];tooltip.replaceChildren(title,document.createTextNode(tip[1]));
+            tooltip.hidden=false;el.setAttribute('aria-describedby','mode-tooltip');
+            var r=el.getBoundingClientRect(),t=tooltip.getBoundingClientRect();
+            tooltip.style.left=Math.max(12,Math.min(innerWidth-t.width-12,r.left+r.width/2-t.width/2))+'px';
+            tooltip.style.top=(r.bottom+t.height+18<innerHeight?r.bottom+10:Math.max(12,r.top-t.height-10))+'px';
+          }
+          document.querySelectorAll('[data-tip]').forEach(function(el){
+            el.addEventListener('mouseenter',function(){showTip(el);});el.addEventListener('mouseleave',hideTip);
+            el.addEventListener('focusin',function(){showTip(el);});el.addEventListener('focusout',hideTip);
+          });
+          document.addEventListener('keydown',function(e){if(e.key==='Escape'){hideTip();panel.hidden=true;document.getElementById('mode-custom').setAttribute('aria-expanded','false');}});
+          panel.addEventListener('scroll',hideTip);window.addEventListener('resize',hideTip);
+          var boxes=[].slice.call(panel.querySelectorAll('input[type=checkbox]'));
+          var minimum=document.getElementById('randomizer-min'),maximum=document.getElementById('randomizer-max');
+          try{var saved=JSON.parse(localStorage.getItem('octopus-custom-build')||'null');if(saved){boxes.forEach(function(b){b.checked=saved.mods.includes(b.value);});minimum.value=saved.min;maximum.value=saved.max;}}catch(_){}
+          var standalone=false;
+          function update(){
+            var chosen=boxes.filter(function(b){return b.checked;});
+            document.getElementById('randomizer-range').hidden=!chosen.some(function(b){return b.value==='randomizer';});
+            document.getElementById('build-summary').textContent=chosen.length?chosen.map(function(b){return tips[b.value][0];}).join(' + ')+(chosen.length>1?' · Experimental · Separate save':' · Separate save'):'Select two or more mods.';
+            document.getElementById('build-error').textContent='';
+            try{localStorage.setItem('octopus-custom-build',JSON.stringify({mods:chosen.map(function(b){return b.value;}),min:minimum.value,max:maximum.value}));}catch(_){}
+          }
+          boxes.forEach(function(b){b.addEventListener('change',update);});minimum.addEventListener('input',update);maximum.addEventListener('input',update);
+          function open(single){hideTip();standalone=!!single;panel.hidden=false;document.getElementById('mode-custom').setAttribute('aria-expanded','true');
+            if(single)boxes.forEach(function(b){b.checked=b.value===single;});
+            document.getElementById('build-heading').textContent=single?tips[single][0]:'Custom Build';update();panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+          }
+          document.getElementById('mode-custom').onclick=function(){standalone=false;open();};
+          document.getElementById('mode-randomizer').onclick=function(){open('randomizer');minimum.focus();};
+          document.getElementById('mode-sleeves').onclick=function(){launchCustom(['sleeves'],{}).catch(showBuildError);};
+          function showBuildError(error){booting=false;document.getElementById('mode-overlay').classList.remove('hidden');document.getElementById('loading-overlay').classList.add('hidden');panel.hidden=false;document.getElementById('build-error').textContent=error.message||String(error);}
+          document.getElementById('launch-build').onclick=function(){
+            var selected=boxes.filter(function(b){return b.checked;}).map(function(b){return b.value;});
+            if(!standalone&&selected.length<2){showBuildError(new Error('Select at least two mods for a custom build.'));return;}
+            launchCustom(selected,{min:minimum.value,max:maximum.value}).catch(showBuildError);
+          };
+          window.OctopusLaunch.custom=launchCustom;
+          update();
+        }
+        async function launchCustom(selected,bounds){
+          if(booting)return;
+          await customModule();
+          var build=window.OctopusCustom.normalizeBuild(selected,bounds);
+          booting=true;
+          document.getElementById('mode-tooltip').hidden=true;
+          document.getElementById('mode-overlay').classList.add('hidden');document.getElementById('loading-overlay').classList.remove('hidden');
+          var w=await warmupPromise;
+          Module.setStatus('Preparing your mod combination…');
+          var result=await window.OctopusCustom.assembleBuild(build,w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
+          window.__octopusBuild=result.config;window.__octopusMode='custom';
+          Module.persistenceDatabase='/home/web_user/love-custom-'+build.identity;
+          Module.archiveCacheNamespace=Module.persistenceDatabase;
+          Module.INITIAL_MEMORY=536870912;
+          Module.getPreloadedPackage=function(){return result.archive.buffer.slice(result.archive.byteOffset,result.archive.byteOffset+result.archive.byteLength);};
+          var template=await (await cachedAsset(w.assetBase+'game.js')).text();
+          template=template.replace('openDatabase(function (db) {', 'if (Module.getPreloadedPackage) { processPackageData(Module.getPreloadedPackage()); } else openDatabase(function (db) {')
+            .replace('function fetchRemotePackage(packageName, packageSize, callback, errback) {', 'function fetchRemotePackage(packageName, packageSize, callback, errback) { if (Module.getPreloadedPackage) { callback(Module.getPreloadedPackage()); return; }')
+            .replace(/var SPLIT_PACKAGE_PARTS = \[[^\]]*\];/,'var SPLIT_PACKAGE_PARTS = [];')
+            .replace(/remote_package_size:\s*\d+/,'remote_package_size: '+result.archive.length)
+            .replace(/(filename:\s*"\/game\.love",\s*crunched:\s*0,\s*start:\s*0,\s*end:)\s*\d+/,'$1 '+result.archive.length);
+          var src=URL.createObjectURL(new Blob([template],{type:'text/javascript'}));
+          try{
+            await Promise.all([loadScript(src,false),loadScript(w.assetBase+'love.js',false),build.multiplayer?loadScript(w.assetBase+'multiplayer_upstream.js',true):Promise.resolve()]);
+            await wasmReady;applicationLoad();
+          }finally{URL.revokeObjectURL(src);}
+        }
+
+/* MOD_SELECTOR_SCRIPT_END */
         function bindPicker() {
           bindMode("mode-vanilla", "vanilla");
           bindMode("mode-handy", "handy");
           bindMode("mode-paperback", "paperback");
           bindMode("mode-bunco", "bunco");
-          bindMode("mode-pokermon", "pokermon");
+          // mode-pokermon remains available by URL hash.
+          bindModSelector();
           bindMode("mode-cryptid", "cryptid");
           bindMode("mode-multiplayer", "multiplayer");
           var hash =

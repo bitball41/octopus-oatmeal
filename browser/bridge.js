@@ -29,7 +29,7 @@ function fail(error) {
   deliver({action:'error',message:error.message||String(error)});
 }
 function makeRoom() {
-  return new PeerRoom(supabase,{
+  const peer = new PeerRoom(supabase,{
     onPeer(){
       if(role==='host') server.connect('guest',packet=>room.send(packet).catch(fail));
       else {
@@ -38,6 +38,13 @@ function makeRoom() {
       }
     },
     onPacket(packet){
+      const expected=window.__octopusBuild?.identity || 'vanilla-mp';
+      const actual=packet.octopusBuild || 'vanilla-mp';
+      if(actual!==expected) {
+        const error=new Error('Build mismatch. Both players must select the same mods and randomizer minimum/maximum.');
+        fail(error);
+        return;
+      }
       if(role==='host') {
         if(packet.action==='createLobby' || (packet.action==='joinLobby' && packet.code!==server.clients.get('local')?.lobby?.code)) return;
         try {server.dispatch('guest',packet);}catch(error){
@@ -52,6 +59,9 @@ function makeRoom() {
     },
     onError:fail,
   });
+  const send=peer.send.bind(peer);
+  peer.send=packet=>send({...packet,octopusBuild:window.__octopusBuild?.identity || 'vanilla-mp'});
+  return peer;
 }
 async function openRoom(candidate,code,desiredRole) {
   try {await candidate.open(code,desiredRole);}

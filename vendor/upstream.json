@@ -58,5 +58,11 @@
     "commit": "13372172ccd83627f362509cf5a5698a438da2c8",
     "archive": "Handy.zip",
     "sha256": "8950b807fcf972358de8e11ed04470b97802f3dac2c3bd3cf1c9666a5f66bc46"
+  },
+  "CardSleeves": {
+    "url": "https://github.com/larswijn/CardSleeves",
+    "commit": "f655dfc5687c84592dcd558b49e2bd06a61a74eb",
+    "archive": "CardSleeves.zip",
+    "sha256": "44ede54f3978f77c4ef77461a3b1e00e3a96a7781052c4620bd8e26c854b2b31"
   }
 }

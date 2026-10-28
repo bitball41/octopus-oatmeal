@@ -51,6 +51,7 @@ MOD_FOLDERS = {
     'Amulet': 'Amulet',
     'Cryptid': 'Cryptid',
     'Handy': 'Handy',
+    'CardSleeves': 'CardSleeves',
 }
 
 
@@ -319,6 +320,9 @@ def apply_lovely(files, mods, lock, flavor=None):
                 patch, cryptid_skip = adapt_cryptid_patch(mod, name, index, patch, files, target_path)
                 skip_reason = cryptid_skip or skip_reason
                 target = target_path(patch['target'])
+            from combo_compatibility import adapt as adapt_combo
+            patch, combo_skip = adapt_combo(mod, name, index, patch, files, target)
+            skip_reason = combo_skip or skip_reason
             row = dict(mod=mod, manifest=name, index=index, target=target, kind=kind)
             if skip_reason:
                 row.update(status='not-applicable', matches=0, reason=skip_reason)
@@ -395,6 +399,10 @@ def build_smods_pack(mods, flavor, skip_lua, lock):
     if flavor == 'cryptid':
         from cryptid_browser import prepare_cryptid_sources
         prepare_cryptid_sources(files)
+        from handy_browser import prepare_handy_sources
+        if 'Handy' in mods:
+            prepare_handy_sources(files)
+    elif 'Handy' in mods:
         from handy_browser import prepare_handy_sources
         prepare_handy_sources(files)
     files = finish_smods_pack(files, modules, early, flavor, skip_lua)

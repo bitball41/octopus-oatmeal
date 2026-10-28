@@ -52,12 +52,13 @@ const fakeSupabase={
   async removeChannel(c){c.active=false;sync();c.status('CLOSED');},
 };
 function sync(){for(const c of channels.filter(x=>x.active))queueMicrotask(()=>c.handlers['presence:sync']?.());}
-function client(){
+function client(buildIdentity){
   const inbox=[],errors=[];
   const context={testSupabase:fakeSupabase,crypto:globalThis.crypto,TextEncoder,setTimeout,clearTimeout,
     console:{log(){},warn(){},error(...args){errors.push(args);}},
     Module:{FS_createDataFile(path,name,bytes){inbox.push(JSON.parse(new TextDecoder().decode(bytes)));}},
     addEventListener(){}};
+  context.__octopusBuild=buildIdentity?{identity:buildIdentity}:undefined;
   context.window=context;vm.runInNewContext(bundle.outputFiles[0].text,context);
   const bridge=context.OctopusMP;bridge.attach('/save');
   return {bridge,inbox,errors,send(packet){bridge.send(JSON.stringify(packet));}};
@@ -133,3 +134,26 @@ assert.deepEqual(received.map(p=>p.action),['first','second']);
 assert.equal(errors.length,0);
 delete globalThis.RTCPeerConnection;
 console.log('Transport: early ICE, offer/answer, channel-open state, failed-RTC fallback and ordered deduplication passed');
+
+// Matching custom builds keep the upstream shared seed; mismatches are refused.
+for(const mismatch of [false,true]) {
+ const signature='cryptid-multiplayer-randomizer-1-100';
+ const a=client(signature),b=client(mismatch?'cryptid-multiplayer-randomizer-1-10':signature);
+ for(const [c,n]of [[a,'A'],[b,'B']]){c.send({action:'connect'});c.send({action:'username',username:n+'~1',modHash:'custom'});c.send({action:'version',version:'0.5.5'});}
+ a.send({action:'createLobby',gameMode:'attrition'});
+ await until(()=>a.inbox.some(p=>p.action==='joinedLobby'),'custom host');
+ const roomCode=a.inbox.find(p=>p.action==='joinedLobby').code;
+ b.send({action:'joinLobby',code:roomCode});
+ if(mismatch){
+  await until(()=>a.errors.length || b.errors.length,'mismatched build error');
+  assert(!b.inbox.some(p=>p.action==='joinedLobby'));
+ }else{
+  await until(()=>b.inbox.some(p=>p.action==='joinedLobby'),'custom guest');
+  b.send({action:'readyLobby'});await until(()=>a.inbox.some(p=>p.action==='lobbyInfo'&&p.guestReady),'custom ready');
+  a.send({action:'startGame'});await until(()=>b.inbox.some(p=>p.action==='startGame'),'custom game');
+  assert.equal(a.inbox.find(p=>p.action==='startGame').seed,b.inbox.find(p=>p.action==='startGame').seed);
+ }
+ b.send({action:'leaveLobby'});a.send({action:'leaveLobby'});
+ await until(()=>channels.every(c=>!c.active),'custom cleanup');
+}
+console.log('Custom multiplayer: matching mods/ranges share a seed; mismatched settings cannot join');

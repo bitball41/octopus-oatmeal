@@ -25,3 +25,8 @@ filesystem/updater and payout buffering; `browser/lua/browser/handy.lua` replace
 the recursive bulk queue with serial, time-sliced calls to the modded sell
 callback. The browser distribution caps speed at 512x and animation skipping
 at Everything, retaining event ordering and per-payment effects.
+
+- CardSleeves `f655dfc5687c84592dcd558b49e2bd06a61a74eb` (v1.9.4, GPL-3.0), by Larswijn. Pinned archive and checksum in `vendor/upstream.json`.
+- fflate 0.8.2 (MIT), by Arjun Barrett, used to assemble selected custom builds in the browser.
+
+Custom builds apply Lovely patches at build time, validate every Lua file against Lua 5.1, and share content-addressed asset packs. The browser only downloads the selected build’s packs.
