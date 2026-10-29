@@ -28,7 +28,7 @@ async function lua(page,code){const id=++sequence;await page.evaluate(({id,code}
  Module.FS_createDataFile('/home/web_user/love/game','probe.lua',new TextEncoder().encode(s),true,true,true);
  },{id,code});await until(()=>replies.has(id),'Lua request '+id);return replies.get(id);}
 async function setup(label){
- const page=await browser.newPage();page.on('console',m=>{const t=label+' '+m.type()+': '+m.text();logs.push(t);if(/PROBE|error|Error/.test(t))console.log(t);const match=m.text().match(/^PROBE_REPLY (\d+) (.*)/s);if(match)replies.set(Number(match[1]),JSON.parse(match[2]));});
+ const page=await browser.newPage({viewport:{width:800,height:450}});page.on('console',m=>{const t=label+' '+m.type()+': '+m.text();logs.push(t);if(/PROBE|error|Error/.test(t))console.log(t);const match=m.text().match(/^PROBE_REPLY (\d+) (.*)/s);if(match)replies.set(Number(match[1]),JSON.parse(match[2]));});
  page.on('pageerror',e=>{logs.push(label+' PAGEERROR '+e.stack);console.log(label,e.stack)});page.on('dialog',async d=>{console.log(label,'DIALOG',d.message());await d.dismiss()});
  await page.exposeFunction('probeOpen',async(code,role)=>{
   const room=rooms.get(code)||{};room[role]=page;rooms.set(code,room);
@@ -38,6 +38,7 @@ async function setup(label){
   },0);
  });
  await page.exposeFunction('probeSend',async(code,role,packet)=>{
+  if(['joinLobby','lobbyInfo','readyLobby','startGame','username'].includes(packet.action))console.log('WIRE',role,JSON.stringify(packet));
   const other=rooms.get(code)?.[role==='host'?'guest':'host'];if(!other)throw Error('Missing peer');
   await other.evaluate(packet=>__testPeer.onPacket(packet),packet);
  });
@@ -62,7 +63,15 @@ try {
  await lua(guest,`Client.send({action='joinLobby',code='${code}'})`);
  await delay(6000);console.log('HOST LOBBY',await lua(host,"return {code=MP.LOBBY.code,guest=MP.LOBBY.guest.username,host=MP.LOBBY.is_host}"));
  await lua(guest,"MP.ACTIONS.ready_lobby()");await delay(2000);
- const ready=await lua(host,"return {ready=MP.LOBBY.ready_to_start}");assert.equal(ready.ready,true,'guest ready reaches host');
+ let ready;
+ for(let i=0;i<25;i++) {
+  ready=await lua(host,"return {ready=MP.LOBBY.ready_to_start,code=MP.LOBBY.code,guest=MP.LOBBY.guest.username}");
+  if(ready.ready)break;
+  await delay(1000);
+ }
+ console.log('GUEST LOBBY',await lua(guest,"return {code=MP.LOBBY.code,connected=MP.LOBBY.connected,ready=MP.LOBBY.ready_to_start}"));
+ console.log('DIAGNOSTICS',await host.evaluate(()=>OctopusMP.diagnostics()),await guest.evaluate(()=>OctopusMP.diagnostics()));
+ assert.equal(ready.ready,true,'guest ready reaches host');
  await lua(host,"G.FUNCS.lobby_start_game(nil)");await delay(15000);
  for(const [label,page] of [['host',host],['guest',guest]]) {
   let state;
