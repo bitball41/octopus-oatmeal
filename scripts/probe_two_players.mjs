@@ -16,7 +16,7 @@ end
 `;
 const transport=`
 PeerRoom.prototype.open=async function(code,role){this.code=code;this.role=role;window.__testPeer=this;await window.probeOpen(code,role);};
-PeerRoom.prototype.send=async function(packet){return window.probeSend(this.code,this.role,packet);};
+PeerRoom.prototype.send=function(packet){this.probeOutgoing=(this.probeOutgoing||Promise.resolve()).then(()=>window.probeSend(this.code,this.role,packet));return this.probeOutgoing;};
 PeerRoom.prototype.close=async function(){};
 `;
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
