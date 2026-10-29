@@ -137,8 +137,8 @@ console.log('Transport: early ICE, offer/answer, channel-open state, failed-RTC 
 
 // Matching custom builds keep the upstream shared seed; mismatches are refused.
 for(const mismatch of [false,'bounds','legacy']) {
- const signature='cryptid-multiplayer-randomizer-multiplier-v2-0.1-10';
- const other=mismatch==='legacy'?'cryptid-multiplayer-randomizer-0.1-10':mismatch==='bounds'?'cryptid-multiplayer-randomizer-multiplier-v2-1-2':signature;
+ const signature='cryptid-multiplayer-randomizer-designed-v3-0.1-10';
+ const other=mismatch==='legacy'?'cryptid-multiplayer-randomizer-multiplier-v2-0.1-10':mismatch==='bounds'?'cryptid-multiplayer-randomizer-designed-v3-1-2':signature;
  const a=client(signature),b=client(other);
  for(const [c,n]of [[a,'A'],[b,'B']]){c.send({action:'connect'});c.send({action:'username',username:n+'~1',modHash:'custom'});c.send({action:'version',version:'0.5.5'});}
  a.send({action:'createLobby',gameMode:'attrition'});

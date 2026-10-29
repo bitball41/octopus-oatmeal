@@ -16,7 +16,7 @@
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
             multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],
             sleeves:['CardSleeves','Combine a deck with a sleeve for two sets of effects. Choose your sleeve during run setup.'],
-            randomizer:['Custom Randomizer','Multiply each original gameplay value by a roll between your minimum and maximum. Defaults to 0.1×–10×: Blue Joker’s +2 chips can reach +20. Playing-card enhancements, starting cards and starting money stay unchanged.'],
+            randomizer:['Custom Randomizer','Joker scoring rolls range from 0.1×–10× and usually stay near 1×. Related effects share a roll. Prices, odds and counts vary gently; deck rules and ante progression stay intact. Playing-card enhancements, starting cards and starting money stay unchanged.'],
             custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves.']
           };
           var activeTooltip;

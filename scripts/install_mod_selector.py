@@ -55,9 +55,9 @@ HTML='''      <div id="mode-overlay">
           <div class="build-options">
 '''+''.join(f'            <label class="build-option" data-tip="{id}"><input type="checkbox" value="{id}"> {label}</label>\n' for id,label in [('handy','Handy'),('cryptid','Cryptid'),('paperback','Paperback'),('bunco','Bunco'),('multiplayer','Multiplayer'),('sleeves','CardSleeves'),('randomizer','Randomizer')])+'''          </div>
           <div id="randomizer-range" hidden>
-            <label>Minimum multiplier (×)<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="0.1"></label>
-            <label>Maximum multiplier (×)<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="10"></label>
-            <p style="flex-basis:100%;margin:0;color:#b0ccdd;font-size:13px">Each original value × a random multiplier. Default: 0.1×–10×. Blue Joker’s +2 chips can reach +20. Counts round to whole numbers.</p>
+            <label>Minimum scoring multiplier (×)<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="0.1"></label>
+            <label>Maximum scoring multiplier (×)<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="10"></label>
+            <p style="flex-basis:100%;margin:0;color:#b0ccdd;font-size:13px">Usually near 1×; extreme rolls are rare. Prices, odds and counts vary gently. Your deck’s starting limits and the ante curve stay intact.</p>
           </div>
           <div id="build-actions"><div id="build-summary" aria-live="polite">Select two or more mods.</div><button id="launch-build" type="button">Launch Build</button></div>
           <div id="build-error" role="alert"></div>
