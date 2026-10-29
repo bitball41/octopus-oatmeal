@@ -13,7 +13,8 @@ function love.update(dt,...)
  return update_debug(dt,...)
 end
 `;
-function patchArchive(bytes){const files=unzipSync(bytes);files['main.lua']=strToU8(new TextDecoder().decode(files['main.lua'])+debugLua);return zipSync(files,{level:0});}
+const errorLua="love.errorhandler=function(m) print('PROBE_CRASH '..tostring(m)..debug.traceback()); return function() end end\n";
+function patchArchive(bytes){const files=unzipSync(bytes);files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);return zipSync(files,{level:0});}
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
 const browser=await chromium.launch({headless:true,args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 try {
@@ -22,16 +23,23 @@ for(const mode of ['handy','custom']) {
  page.on('console',m=>{const line=m.type()+': '+m.text();logs.push(line);if(/error|PROBE|Error|failed/i.test(line))console.log(mode,line)});
  page.on('pageerror',e=>console.log(mode,'PAGEERROR',e.stack));
  page.on('dialog',async d=>{console.log(mode,'DIALOG',d.message());await d.dismiss()});
- if(mode==='handy')await page.route('**/vanilla-handy/game.data*',async route=>route.fulfill({body:Buffer.from(patchArchive(new Uint8Array(await readFile('vanilla-handy/game.data'))))}));
+ if(mode==='handy') {
+  const bytes=patchArchive(new Uint8Array(await readFile('vanilla-handy/game.data')));
+  await page.route('**/vanilla-handy/game.data*',async route=>route.fulfill({body:Buffer.from(bytes)}));
+  await page.route('**/vanilla-handy/game.js*',async route=>{
+   const body=(await readFile('vanilla-handy/game.js','utf8')).replace(/remote_package_size: \d+/, 'remote_package_size: '+bytes.length).replace(/end: \d+/, 'end: '+bytes.length);
+   await route.fulfill({body,contentType:'text/javascript'});
+  });
+ }
  if(mode==='custom') {
   await page.route('**/index.html',async route=>{
    const body=(await readFile('index.html','utf8')).replace('window.__octopusBuild=result.config;', 'result=await window.patchProbeArchive(result);window.__octopusBuild=result.config;');
    await route.fulfill({body,contentType:'text/html'});
   });
-  await page.addInitScript(({debugLua})=>{window.patchProbeArchive=async result=>{
+  await page.addInitScript(({debugLua,errorLua})=>{window.patchProbeArchive=async result=>{
    const {unzipSync,zipSync,strToU8}=await import('/node_modules/fflate/esm/browser.js');
-   const files=unzipSync(result.archive);files['main.lua']=strToU8(new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
-  };},{debugLua});
+   const files=unzipSync(result.archive);files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
+  };},{debugLua,errorLua});
  }
  await page.goto('http://127.0.0.1:8765/index.html'+(mode==='handy'?'#handy':''));
  if(mode==='custom') await page.evaluate(()=>window.OctopusLaunch.custom(['cryptid','multiplayer'],{}));
