@@ -48,7 +48,7 @@ for(const mode of ['handy-raw','handy','custom']) {
  await page.screenshot({path:mode+'-boot.png'});
  console.log(mode,'STATUS',await page.locator('#loading-status').textContent());
  const probe=async source=>{
-  await page.evaluate(source=>{const path=Module.persistence.mountpoint;Module.FS_createDataFile(path,'probe.lua',new TextEncoder().encode(source),true,true,true);},source);
+  await page.evaluate(source=>{const path=Module.persistence.mountpoint+'/game';Module.FS_createDataFile(path,'probe.lua',new TextEncoder().encode(source),true,true,true);},source);
   await page.waitForTimeout(6000);
  };
  if(mode!=='handy-raw')await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
