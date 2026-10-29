@@ -19,7 +19,7 @@ let activeLogs=[];setTimeout(async()=>{await writeFile('timeout-browser.log',act
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
 const browser=await chromium.launch({headless:true,args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 try {
-for(const mode of ['handy-file','custom']) {
+for(const mode of ['custom']) {
  const page=await browser.newPage();let logs=[];activeLogs=logs;
  page.on('console',m=>{const line=m.type()+': '+m.text();logs.push(line);if(/error|PROBE|Error|failed/i.test(line))console.log(mode,line)});
  page.on('pageerror',e=>console.log(mode,'PAGEERROR',e.stack));
@@ -39,7 +39,7 @@ for(const mode of ['handy-file','custom']) {
   });
   await page.addInitScript(({debugLua,errorLua})=>{window.patchProbeArchive=async result=>{
    const {unzipSync,zipSync,strToU8}=await import('/node_modules/fflate/esm/browser.js');
-   const files=unzipSync(result.archive);const lobby='Mods/Multiplayer/ui/lobby/lobby.lua';files[lobby]=strToU8(new TextDecoder().decode(files[lobby]).replace('start_run_ref(e, {','start_run_ref(e, {mp_start = true,'));files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
+   const files=unzipSync(result.archive);const lobby='Mods/Multiplayer/ui/lobby/lobby.lua';files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
   };},{debugLua,errorLua});
  }
  if(mode==='handy-file') {
@@ -60,7 +60,8 @@ for(const mode of ['handy-file','custom']) {
  };
  if(mode==='custom')await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
  if(mode==='custom') {
-  await probe(`MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'};MP.reset_game_states();G.FUNCS.lobby_start_run(nil,{seed='TEST1234',stake=1})`);
+  await probe(`local function trace(f,depth) if depth>8 then return end;local i=debug.getinfo(f);print('PROBE_FUNC '..depth..' '..i.source..':'..i.linedefined);for n=1,15 do local k,v=debug.getupvalue(f,n);if not k then break end;if type(v)=='function' then print('PROBE_UPVALUE '..k);trace(v,depth+1) end end end;trace(G.FUNCS.start_run,0);G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};G.SETTINGS.paused=false;MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'};MP.reset_game_states();G.FUNCS.lobby_start_run(nil,{seed='TEST1234',stake=1})`);
+  await probe(`for k,q in pairs(G.E_MANAGER.queues) do for i,e in ipairs(q) do local x=debug.getinfo(e.func);print('PROBE_EVENT '..k..' '..i..' '..tostring(e.trigger)..' '..tostring(e.delay)..' '..tostring(e.timer)..' '..tostring(e.time)..' '..tostring(e.created_on_pause)..' '..x.source..':'..x.linedefined) end end;print('PROBE_TIMERS '..G.TIMERS.REAL..' '..G.TIMERS.TOTAL)`);
   await page.screenshot({path:'custom-start.png'});
   await probe(`print('PROBE_RUN '..tostring(G.STAGE)..' '..tostring(G.STATE)..' wipe='..tostring(G.screenwipe)..' paused='..tostring(G.SETTINGS.paused))`);
  }
