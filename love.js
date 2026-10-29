@@ -12716,13 +12716,18 @@ var Love = (function () {
       eval(UTF8ToString(ptr));
     }
     function _emscripten_sample_gamepad_data() {
-      return (JSEvents.lastGamepadState = navigator.getGamepads
-        ? navigator.getGamepads()
-        : navigator.webkitGetGamepads
-          ? navigator.webkitGetGamepads()
-          : null)
-        ? 0
-        : -1;
+      // Optional controllers must not prevent keyboard/mouse play in file or embedded launchers.
+      try {
+        JSEvents.lastGamepadState = navigator.getGamepads
+          ? navigator.getGamepads()
+          : navigator.webkitGetGamepads
+            ? navigator.webkitGetGamepads()
+            : [];
+      } catch (_) {
+        JSEvents.lastGamepadState = [];
+      }
+      JSEvents.lastGamepadState = JSEvents.lastGamepadState || [];
+      return 0;
     }
     function __registerBeforeUnloadEventCallback(
       target,
@@ -12970,7 +12975,7 @@ var Love = (function () {
       callbackfunc,
       targetThread,
     ) {
-      if (!navigator.getGamepads && !navigator.webkitGetGamepads) return -1;
+      if (!navigator.getGamepads && !navigator.webkitGetGamepads) return 0;
       __registerGamepadEventCallback(
         2,
         userData,
@@ -12988,7 +12993,7 @@ var Love = (function () {
       callbackfunc,
       targetThread,
     ) {
-      if (!navigator.getGamepads && !navigator.webkitGetGamepads) return -1;
+      if (!navigator.getGamepads && !navigator.webkitGetGamepads) return 0;
       __registerGamepadEventCallback(
         2,
         userData,

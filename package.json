@@ -8,7 +8,7 @@
     "test:sessions": "node scripts/validate_signaling.mjs && node scripts/validate_sessions.mjs && python3 scripts/validate_session_input.py",
     "test:features": "python3 scripts/validate_browser_features.py && python3 scripts/validate_seed_rng.py && python3 scripts/validate_modes.py",
     "test:cache": "node scripts/validate_asset_cache.mjs",
-    "test:startup": "node scripts/validate_storage_boot.mjs",
+    "test:startup": "node scripts/validate_storage_boot.mjs && node scripts/validate_optional_gamepads.mjs",
     "build:cryptid": "python3 scripts/install_cryptid_launcher.py && python3 scripts/build_upstream.py --cryptid-only --release && python3 scripts/patch_multiplayer_html.py",
     "test:cryptid": "python3 scripts/validate_cryptid.py && python3 scripts/validate_handy_boot.py && python3 scripts/validate_handy.py",
     "build:handy": "python3 scripts/install_handy_launcher.py && python3 scripts/build_upstream.py --handy-only --release && python3 scripts/patch_multiplayer_html.py",
