@@ -43,4 +43,10 @@ for character in (False,True):
 # Run the actual delayed notification callback after its UI has been removed.
 text=files['functions/common_events.lua'].decode();a=text.index('            if not G.achievement_notification or not G.ROOM then return true end');b=text.index('\n          return true',a)
 lua=LuaRuntime();lua.execute('G={};function notification_callback()\n'+text[a:b]+'\nreturn true end;assert(notification_callback())')
+# Cryptid intro remains pending in a peer room and resumes in single-player.
+intro=files['Mods/Cryptid/lib/gameset.lua'].decode()
+a=intro.index('G.FUNCS.cry_intro_controller = function()');b=intro.index('\nend',a)+4
+lua=LuaRuntime();lua.execute('G={FUNCS={}};MP={LOBBY={code="ROOM"}}')
+lua.execute(intro[a:b]);lua.execute('G.FUNCS.cry_intro_controller()')
+lua.execute('MP.LOBBY.code=nil;G.SETTINGS={profile=1,paused=true};G.PROFILES={[1]={}};G.FUNCS.cry_intro_controller();assert(G.PROFILES[1].cry_intro_progress and not G.PROFILES[1].cry_intro_complete)')
 print('Multiplayer cleanup: Cryptid popup without Jimbo, normal tutorial character, and expired notification callback passed')
