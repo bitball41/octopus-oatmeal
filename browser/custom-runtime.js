@@ -9,7 +9,7 @@ export function normalizeBuild(selected, bounds={}) {
   if(randomizer && (!Number.isFinite(min)||!Number.isFinite(max)||min<0||max<min||max>1000000))
     throw new Error('Use a minimum multiplier of 0 or more and a maximum multiplier up to 1,000,000. The maximum must be at least the minimum.');
   const key=mods.filter(id=>id in MODS).map(id=>MODS[id]).sort().join('+')||'base';
-  const identity=mods.join('-')+(randomizer?'-multiplier-v2-'+min+'-'+max:'');
+  const identity=mods.join('-')+(randomizer?'-designed-v3-'+min+'-'+max:'');
   return {mods,key,identity,randomizer,min,max,multiplayer:mods.includes('multiplayer')};
 }
 async function sha256(bytes) {
@@ -34,7 +34,7 @@ export async function assembleBuild(build, base, fetchAsset, status) {
     status('Preparing mods… '+(++done)+'/'+(recipe.packs.length+1));await unpack(pack);
   }
   if(build.randomizer) files['Mods/ValueRandomizer/ValueRandomizer.lua']=new Uint8Array(await (await fetchAsset(base+'custom/value-randomizer.lua')).arrayBuffer());
-  const config={randomizer:build.randomizer,min:build.min,max:build.max,range_mode:'multiplier',mods:build.mods,identity:build.identity};
+  const config={randomizer:build.randomizer,min:build.min,max:build.max,range_mode:'multiplier',randomizer_policy:'designed-v3',mods:build.mods,identity:build.identity};
   files['browser/build_config.json']=strToU8(JSON.stringify(config));
   status('Assembling your build…');
   const archive=zipSync(files,{level:0});
