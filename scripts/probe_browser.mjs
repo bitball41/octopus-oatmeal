@@ -60,8 +60,8 @@ for(const mode of ['custom']) {
  };
  if(mode==='custom')await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
  if(mode==='custom') {
-  await probe(`local function trace(f,depth) if depth>8 then return end;local i=debug.getinfo(f);print('PROBE_FUNC '..depth..' '..i.source..':'..i.linedefined);for n=1,15 do local k,v=debug.getupvalue(f,n);if not k then break end;if type(v)=='function' then print('PROBE_UPVALUE '..k);trace(v,depth+1) end end end;trace(G.FUNCS.start_run,0);G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};G.SETTINGS.paused=false;MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'};MP.reset_game_states();G.FUNCS.lobby_start_run(nil,{seed='TEST1234',stake=1})`);
-  await probe(`for k,q in pairs(G.E_MANAGER.queues) do for i,e in ipairs(q) do local x=debug.getinfo(e.func);print('PROBE_EVENT '..k..' '..i..' '..tostring(e.trigger)..' '..tostring(e.delay)..' '..tostring(e.timer)..' '..tostring(e.time)..' '..tostring(e.created_on_pause)..' '..x.source..':'..x.linedefined) end end;print('PROBE_TIMERS '..G.TIMERS.REAL..' '..G.TIMERS.TOTAL)`);
+  await probe(`G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};MP.reset_lobby_config();MP.LOBBY.config.ruleset='ruleset_mp_vanilla';MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'}`);
+  await probe(`G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};love.filesystem.write('octopus_upstream_000000000001.json','{"action":"startGame","seed":"TEST1234","stake":1}')`);
   await page.screenshot({path:'custom-start.png'});
   await probe(`print('PROBE_RUN '..tostring(G.STAGE)..' '..tostring(G.STATE)..' wipe='..tostring(G.screenwipe)..' paused='..tostring(G.SETTINGS.paused))`);
  }
