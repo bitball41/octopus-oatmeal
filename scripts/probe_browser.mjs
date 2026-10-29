@@ -44,7 +44,7 @@ for(const mode of ['handy-file','custom']) {
  }
  if(mode==='handy-file') {
   await page.route('https://api.github.com/**',r=>r.fulfill({json:{sha:'a'.repeat(40)},headers:{'access-control-allow-origin':'*'}}));
-  await page.route(/https:\/\/(cdn\\.jsdelivr\\.net\/gh|raw\\.githubusercontent\\.com)\/bitball41\/octopus-oatmeal[@/][a-f0-9]{40}\/(.*)/,async r=>{
+  await page.route(url=>['cdn.jsdelivr.net','raw.githubusercontent.com'].includes(url.hostname) && url.pathname.includes('bitball41/octopus-oatmeal'),async r=>{
    const path=new URL(r.request().url()).pathname.match(/[a-f0-9]{40}\/(.*)/)[1];
    await r.fulfill({body:await readFile(path),contentType:path.endsWith('.js')?'text/javascript':'application/octet-stream',headers:{'access-control-allow-origin':'*'}});
   });
