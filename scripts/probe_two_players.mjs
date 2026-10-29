@@ -21,7 +21,7 @@ PeerRoom.prototype.close=async function(){};
 `;
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-const watchdog=setTimeout(async()=>{await writeFile('two-player-browser.log',logs.join('\n'));process.exit(2)},150000);watchdog.unref();
+const watchdog=setTimeout(async()=>{await writeFile('two-player-browser.log',logs.join('\n'));process.exit(2)},240000);watchdog.unref();
 async function until(fn,label,ms=15000){const end=Date.now()+ms;while(!fn()){if(Date.now()>end)throw Error('Timeout: '+label);await delay(50);}}
 async function lua(page,code){const id=++sequence;await page.evaluate(({id,code})=>{
  const s=`local value=(function() ${code} end)(); print('PROBE_REPLY ${id} '..require('json').encode(value or {}))`;
@@ -49,7 +49,12 @@ async function setup(label){
   result.archive=zipSync(files,{level:0});return result;
  };},{debugLua});
  await page.goto('http://127.0.0.1:8765/index.html');await page.evaluate(()=>OctopusLaunch.custom(['cryptid','multiplayer'],{}));await delay(25000);
- await lua(page,"G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};return {stage=G.STAGE,state=G.STATE}");return page;
+ for(let i=0;i<35;i++) {
+  const state=await lua(page,"G.FUNCS.exit_overlay_menu();G.E_MANAGER.queues.unlock={};return {stage=G.STAGE,state=G.STATE,menu=G.STATES.MENU}");
+  if(state.state===state.menu)return page;
+  await delay(1500);
+ }
+ throw Error(label+' did not reach the main menu');
 }
 try {
  const [host,guest]=await Promise.all([setup('HOST'),setup('GUEST')]);
@@ -58,12 +63,17 @@ try {
  await delay(6000);console.log('HOST LOBBY',await lua(host,"return {code=MP.LOBBY.code,guest=MP.LOBBY.guest.username,host=MP.LOBBY.is_host}"));
  await lua(guest,"MP.ACTIONS.ready_lobby()");await delay(2000);
  const ready=await lua(host,"return {ready=MP.LOBBY.ready_to_start}");assert.equal(ready.ready,true,'guest ready reaches host');
- await lua(host,"G.FUNCS.lobby_start_game(nil)");await delay(10000);
+ await lua(host,"G.FUNCS.lobby_start_game(nil)");await delay(15000);
  for(const [label,page] of [['host',host],['guest',guest]]) {
-  const state=await lua(page,"return {stage=G.STAGE,run=G.STAGES.RUN,state=G.STATE,paused=not not G.SETTINGS.paused,loading=not not G.CONTROLLER.locks.load,seed=G.GAME.pseudorandom.seed}");
+  let state;
+  for(let i=0;i<30;i++) {
+   state=await lua(page,"return {stage=G.STAGE,run=G.STAGES.RUN,state=G.STATE,paused=not not G.SETTINGS.paused,loading=not not G.CONTROLLER.locks.load,seed=G.GAME.pseudorandom.seed}");
+   if(state.stage===state.run&&!state.loading)break;
+   await delay(1500);
+  }
   console.log('FINAL',label,JSON.stringify(state));await page.screenshot({path:label+'-run.png'});
   assert.equal(state.stage,state.run,label+' enters a run');assert.equal(state.loading,false,label+' finishes loading');
  }
- assert(!logs.some(x=>/PROBE_CRASH|PROBE_FAILURE/.test(x)),'no Lua crashes');
+ assert(!logs.some(x=>/PROBE_CRASH|PROBE_FAILURE|Lua Error in love.update/.test(x)),'no Lua crashes');
  console.log('PASS: two real Cryptid multiplayer engines create, join, ready and start a run');
 }finally{await writeFile('two-player-browser.log',logs.join('\n'));await browser.close();server.kill();clearTimeout(watchdog);}
