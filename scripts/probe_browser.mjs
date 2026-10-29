@@ -1,0 +1,53 @@
+import {chromium} from 'playwright';
+import {readFile,writeFile} from 'node:fs/promises';
+import {unzipSync,zipSync,strToU8} from 'fflate';
+import {spawn} from 'node:child_process';
+const debugLua=`
+local update_debug=love.update
+function love.update(dt,...)
+ if love.filesystem.getInfo('probe.lua') then
+  local source=love.filesystem.read('probe.lua'); love.filesystem.remove('probe.lua')
+  local fn,err=loadstring(source,'@probe.lua')
+  if fn then local ok,e=xpcall(fn,debug.traceback); print('PROBE_RESULT '..tostring(ok)..' '..tostring(e)) else print('PROBE_ERROR '..tostring(err)) end
+ end
+ return update_debug(dt,...)
+end
+`;
+function patchArchive(bytes){const files=unzipSync(bytes);files['main.lua']=strToU8(new TextDecoder().decode(files['main.lua'])+debugLua);return zipSync(files,{level:0});}
+const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
+const browser=await chromium.launch({headless:true,args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+try {
+for(const mode of ['handy','custom']) {
+ const page=await browser.newPage();let logs=[];
+ page.on('console',m=>{const line=m.type()+': '+m.text();logs.push(line);if(/error|PROBE|Error|failed/i.test(line))console.log(mode,line)});
+ page.on('pageerror',e=>console.log(mode,'PAGEERROR',e.stack));
+ page.on('dialog',async d=>{console.log(mode,'DIALOG',d.message());await d.dismiss()});
+ if(mode==='handy')await page.route('**/vanilla-handy/game.data*',async route=>route.fulfill({body:Buffer.from(patchArchive(new Uint8Array(await readFile('vanilla-handy/game.data'))))}));
+ if(mode==='custom') {
+  await page.route('**/index.html',async route=>{
+   const body=(await readFile('index.html','utf8')).replace('window.__octopusBuild=result.config;', 'result=await window.patchProbeArchive(result);window.__octopusBuild=result.config;');
+   await route.fulfill({body,contentType:'text/html'});
+  });
+  await page.addInitScript(({debugLua})=>{window.patchProbeArchive=async result=>{
+   const {unzipSync,zipSync,strToU8}=await import('/node_modules/fflate/esm/browser.js');
+   const files=unzipSync(result.archive);files['main.lua']=strToU8(new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
+  };},{debugLua});
+ }
+ await page.goto('http://127.0.0.1:8765/index.html'+(mode==='handy'?'#handy':''));
+ if(mode==='custom') await page.evaluate(()=>window.OctopusLaunch.custom(['cryptid','multiplayer'],{}));
+ await page.waitForTimeout(25000);
+ await page.screenshot({path:mode+'-boot.png'});
+ console.log(mode,'STATUS',await page.locator('#loading-status').textContent());
+ const probe=async source=>{
+  await page.evaluate(source=>{const path=Module.persistenceDatabase;Module.FS_createDataFile(path,'probe.lua',new TextEncoder().encode(source),true,true,true);},source);
+  await page.waitForTimeout(6000);
+ };
+ await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
+ if(mode==='custom') {
+  await probe(`MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'};MP.reset_game_states();G.FUNCS.lobby_start_run(nil,{seed='TEST1234',stake=1})`);
+  await page.screenshot({path:'custom-start.png'});
+  await probe(`print('PROBE_RUN '..tostring(G.STAGE)..' '..tostring(G.STATE)..' wipe='..tostring(G.screenwipe)..' paused='..tostring(G.SETTINGS.paused))`);
+ }
+ await writeFile(mode+'-browser.log',logs.join('\n'));await page.close();
+}
+}finally{await browser.close();server.kill();}
