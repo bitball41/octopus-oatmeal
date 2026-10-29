@@ -11,6 +11,8 @@ def once(text, old, new, label):
 
 
 def adapt_sources(files, flavor='multiplayer'):
+    from multiplayer_start import apply as apply_multiplayer_start
+    apply_multiplayer_start(files)
     def edit(name, operation): files[name] = operation(files[name].decode()).encode()
 
     def core(text):
