@@ -15,11 +15,12 @@ end
 `;
 const errorLua="love.errorhandler=function(m) print('PROBE_CRASH '..tostring(m)..debug.traceback()); return function() end end\n";
 function patchArchive(bytes){const files=unzipSync(bytes);files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);return zipSync(files,{level:0});}
+let activeLogs=[];setTimeout(async()=>{await writeFile('timeout-browser.log',activeLogs.join('\n'));console.log('TIMEOUT_LOG',activeLogs.slice(-100).join('\n'));process.exit(2);},150000).unref();
 const server=spawn('python3',['-m','http.server','8765','--bind','127.0.0.1'],{stdio:'ignore'});
 const browser=await chromium.launch({headless:true,args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 try {
-for(const mode of ['handy','custom']) {
- const page=await browser.newPage();let logs=[];
+for(const mode of ['handy-raw','handy','custom']) {
+ const page=await browser.newPage();let logs=[];activeLogs=logs;
  page.on('console',m=>{const line=m.type()+': '+m.text();logs.push(line);if(/error|PROBE|Error|failed/i.test(line))console.log(mode,line)});
  page.on('pageerror',e=>console.log(mode,'PAGEERROR',e.stack));
  page.on('dialog',async d=>{console.log(mode,'DIALOG',d.message());await d.dismiss()});
@@ -41,7 +42,7 @@ for(const mode of ['handy','custom']) {
    const files=unzipSync(result.archive);files['main.lua']=strToU8(errorLua+new TextDecoder().decode(files['main.lua'])+debugLua);result.archive=zipSync(files,{level:0});return result;
   };},{debugLua,errorLua});
  }
- await page.goto('http://127.0.0.1:8765/index.html'+(mode==='handy'?'#handy':''));
+ await page.goto('http://127.0.0.1:8765/index.html'+(mode.startsWith('handy')?'#handy':''));
  if(mode==='custom') await page.evaluate(()=>window.OctopusLaunch.custom(['cryptid','multiplayer'],{}));
  await page.waitForTimeout(25000);
  await page.screenshot({path:mode+'-boot.png'});
@@ -50,7 +51,7 @@ for(const mode of ['handy','custom']) {
   await page.evaluate(source=>{const path=Module.persistence.mountpoint;Module.FS_createDataFile(path,'probe.lua',new TextEncoder().encode(source),true,true,true);},source);
   await page.waitForTimeout(6000);
  };
- await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
+ if(mode!=='handy-raw')await probe(`print('PROBE_STATE '..tostring(G.STAGE)..' '..tostring(G.STATE)..' '..tostring(G.OVERLAY_MENU))`);
  if(mode==='custom') {
   await probe(`MP.LOBBY.connected=true;MP.LOBBY.code='TESTX';MP.LOBBY.is_host=true;MP.LOBBY.host={username='Test'};MP.LOBBY.guest={username='Other'};MP.reset_game_states();G.FUNCS.lobby_start_run(nil,{seed='TEST1234',stake=1})`);
   await page.screenshot({path:'custom-start.png'});
