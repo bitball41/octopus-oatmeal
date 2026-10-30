@@ -10,7 +10,8 @@
           var tooltip=document.getElementById('mode-tooltip');
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
-            handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Shares your Vanilla save.'],
+            handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
+            entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Handy and Spectrallib. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Includes Handy. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],

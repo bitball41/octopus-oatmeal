@@ -110,8 +110,7 @@ end
         p['payload'] = p['pattern'].replace('one_press = true, ', '')
     if key == ('Cryptid', 'lovely/none.toml', 2):
         return p, 'Steamodded replaces planet use with bulk level-up and update_hand_text; browser selection refresh is installed below.'
-    if mod == 'Amulet' and name == 'lovely/numfmt.toml' and index in (4,5):
-        assert p['payload'].strip() in source
+    if mod == 'Amulet' and name == 'lovely/numfmt.toml' and index in (4,5) and p['payload'].strip() in source:
         return p, 'Browser hand labels already use number_format with the same 1000000 threshold.'
     if key == ('Cryptid', 'lovely/cat.toml', 5):
         p['pattern'] = next(line.strip() for line in source.splitlines() if 'local tag_sprite = SMODS.create_sprite(' in line)
@@ -134,7 +133,8 @@ def prepare_cryptid_sources(files):
 
     # Thunderstore's manifest is installer metadata, not a Steamodded mod.
     files.pop('Mods/Amulet/manifest.json', None)
-    edit('Mods/Cryptid/lib/content.lua', lambda s: s.replace('mipmaps = true', 'mipmaps = false'))
+    if 'Mods/Cryptid/Cryptid.lua' in files:
+        edit('Mods/Cryptid/lib/content.lua', lambda s: s.replace('mipmaps = true', 'mipmaps = false'))
     def atlas_scaling(s):
         s = once(s, 'vec2 neigbours[8] = vec2[8](vec2(-1, -1),vec2(0, -1),vec2(1, -1),vec2(-1, 0),vec2(1, 0),vec2(-1, 1),vec2(0, 1),vec2(1, 1));',
                  '// WebGL 1: derive the eight neighbour offsets inside the loop.', 'atlas shader array constructor')
@@ -192,12 +192,13 @@ end
                 files[name[len('Mods/Amulet/'):]] = data
 
     # WebGL 1 needs constant loop bounds; retain all 96 Gaussian samples.
-    def blur(s):
-        s = once(s, 'for (float d = 0.0; d < two_pi; d += d_step) {',
-                 'for (int cry_d = 0; cry_d < 16; cry_d++) { float d = float(cry_d) * 0.39269908169875;', 'blur direction loop')
-        return once(s, 'for (float i = i_step; i < 1.001; i+=i_step) {',
-                    'for (int cry_i = 1; cry_i <= 6; cry_i++) { float i = float(cry_i) / 6.0;', 'blur sample loop')
-    edit('Mods/Cryptid/assets/shaders/blur.fs', blur)
+    if 'Mods/Cryptid/Cryptid.lua' in files:
+        def blur(s):
+            s = once(s, 'for (float d = 0.0; d < two_pi; d += d_step) {',
+                     'for (int cry_d = 0; cry_d < 16; cry_d++) { float d = float(cry_d) * 0.39269908169875;', 'blur direction loop')
+            return once(s, 'for (float i = i_step; i < 1.001; i+=i_step) {',
+                        'for (int cry_i = 1; cry_i <= 6; cry_i++) { float i = float(cry_i) / 6.0;', 'blur sample loop')
+        edit('Mods/Cryptid/assets/shaders/blur.fs', blur)
     edit('Mods/Steamodded/src/ui.lua', lambda s: once(s,
         'return r.depthstencil and r[1] or r', 'return r and r.depthstencil and r[1] or r', 'window canvas nil guard'))
     files['Mods/Steamodded/src/overrides.lua'] += b'''
@@ -231,45 +232,47 @@ package.loaded['SMODS.https'] = {asyncRequest=function(_, callback) callback(0, 
 
     # Cryptid separates profiles as M1/M2/M3. Browser base enumerates files
     # explicitly; update that enumeration along with the profile initialization.
-    def game(s):
-        for i in range(1, 4):
-            s = s.replace(f'"{i}/', f'"M{i}/').replace(f"'{i}/", f"'M{i}/")
-        s = once(s, "    local meta = G.FILES[G.SETTINGS.profile..'/'..'meta.jkr'] or {}",
-            "    local cryptidsave = get_compressed(G.SETTINGS.profile..'/cryptidsave.jkr')\n"
-            "    cryptidsave = cryptidsave and STR_UNPACK(cryptidsave) or {}\n"
-            "    Cryptid.shinytagdata = cryptidsave.shinytags or {}\n"
-            "    local meta = G.FILES[G.SETTINGS.profile..'/'..'meta.jkr'] or {}", 'Cryptid shiny save load')
-        # Saved settings already select M1/M2/M3 on the next boot. Prototype
-        # initialization calls save_progress, so load that profile first.
-        # The desktop injection was after init_item_prototypes in this web base.
-        start = s.index('    Cryptid.profile_prefix = "M"')
-        end = s.index("    --self:load_profile(G.SETTINGS.profile or 1)", start)
-        profiles = s[start:end] + '    self:load_profile(G.SETTINGS.profile)\n'
-        profiles = once(profiles,
-            'type(G.SETTINGS.profile) ~= "string" or G.SETTINGS.profile:sub(1, #Cryptid.profile_prefix) ~= Cryptid.profile_prefix',
-            'type(G.SETTINGS.profile) ~= "string" or not G.SETTINGS.profile:match("^M[123]$")',
-            'valid Cryptid profile selection')
-        s = s[:start] + s[end:]
-        return once(s, '    self.SETTINGS.paused = nil',
-                    '    self.SETTINGS.paused = nil\n\n' + profiles,
-                    'load Cryptid profile before prototype discovery')
-    edit('game.lua', game)
+    if 'Mods/Cryptid/Cryptid.lua' in files:
+        def game(s):
+            for i in range(1, 4):
+                s = s.replace(f'"{i}/', f'"M{i}/').replace(f"'{i}/", f"'M{i}/")
+            s = once(s, "    local meta = G.FILES[G.SETTINGS.profile..'/'..'meta.jkr'] or {}",
+                "    local cryptidsave = get_compressed(G.SETTINGS.profile..'/cryptidsave.jkr')\n"
+                "    cryptidsave = cryptidsave and STR_UNPACK(cryptidsave) or {}\n"
+                "    Cryptid.shinytagdata = cryptidsave.shinytags or {}\n"
+                "    local meta = G.FILES[G.SETTINGS.profile..'/'..'meta.jkr'] or {}", 'Cryptid shiny save load')
+            # Saved settings already select M1/M2/M3 on the next boot. Prototype
+            # initialization calls save_progress, so load that profile first.
+            # The desktop injection was after init_item_prototypes in this web base.
+            start = s.index('    Cryptid.profile_prefix = "M"')
+            end = s.index("    --self:load_profile(G.SETTINGS.profile or 1)", start)
+            profiles = s[start:end] + '    self:load_profile(G.SETTINGS.profile)\n'
+            profiles = once(profiles,
+                'type(G.SETTINGS.profile) ~= "string" or G.SETTINGS.profile:sub(1, #Cryptid.profile_prefix) ~= Cryptid.profile_prefix',
+                'type(G.SETTINGS.profile) ~= "string" or not G.SETTINGS.profile:match("^M[123]$")',
+                'valid Cryptid profile selection')
+            s = s[:start] + s[end:]
+            return once(s, '    self.SETTINGS.paused = nil',
+                        '    self.SETTINGS.paused = nil\n\n' + profiles,
+                        'load Cryptid profile before prototype discovery')
+        edit('game.lua', game)
 
     # Stable, portable PNG encoding for the old wasm image decoder.
     from PIL import Image
     import io
     for name, data in list(files.items()):
-        if name.startswith(('Mods/Cryptid/', 'Mods/Amulet/')) and name.endswith('.png'):
+        if name.startswith(('Mods/Cryptid/', 'Mods/Amulet/', 'Mods/Entropy/', 'Mods/Spectrallib/')) and name.endswith('.png'):
             image = Image.open(io.BytesIO(data)).convert('RGBA')
             buf = io.BytesIO(); image.save(buf, format='PNG')
             files[name] = buf.getvalue()
 
 
 def compile_comparisons(files):
-    files['game.lua'] = once(files['game.lua'].decode(),
-        '    self:load_profile(G.SETTINGS.profile or 1)\n    require "SMODS.preflight.loader".initSteamodded()',
-        '    require "SMODS.preflight.loader".initSteamodded()',
-        'retain the profile loaded before prototype discovery').encode()
+    if 'Mods/Cryptid/Cryptid.lua' in files or 'Mods/Entropy/Entropy.lua' in files:
+        files['game.lua'] = once(files['game.lua'].decode(),
+            '    self:load_profile(G.SETTINGS.profile or 1)\n    require "SMODS.preflight.loader".initSteamodded()',
+            '    require "SMODS.preflight.loader".initSteamodded()',
+            'retain the profile loaded before prototype discovery').encode()
     compiler = Path(__file__).with_name('compile_cryptid_lua.mjs')
     sources = {name: data.decode() for name, data in files.items()
                if name.endswith('.lua') and name != 'browser/bignum_compare.lua'}

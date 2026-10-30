@@ -118,3 +118,9 @@ Run `npm run test:custom`, `npm run test:loader`, `npm run test:startup` and `np
 Randomizer scoring bounds default to 0.1×–10× with rolls centered around 1× in log space. Prices, counts and progression have separate limits. Build/save identities include `designed-v3`, keeping earlier rules separate and refusing mismatched multiplayer settings. Configuration stays in the launcher; no in-game settings are added. Existing preset databases remain unchanged.
 
 Custom archives are assembled from verified packs before the engine starts and bypass the old full-archive cache. The optional randomizer Lua is injected from `custom/value-randomizer.lua`, allowing its rules to be updated without rebuilding the underlying mod archives. Game progress uses the existing save system. All 64 mod combinations have compilation/assembly coverage; exhaustive gameplay compatibility remains experimental.
+
+## Entropy and the Handy QoL bundle
+
+- `npm run test:new-mods`: Lua 5.1 compilation, CDN package limits, Entropy profile isolation, selector integration, and lossless expansion of Overflow saves in Vanilla.
+- `npm run test:new-mods-browser`: instruments temporary copies of the release archives, then boots actual WASM in Chromium. It checks JokerDisplay overlays, negative-consumable stacking and serialization, Constellation contexts, Entropy content loading, a new run, the first dealt hand and a scored hand. Install Chromium with `npx playwright install --with-deps chromium` first. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing binary.
+- Browser test output and screenshots live under `build/mod-smoke/`; instrumented archives are never published.

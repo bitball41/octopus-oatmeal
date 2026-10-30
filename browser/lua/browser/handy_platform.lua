@@ -5,3 +5,5 @@ package.loaded['handy/nativefs'] = require('browser.nativefs')
 package.loaded.lovely = {
     version='0.9.0', mod_dir='Mods', log_path='browser.log',
 }
+
+package.loaded['JokerDisplay.nativefs'] = require('browser.nativefs')

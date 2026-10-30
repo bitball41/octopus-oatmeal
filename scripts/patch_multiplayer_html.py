@@ -113,7 +113,7 @@ def patch_index() -> None:
 
 def install_asset_cache():
     paths = ['love.js', 'love.wasm', 'multiplayer_upstream.js', 'game.js']
-    paths += [mode + '/game.js' for mode in ('vanilla', 'vanilla-handy', 'paperback', 'bunco', 'pokermon', 'cryptid')]
+    paths += [mode + '/game.js' for mode in ('vanilla', 'vanilla-handy', 'paperback', 'bunco', 'pokermon', 'cryptid', 'entropy')]
     revisions = {path: hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in paths}
     helper = 'var ASSET_REVISIONS = ' + json.dumps(revisions, sort_keys=True) + ';\n'
     helper += (ROOT/'browser/asset-cache.js').read_text()

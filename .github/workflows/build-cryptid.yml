@@ -1,4 +1,4 @@
-name: Build Cryptid and Handy browser modes
+name: Build Cryptid, Entropy and Handy browser modes
 
 on:
   workflow_dispatch:
@@ -7,6 +7,12 @@ on:
     paths:
       - '.github/workflows/build-cryptid.yml'
       - 'scripts/cryptid_browser.py'
+      - 'scripts/entropy_browser.py'
+      - 'scripts/validate_new_mods.py'
+      - 'scripts/validate_new_mods_browser.mjs'
+      - 'scripts/prepare_mod_smoke.py'
+      - 'scripts/probes/**'
+      - 'browser/lua/browser/vanilla_stacks.lua'
       - 'scripts/compile_cryptid_lua.mjs'
       - 'scripts/validate_cryptid.py'
       - 'scripts/validate_handy.py'
@@ -70,11 +76,23 @@ jobs:
           restore-keys: custom-mods-v1-${{ runner.os }}-
       - name: Build and verify existing Cryptid and Handy presets
         run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import build_upstream as b
+          b.build_vanilla((b.ROOT/'game.js').read_text(), release=True)
+          PY
           npm run build:handy
           npm run test:handy
           npm run build:cryptid
           npm run test:cryptid
+          npm run build:entropy
+          npm run test:new-mods
           node scripts/build_server.mjs
+      - name: Exercise Entropy and QoL in Chromium
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:new-mods-browser
       - name: Compile all 64 custom mod combinations
         run: npm run build:custom
       - name: Verify packages, multiplayer and save compatibility
@@ -87,7 +105,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add custom custom-runtime.js multiplayer_upstream.js cryptid vanilla-handy vendor/CardSleeves.zip vendor/Cryptid.zip vendor/Amulet.zip vendor/SteamoddedCryptid.zip vendor/Handy.zip index.html balatro.html
+          git add entropy vanilla vendor/Entropy.zip vendor/Spectrallib.zip vendor/JokerDisplay.zip vendor/Overflow.zip custom custom-runtime.js multiplayer_upstream.js cryptid vanilla-handy vendor/CardSleeves.zip vendor/Cryptid.zip vendor/Amulet.zip vendor/SteamoddedCryptid.zip vendor/Handy.zip index.html balatro.html
           if ! git diff --cached --quiet; then
             git commit -m "Build pinned Cryptid and Vanilla Handy runtimes"
           fi

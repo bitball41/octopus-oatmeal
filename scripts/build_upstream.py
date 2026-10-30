@@ -52,6 +52,10 @@ MOD_FOLDERS = {
     'Cryptid': 'Cryptid',
     'Handy': 'Handy',
     'CardSleeves': 'CardSleeves',
+    'Entropy': 'Entropy',
+    'Spectrallib': 'Spectrallib',
+    'JokerDisplay': 'JokerDisplay',
+    'Overflow': 'Overflow',
 }
 
 
@@ -156,6 +160,8 @@ def patch_regex(text, patch):
 def keep_packed_file(name):
     """Drop desktop-only junk so single-file packs stay under jsDelivr's 20 MB cap."""
     rel = name.replace('\\', '/')
+    if rel.startswith('Mods/JokerDisplay/examples/'):
+        return False
     base = rel.rsplit('/', 1)[-1]
     if base in {'.DS_Store', '.gitignore'} or base.startswith('._'):
         return False
@@ -191,11 +197,11 @@ def vanilla_base():
     return unpack(blob)
 
 
-def write_parts(blob, dest_dir):
+def write_parts(blob, dest_dir, part_size=PART_SIZE):
     dest_dir.mkdir(parents=True, exist_ok=True)
     parts = []
-    for i, start in enumerate(range(0, len(blob), PART_SIZE)):
-        chunk = blob[start:start + PART_SIZE]
+    for i, start in enumerate(range(0, len(blob), part_size)):
+        chunk = blob[start:start + part_size]
         name = f'game.data.part{i}'
         if len(chunk) > JSDELIVR_LIMIT:
             raise RuntimeError(f'{dest_dir/name} is {len(chunk)} bytes; jsDelivr 403s files over 20 MB')
@@ -205,15 +211,15 @@ def write_parts(blob, dest_dir):
     return parts
 
 
-def emit_archive(files, dest_dir, template_js, release_dir=None):
+def emit_archive(files, dest_dir, template_js, release_dir=None, part_size=PART_SIZE):
     dest_dir.mkdir(parents=True, exist_ok=True)
     blob = write_love_archive(files, dest_dir/'game.data')
     parts = []
     if len(blob) > JSDELIVR_LIMIT:
-        parts = write_parts(blob, dest_dir)
+        parts = write_parts(blob, dest_dir, part_size)
         (dest_dir/'game.data').unlink()
         if release_dir is not None:
-            write_parts(blob, release_dir)
+            write_parts(blob, release_dir, part_size)
             full = release_dir/'game.data'
             if full.exists():
                 full.unlink()
@@ -233,7 +239,7 @@ def build_vanilla(template_js, release=False):
     from browser_features import apply as apply_features
     apply_features(files, vanilla=True)
     pack_browser_lua(files, VANILLA_SKIP)
-    files['main.lua'] = b'require "browser.vanilla"\n' + files['main.lua']
+    files['main.lua'] = b'require "browser.vanilla"\n' + files['main.lua'] + b'\nrequire "browser.vanilla_stacks"\n'
     return emit_archive(files, ROOT/'build'/'vanilla', template_js,
                         ROOT/'vanilla' if release else None)
 
@@ -242,7 +248,7 @@ def build_handy(candidate=False, release=False):
     # Use the exact Vanilla base: no Steamodded, content mods or profile prefix.
     files = vanilla_base()
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
-    files, report, modules, early = apply_lovely(files, ['Handy'], lock, 'handy')
+    files, report, modules, early = apply_lovely(files, ['Handy', 'JokerDisplay', 'Overflow'], lock, 'handy')
     from handy_browser import prepare_handy_sources
     prepare_handy_sources(files)
     from browser_features import apply as apply_features
@@ -252,6 +258,8 @@ def build_handy(candidate=False, release=False):
     pack_browser_lua(files, ('browser/menu.lua', 'browser/platform.lua'))
     files['main.lua'] = (b'require "browser.handy_platform"\n' +
                         ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
+    from entropy_browser import prepare_sources
+    prepare_sources(files)
     summarize_report(report, 'vanilla-handy', 'patch-report-handy.json', candidate)
     return emit_archive(files, ROOT/'build/vanilla-handy', (ROOT/'game.js').read_text(),
                         ROOT/'vanilla-handy' if release else None)
@@ -311,6 +319,10 @@ def apply_lovely(files, mods, lock, flavor=None):
             patch, skip_reason = adapt_patch(mod, name, index, patch, files.get(target,b'').decode() if target.endswith('.lua') else '')
             if mod == 'Amulet' and name == 'lovely/noanims.toml' and index in (6, 7, 8) and 'Handy' in mods:
                 skip_reason = 'The earlier Handy patch already supplies the same card juice nil guard.'
+            from entropy_browser import adapt_patch as adapt_extra
+            patch, extra_skip = adapt_extra(mod, name, index, patch, files, target, flavor)
+            skip_reason = extra_skip or skip_reason
+            target = target_path(patch['target'])
             if mod == 'Handy':
                 from handy_browser import adapt_handy_patch
                 patch, handy_skip = adapt_handy_patch(name, index, patch, files, target_path, flavor)
@@ -396,6 +408,8 @@ def summarize_report(report, label, out_name, candidate):
 def build_smods_pack(mods, flavor, skip_lua, lock):
     files = browser_base()
     files, report, modules, early = apply_lovely(files, mods, lock, flavor)
+    from entropy_browser import prepare_sources
+    prepare_sources(files)
     if flavor == 'cryptid':
         from cryptid_browser import prepare_cryptid_sources
         prepare_cryptid_sources(files)
@@ -418,6 +432,16 @@ def build_cryptid(candidate=False, release=False):
     summarize_report(report, 'cryptid', 'patch-report-cryptid.json', candidate)
     return emit_archive(files, ROOT/'build/cryptid', (ROOT/'game.js').read_text(),
                         ROOT/'cryptid' if release else None)
+
+
+def build_entropy(candidate=False, release=False):
+    lock = json.loads((ROOT/'vendor/upstream.json').read_text())
+    lock['Steamodded'] = lock['SteamoddedCryptid']
+    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Spectrallib', 'Entropy', 'Handy'],
+                                    'cryptid', ('browser/menu.lua',), lock)
+    summarize_report(report, 'entropy', 'patch-report-entropy.json', candidate)
+    return emit_archive(files, ROOT/'build/entropy', (ROOT/'game.js').read_text(),
+                        ROOT/'entropy' if release else None, part_size=10*1024*1024)
 
 
 def build(candidate=False, release=False):
@@ -459,10 +483,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--candidate', action='store_true', help='Emit a diagnostic candidate even with unresolved patches; never ship this output')
     parser.add_argument('--release', action='store_true', help='Replace game.data and update game.js after strict validation')
+    parser.add_argument('--entropy-only', action='store_true')
     parser.add_argument('--cryptid-only', action='store_true', help='Build only the isolated Cryptid mode')
     parser.add_argument('--handy-only', action='store_true', help='Build Vanilla with standalone Handy and Vanilla-compatible saves')
     args = parser.parse_args()
-    if args.handy_only:
+    if args.entropy_only:
+        build_entropy(args.candidate, args.release)
+    elif args.handy_only:
         build_handy(args.candidate, args.release)
     elif args.cryptid_only:
         build_cryptid(args.candidate, args.release)

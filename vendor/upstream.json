@@ -64,5 +64,29 @@
     "commit": "f655dfc5687c84592dcd558b49e2bd06a61a74eb",
     "archive": "CardSleeves.zip",
     "sha256": "44ede54f3978f77c4ef77461a3b1e00e3a96a7781052c4620bd8e26c854b2b31"
+  },
+  "Entropy": {
+    "url": "https://github.com/lord-ruby/Entropy",
+    "commit": "e67b03a843502cfe39d08c51ebe0244714b9bb12",
+    "archive": "Entropy.zip",
+    "sha256": "fe2c0944d28af8e939323138da9c2d3fb7df8d7c58a567fa4a2aab3b302cfcf6"
+  },
+  "Overflow": {
+    "url": "https://github.com/lord-ruby/Overflow",
+    "commit": "8c2c4ad005776c2184ce6bc9346e4cce4e6d6d77",
+    "archive": "Overflow.zip",
+    "sha256": "765a719e394b411a0fb72314540efe61169a0ad2b3c7f558cac1db8307577790"
+  },
+  "JokerDisplay": {
+    "url": "https://github.com/nh6574/JokerDisplay",
+    "commit": "976b886c97b8106522d5f2e5df674142a0226daf",
+    "archive": "JokerDisplay.zip",
+    "sha256": "4ba0b7e63f0e863df87fb9ccaf3602df40ee59cd982b6dd36efa04455413b6f0"
+  },
+  "Spectrallib": {
+    "url": "https://github.com/SpectralPack/Spectrallib",
+    "commit": "a543cc33107a8dbb3a201afb083b14d28450d74a",
+    "archive": "Spectrallib.zip",
+    "sha256": "5e718baf6ce0ae9d5cae17ba7e20eeaab5e81b29029e3a437cc4300e54cd4c1a"
   }
 }

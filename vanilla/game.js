@@ -31,7 +31,7 @@ Module.expectedDataFileDownloads++;
       throw "using preloaded data can only be done on a web page or in a web worker";
     }
     var PACKAGE_NAME = "game.data";
-    var REMOTE_PACKAGE_BASE = "game.data?v=596ef8a8";
+    var REMOTE_PACKAGE_BASE = "game.data?v=5ff64ceb";
     if (
       typeof Module["locateFilePackage"] === "function" &&
       !Module["locateFile"]
@@ -358,14 +358,14 @@ Module.expectedDataFileDownloads++;
       openDatabase(function (db) {
         checkCachedPackage(
           db,
-          (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
+          (Module.archiveCacheNamespace || Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
           function (useCached) {
             Module.preloadResults[PACKAGE_NAME] = { fromCache: useCached };
             if (useCached) {
               console.info("loading " + PACKAGE_NAME + " from cache");
               fetchCachedPackage(
                 db,
-                (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
+                (Module.archiveCacheNamespace || Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
                 processPackageData,
                 preloadFallback,
               );
@@ -377,7 +377,7 @@ Module.expectedDataFileDownloads++;
                 function (packageData) {
                   cacheRemotePackage(
                     db,
-                    (Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
+                    (Module.archiveCacheNamespace || Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME,
                     packageData,
                     { uuid: PACKAGE_UUID },
                     processPackageData,
@@ -405,14 +405,14 @@ Module.expectedDataFileDownloads++;
     }
   };
   loadPackage({
-    package_uuid: "2f9f0ab7-b188-5c92-b7ab-c8d554763500",
-    remote_package_size: 10635436,
+    package_uuid: "8bb3be38-8f93-5f41-a40d-d014371a8786",
+    remote_package_size: 10640127,
     files: [
       {
         filename: "/game.love",
         crunched: 0,
         start: 0,
-        end: 10635436,
+        end: 10640127,
         audio: false,
       },
     ],

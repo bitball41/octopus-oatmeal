@@ -2,6 +2,10 @@
 
 This browser port bundles pinned source snapshots of:
 
+- Entropy `e67b03a843502cfe39d08c51ebe0244714b9bb12` (v2.0.5, GPL-3.0), by Ruby and contributors
+- Spectrallib `a543cc33107a8dbb3a201afb083b14d28450d74a` (v1.4.0, GPL-3.0), by the Spectralpack team
+- JokerDisplay `976b886c97b8106522d5f2e5df674142a0226daf` (v2.0.8, GPL-3.0), by nh6574
+- Overflow `8c2c4ad005776c2184ce6bc9346e4cce4e6d6d77` (v1.3.0; upstream ships no LICENSE file), by Ruby
 - Cryptid `f52f0251c9a99a04ebe1047942204ed8b393d3d6` (v0.5.17c, GPL-3.0)
 - Handy Balatro `13372172ccd83627f362509cf5a5698a438da2c8` (v2.0.6, GPL-3.0), by SleepyG11
 - Amulet `13f5a2a5a796031ec86160bca8967f88f5421ab4` (v3.6.1, GPL-3.0)
@@ -13,8 +17,9 @@ This browser port bundles pinned source snapshots of:
 - Bunco `016e4cda5525fcb74ec6b6e70e7fdba1f0609547` (v5.1; upstream ships no LICENSE file)
 - Pokermon `2f462f609c271d5b2f2be0e8ba9d0b73b4ed8b71` (v3.8.1-0910b, GPL-3.0)
 
-Their source archives, upstream URLs, exact checksums, and license files are in
-`vendor/`. `scripts/build_upstream.py` applies the pinned Lovely manifests to
+Their upstream URLs and exact checksums are recorded in `vendor/upstream.json`.
+`scripts/fetch_cryptid_sources.py` fetches any missing pinned source archives into
+`vendor/`; upstream license files are retained in those archives. `scripts/build_upstream.py` applies the pinned Lovely manifests to
 the browser Lua archives, and `scripts/build_server.mjs` bundles the upstream
 server for the peer host. Browser-specific adapters replace unavailable native
 filesystem, LuaJIT, TCP-thread, and platform APIs; gameplay remains upstream.
@@ -30,3 +35,8 @@ at Everything, retaining event ordering and per-payment effects.
 - fflate 0.8.2 (MIT), by Arjun Barrett, used to assemble selected custom builds in the browser.
 
 Custom builds apply Lovely patches at build time, validate every Lua file against Lua 5.1, and share content-addressed asset packs. The browser only downloads the selected build’s packs.
+
+Entropy is a separate preset with Spectrallib, Amulet and Handy, isolated from Cryptid.
+Vanilla + Handy also bundles JokerDisplay and Overflow without Steamodded. Plain Vanilla
+expands Overflow stacks when loading the shared save, retaining each consumable.
+`scripts/entropy_browser.py` records browser patch adaptations and WebGL 1 shader repairs.

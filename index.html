@@ -288,7 +288,8 @@
       .mode-row {gap:12px;width:100%;max-width:1000px;}
       .mode-row button {min-width:180px;min-height:58px;padding:15px 22px;letter-spacing:.02em;text-transform:none;color:white;transition:transform .14s,box-shadow .14s;}
       .mode-row button:hover,.mode-row button:focus-visible {transform:translateY(-2px);box-shadow:0 0 0 3px #ffffff42;outline:none;}
-      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid {min-width:180px;}
+      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid,#mode-entropy {min-width:180px;}
+      #mode-entropy {background:#9b2946;}
       #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
       #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
       #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
@@ -333,6 +334,7 @@
         <div class="mode-row" aria-label="Featured modes">
           <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
           <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
+          <button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>
         </div>
         <div class="mode-row" aria-label="More mods">
           <button id="mode-paperback" type="button" data-tip="paperback">Paperback</button>
@@ -574,7 +576,7 @@
         }
 
         /* OCTOPUS_ASSET_CACHE_START */
-var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "fa0365e0278c5a85b4556d1239be610d04f9f1605a6b2b2c5b8be4c142404320", "game.js": "5083d62c4e09c9db20e48d04869bfcb2aa5162002372d2c50cb80ea2d1d24ec7", "love.js": "3be430f3d1da0197090540f21a627f3a286d23f37acf69e3990e9f885ca8be51", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "6ee8ce46b653e9a9e52aed9e408445f50d14bb75f78ec62676c4c5e286b72651", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla-handy/game.js": "c3552c2e0ddcecf9adeabeefdcbed768ae4de77dd838aac3fc8edd98a6e87fc3", "vanilla/game.js": "131a698173b579ec8df6701b924d8cefa059434f4a385e50d8a06fd46eef4494"};
+var ASSET_REVISIONS = {"bunco/game.js": "886b4513ef2e03247f99c92471a080268dc7df987c8d63b494adfe2f34b59107", "cryptid/game.js": "fa0365e0278c5a85b4556d1239be610d04f9f1605a6b2b2c5b8be4c142404320", "entropy/game.js": "5c0765053e257fdb531ee958f1e18cd0730821e7882792cbff2f4f808b573bd9", "game.js": "5083d62c4e09c9db20e48d04869bfcb2aa5162002372d2c50cb80ea2d1d24ec7", "love.js": "3be430f3d1da0197090540f21a627f3a286d23f37acf69e3990e9f885ca8be51", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "6ee8ce46b653e9a9e52aed9e408445f50d14bb75f78ec62676c4c5e286b72651", "paperback/game.js": "67dbcda58311b671bd44183cf25e949ff297a7118d4d9cf303c2795f35cb4947", "pokermon/game.js": "28bcaab8c829050dd11d615f998699a859118b5f19d7062d345b3b5dc23c5303", "vanilla-handy/game.js": "260b0afa45d387b362d93be6756b99db3049ee1c7936dcbe1095ee39a118a94c", "vanilla/game.js": "f8a15821716fb9b9d48aa6a203c58fa741159693b803d4e6963ac8c331caa277"};
 // Embedded in both launchers by patch_multiplayer_html.py (including file://).
 var assetDatabase;
 function assetDB() {
@@ -704,6 +706,13 @@ async function cachedScriptURL(src) {
             multiplayer: false,
             memory: 536870912,
             parts: ["game.data.part0", "game.data.part1"],
+          },
+          entropy: {
+            persist: "/home/web_user/love-entropy",
+            dir: "entropy/",
+            multiplayer: false,
+            memory: 536870912,
+            parts: ["game.data.part0", "game.data.part1", "game.data.part2", "game.data.part3", "game.data.part4"],
           },
           cryptid: {
             persist: "/home/web_user/love-cryptid",
@@ -864,7 +873,8 @@ async function cachedScriptURL(src) {
           var tooltip=document.getElementById('mode-tooltip');
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
-            handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Shares your Vanilla save.'],
+            handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
+            entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Handy and Spectrallib. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Includes Handy. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
@@ -954,6 +964,7 @@ async function cachedScriptURL(src) {
           // mode-pokermon remains available by URL hash.
           bindModSelector();
           bindMode("mode-cryptid", "cryptid");
+          bindMode("mode-entropy", "entropy");
           bindMode("mode-multiplayer", "multiplayer");
           var hash =
             typeof location !== "undefined"

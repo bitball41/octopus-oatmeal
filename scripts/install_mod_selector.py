@@ -8,7 +8,8 @@ CSS='''
       .mode-row {gap:12px;width:100%;max-width:1000px;}
       .mode-row button {min-width:180px;min-height:58px;padding:15px 22px;letter-spacing:.02em;text-transform:none;color:white;transition:transform .14s,box-shadow .14s;}
       .mode-row button:hover,.mode-row button:focus-visible {transform:translateY(-2px);box-shadow:0 0 0 3px #ffffff42;outline:none;}
-      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid {min-width:180px;}
+      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid,#mode-entropy {min-width:180px;}
+      #mode-entropy {background:#9b2946;}
       #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
       #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
       #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
@@ -39,6 +40,7 @@ HTML='''      <div id="mode-overlay">
         <div class="mode-row" aria-label="Featured modes">
           <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
           <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
+          <button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>
         </div>
         <div class="mode-row" aria-label="More mods">
           <button id="mode-paperback" type="button" data-tip="paperback">Paperback</button>
