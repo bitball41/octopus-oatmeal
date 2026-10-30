@@ -75,6 +75,7 @@ try {
  console.log('DIAGNOSTICS',await host.evaluate(()=>OctopusMP.diagnostics()),await guest.evaluate(()=>OctopusMP.diagnostics()));
  assert.equal(ready.ready,true,'guest ready reaches host');
  await lua(host,"G.FUNCS.lobby_start_game(nil)");await delay(15000);
+ const completed=[];
  for(const [label,page] of [['host',host],['guest',guest]]) {
   let state;
   for(let i=0;i<30;i++) {
@@ -83,8 +84,9 @@ try {
    await delay(1500);
   }
   console.log('FINAL',label,JSON.stringify(state));await page.screenshot({path:label+'-run.png'});
-  assert.equal(state.stage,state.run,label+' enters a run');assert.equal(state.loading,false,label+' finishes loading');
+  assert.equal(state.stage,state.run,label+' enters a run');assert.equal(state.loading,false,label+' finishes loading');assert.equal(state.paused,false,label+' is playable');completed.push(state);
  }
- assert(!logs.some(x=>/PROBE_CRASH|PROBE_FAILURE|Lua Error in love.update/.test(x)),'no Lua crashes');
+ assert.equal(completed[0].seed,completed[1].seed,'both players start the same seeded run');
+ assert(!logs.some(x=>/PROBE_CRASH|PROBE_FAILURE|Lua Error in love.update|Oops! The game crashed|PAGEERROR/.test(x)),'no Lua crashes');
  console.log('PASS: two real Cryptid multiplayer engines create, join, ready and start a run');
 }finally{await writeFile('two-player-browser.log',logs.join('\n'));await browser.close();server.kill();clearTimeout(watchdog);}
