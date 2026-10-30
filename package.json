@@ -14,7 +14,8 @@
     "build:handy": "python3 scripts/install_handy_launcher.py && python3 scripts/build_upstream.py --handy-only --release && python3 scripts/patch_multiplayer_html.py",
     "test:handy": "python3 scripts/validate_handy_boot.py vanilla-handy && python3 scripts/validate_vanilla_handy.py",
     "build:custom": "python3 scripts/build_custom.py && node scripts/bundle_custom.mjs && python3 scripts/install_mod_selector.py && python3 scripts/patch_multiplayer_html.py",
-    "test:custom": "python3 scripts/validate_custom.py && node scripts/validate_custom.mjs"
+    "test:custom": "python3 scripts/validate_custom.py && node scripts/validate_custom.mjs",
+    "test:multiplayer-start": "python3 scripts/validate_multiplayer_start.py"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
