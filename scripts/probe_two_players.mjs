@@ -5,6 +5,8 @@ import {spawn} from 'node:child_process';
 const rooms=new Map(),logs=[],replies=new Map();let sequence=0;
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const debugLua=`
+local error_probe=love.errorhandler
+love.errorhandler=function(msg) print('PROBE_CRASH '..tostring(msg)..debug.traceback());return error_probe(msg) end
 local update_probe=love.update
 function love.update(dt,...)
  if love.filesystem.getInfo('probe.lua') then
