@@ -31,3 +31,14 @@ def apply(files):
         assert text.count(anchor)==1, 'Achievement notification callback changed'
         text=text.replace(anchor,guard+anchor,1)
     files[path]=text.encode()
+
+    # Multiplayer resets the viewed deck before its preview cards leave the UI.
+    path='Mods/Cryptid/lib/ui.lua'
+    if path in files:
+        text=files[path].decode()
+        old='G.GAME.viewed_back and G.GAME.viewed_back.effect.center'
+        fixed='G.GAME.viewed_back and G.GAME.viewed_back.effect and G.GAME.viewed_back.effect.center'
+        if fixed not in text:
+            assert text.count(old)==1, 'Cryptid deck preview draw step changed'
+            text=text.replace(old,fixed,1)
+        files[path]=text.encode()

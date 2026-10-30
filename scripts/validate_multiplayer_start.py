@@ -50,3 +50,11 @@ lua=LuaRuntime();lua.execute('G={FUNCS={}};MP={LOBBY={code="ROOM"}}')
 lua.execute(intro[a:b]);lua.execute('G.FUNCS.cry_intro_controller()')
 lua.execute('MP.LOBBY.code=nil;G.SETTINGS={profile=1,paused=true};G.PROFILES={[1]={}};G.FUNCS.cry_intro_controller();assert(G.PROFILES[1].cry_intro_progress and not G.PROFILES[1].cry_intro_complete)')
 print('Multiplayer cleanup: Cryptid popup without Jimbo, normal tutorial character, and expired notification callback passed')
+
+# Deck preview draws can occur during a multiplayer scene reset.
+ui=files['Mods/Cryptid/lib/ui.lua'].decode()
+a=ui.index('\t\tlocal back =');b=ui.index('\n\t\tif not self.cry_antimatter_locked',a)
+lua=LuaRuntime();lua.execute('G={GAME={viewed_back={}}};self={ability={},params={viewed_back=true}};in_run_setup=true')
+resolve='function resolve_back()\n'+ui[a:b]+'\nreturn back end'
+lua.execute(resolve);lua.execute('assert(not resolve_back());G.GAME.viewed_back.effect={center={key="b_cry_antimatter"}};assert(resolve_back().key=="b_cry_antimatter")')
+print('Cryptid deck preview: empty transition state and normal deck effects passed')
