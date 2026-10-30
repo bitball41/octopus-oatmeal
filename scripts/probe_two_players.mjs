@@ -79,7 +79,7 @@ try {
  for(const [label,page] of [['host',host],['guest',guest]]) {
   let state;
   for(let i=0;i<30;i++) {
-   state=await lua(page,"return {stage=G.STAGE,run=G.STAGES.RUN,state=G.STATE,paused=not not G.SETTINGS.paused,loading=not not G.CONTROLLER.locks.load,seed=G.GAME.pseudorandom.seed}");
+   state=await lua(page,"local function unlock_button(n) if type(n)~='table' then return false end;if n.config and n.config.button=='continue_unlock' then return true end;for _,c in pairs(n.children or {}) do if unlock_button(c) then return true end end;return false end;if G.OVERLAY_MENU and unlock_button(G.OVERLAY_MENU.UIRoot) then G.FUNCS.continue_unlock() end;return {stage=G.STAGE,run=G.STAGES.RUN,state=G.STATE,paused=not not G.SETTINGS.paused,loading=not not G.CONTROLLER.locks.load,seed=G.GAME.pseudorandom.seed}");
    if(state.stage===state.run&&!state.loading)break;
    await delay(1500);
   }
