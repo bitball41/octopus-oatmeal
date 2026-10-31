@@ -89,10 +89,14 @@ def build(release=False, candidate=False):
             files[key] = after.encode('utf-8')
         edit('aure-allu/Aure-Allu.lua', lambda s: s.replace('goto skip', 'return distance').replace('::skip::', ''))
         edit('hayayaya/ellen/8f.lua', lambda s: s.replace('if not blind then\n\t\t\tgoto continue\n\t\tend', 'if blind then').replace('::continue::', 'end'))
-        for relative in ('hayayaya/ellen/mewtwo.lua', 'hayayaya/ellen/woke.lua'):
+        for relative in ('hayayaya/ellen/mewtwo.lua',):
             edit(relative, lambda s: s.replace('for _, c in ipairs(G.fac_fish_area.cards) do',
                 'for _, c in ipairs(G.fac_fish_area.cards) do\n            repeat')
                 .replace('goto continue', 'break').replace('::continue::', 'until true'))
+        edit('hayayaya/ellen/woke.lua', lambda s: s.replace(
+            'for _, c in ipairs(G.fac_fish_area.cards) do\n\t\t\t-- Must not be itself',
+            'for _, c in ipairs(G.fac_fish_area.cards) do\n            repeat\n\t\t\t-- Must not be itself'
+        ).replace('goto continue', 'break').replace('::continue::', 'until true'))
         edit('minty/tundraeel.lua', lambda s: s.replace('if diff < 1 then goto nvm end', 'if diff >= 1 then')
              .replace('::nvm::', 'end'))
         return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
