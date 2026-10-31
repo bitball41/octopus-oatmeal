@@ -62,6 +62,23 @@ def build(release=False, candidate=False):
     import browser_adapters
     original_adapt = browser_adapters.adapt_sources
     def fish_adapt(files, flavor='multiplayer'):
+        # The browser VM is Lua 5.1 and lacks LuaJIT's goto statement.
+        prefix = 'Mods/FishAndChips/content/'
+        def edit(relative, transform):
+            key = prefix + relative
+            before = files[key].decode('utf-8')
+            after = transform(before)
+            if after == before or 'goto ' in after or '::continue::' in after:
+                raise RuntimeError('Fish Lua 5.1 rewrite failed: ' + relative)
+            files[key] = after.encode('utf-8')
+        edit('aure-allu/Aure-Allu.lua', lambda s: s.replace('goto skip', 'return distance').replace('::skip::', ''))
+        edit('hayayaya/ellen/8f.lua', lambda s: s.replace('if not blind then\n\t\t\tgoto continue\n\t\tend', 'if blind then').replace('::continue::', 'end'))
+        for relative in ('hayayaya/ellen/mewtwo.lua', 'hayayaya/ellen/woke.lua'):
+            edit(relative, lambda s: s.replace('for _, c in ipairs(G.fac_fish_area.cards) do',
+                'for _, c in ipairs(G.fac_fish_area.cards) do\n            repeat')
+                .replace('goto continue', 'break').replace('::continue::', 'until true'))
+        edit('minty/tundraeel.lua', lambda s: s.replace('if diff < 1 then goto nvm end', 'if diff >= 1 then')
+             .replace('::nvm::', 'end'))
         return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
     browser_adapters.adapt_sources = fish_adapt
     browser.adapt_sources = fish_adapt  # build_upstream imported it by name
