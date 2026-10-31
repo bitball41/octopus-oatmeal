@@ -104,6 +104,31 @@ def build(release=False, candidate=False):
         # This does not enable Cryptid or include its content.
         return original_apply(files, mods, pinned, "cryptid")
     browser.apply_lovely = fish_apply
+    original_patch = browser.adapt_patch
+    def fish_patch(mod, name, index, patch, source):
+        p, reason = original_patch(mod, name, index, patch, source)
+        if mod != 'FishAndChips' or reason:
+            return p, reason
+        key = (name, index)
+        if key == ('lovely/fish.toml', 4):
+            p['pattern'] = "elseif set == 'Blind' then"
+            p['position'] = 'before'
+        if key == ('lovely/astra-missingno/ascii.toml', 1):
+            p['pattern'] = 'state.fish_vel = state.fish_vel + (state.fish_goal_vel - state.fish_vel) * velocity_blend'
+        if key in (('lovely/stats.toml', 1), ('lovely/menu.toml', 7)):
+            marker = 'progress' if 'stats' in name else 'G.VIBRATION'
+            lines = source.splitlines()
+            matches = [(i, line) for i, line in enumerate(lines) if marker in line]
+            print('FISH SOURCE ANCHORS', key,
+                  [(i+1, lines[max(0, i-3):i+7]) for i, _ in matches[:8]], flush=True)
+        if key in (
+            ('lovely/crimsonseraphim/card_draw.toml', 7),
+            ('lovely/crimsonseraphim/larp.toml', 2),
+            ('lovely/crimsonseraphim/multiboxes.toml', 1),
+        ):
+            return p, 'Optional/obsolete upstream contributor UI patch; source anchor is absent'
+        return p, None
+    browser.adapt_patch = fish_patch
     files, report = browser.build_smods_pack(
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
