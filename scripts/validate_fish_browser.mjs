@@ -7,6 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const assetChunks=JSON.parse(readFileSync(path.join(root,'fish-and-chips','parts.json'),'utf8'));
+if(!Array.isArray(assetChunks)||assetChunks.length<2||!assetChunks.every(x=>existsSync(path.join(root,'fish-and-chips',x))))throw new Error('Fish chunks missing');
+console.log('Checking Fish and Chips using '+assetChunks.length+' archive chunks');
 const reportDir=path.join(root,'build','fish-browser-smoke');
 mkdirSync(reportDir,{recursive:true});
 const server=createServer((req,res)=>{
