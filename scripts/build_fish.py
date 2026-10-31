@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
+import zipfile
 import json
 import subprocess
 import tempfile
@@ -45,6 +47,20 @@ def download_sources(lock):
                 raise RuntimeError(f"{name}: fetched {fetched}, expected {commit}")
             subprocess.run(["git", "-C", tmp, "archive", "--format=zip",
                             "--output=" + str(archive), commit], check=True)
+        if name == "FishAndChips":
+            # Upstream Lovely target selectors sometimes start with a slash.
+            # Our archive resolver already inserts the directory separator.
+            with zipfile.ZipFile(archive) as source:
+                files = {item.filename: source.read(item.filename)
+                         for item in source.infolist() if not item.is_dir()}
+            for path, data in files.items():
+                if path.startswith("lovely/") and path.endswith(".toml"):
+                    files[path] = data.replace(
+                        b'=[SMODS FishAndChips "/',
+                        b'=[SMODS FishAndChips "')
+            with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=8) as out:
+                for path, data in files.items():
+                    out.writestr(path, data)
         lock[name] = {
             "archive": "../build/fish-sources/" + archive.name,
             "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
@@ -82,6 +98,12 @@ def build(release=False, candidate=False):
         return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
     browser_adapters.adapt_sources = fish_adapt
     browser.adapt_sources = fish_adapt  # build_upstream imported it by name
+    original_apply = browser.apply_lovely
+    def fish_apply(files, mods, pinned, flavor=None):
+        # Apply the existing browser anchors for Steamodded 26.829.
+        # This does not enable Cryptid or include its content.
+        return original_apply(files, mods, pinned, "cryptid")
+    browser.apply_lovely = fish_apply
     files, report = browser.build_smods_pack(
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
