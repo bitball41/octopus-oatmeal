@@ -99,6 +99,12 @@ def build(release=False, candidate=False):
         ).replace('goto continue', 'break').replace('::continue::', 'until true'))
         edit('minty/tundraeel.lua', lambda s: s.replace('if diff < 1 then goto nvm end', 'if diff >= 1 then')
              .replace('::nvm::', 'end'))
+        # WebGL 1 cannot always render to half-float canvases. The JPEG screen
+        # filter creates one while the mod loads, so fall back to the default
+        # canvas format instead of aborting startup on such devices.
+        edit('the_s_squad/.the_s_squad.lua', lambda s: s.replace(
+            '{format = "rgba16f"}',
+            '{format = love.graphics.getCanvasFormats()["rgba16f"] and "rgba16f" or "normal"}'))
         return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
     browser_adapters.adapt_sources = fish_adapt
     browser.adapt_sources = fish_adapt  # build_upstream imported it by name
@@ -158,6 +164,22 @@ def build(release=False, candidate=False):
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
     )
+    # love.js does not reliably recover from a shader compile failure: the
+    # error can escape Steamodded's pcall around love.graphics.newShader and
+    # crash the game before its window opens. Rewrite every Fish shader to GLSL ES
+    # 1.00 (WebGL 1) before the lowercase asset aliases below copy them.
+    import fish_shaders
+    from cryptid_browser import repair_atlas_scaling_shader
+    repair_atlas_scaling_shader(files)
+    repaired = 0
+    for path in list(files):
+        if path.startswith('Mods/FishAndChips/assets/shaders/') and path.endswith('.fs'):
+            before = files[path].decode('utf-8')
+            after = fish_shaders.repair(path, before)
+            if after != before:
+                files[path] = after.encode('utf-8')
+                repaired += 1
+    print(f'Repaired {repaired} Fish shaders for WebGL 1')
     # Fish and Chips ships almost every atlas at 1x, but the browser's
     # texture-scaling setting requests 2x atlases. Duplicate them with
     # nearest-neighbor pixel replication without changing runtime filtering.
@@ -204,6 +226,26 @@ def build(release=False, candidate=False):
         if count != 1:
             raise RuntimeError(f'Unexpected mipmap anchor count {count} in {path}')
         files[path] = content.replace(mipmap, guarded, 1).encode('utf-8')
+    # Fish's 2x atlases decode to ~750 MB of ImageData in the wasm heap.
+    # Balatro re-runs init_item_prototypes when the profile loads, so
+    # Steamodded injects every atlas a second time while the first copies
+    # still await garbage collection; that exceeds love.js's 2 GB heap
+    # ("Could not decode PNG image (memory allocation failed)"). Free the
+    # previous texture data as each atlas is reloaded. Sprites look up
+    # atlas.image at draw time, so nothing keeps the released objects.
+    name = 'Mods/Steamodded/src/game_object.lua'
+    content = files[name].decode('utf-8')
+    anchor = ("                'assets/' .. texture_scaling .. 'x/' .. file_path)\n"
+              "            local file_data = NFS.newFileData(self.full_path)\n")
+    if content.count(anchor) != 1:
+        raise RuntimeError('Steamodded atlas reload anchor missing')
+    content = content.replace(anchor, anchor.replace(
+        "            local file_data",
+        "            if self.image and self.image.release then self.image:release() end\n"
+        "            if self.image_data and self.image_data.release then self.image_data:release() end\n"
+        "            self.image, self.image_data = nil, nil\n"
+        "            local file_data", 1), 1)
+    files[name] = content.encode('utf-8')
     # Optional integration with DebugPlus should not require DebugPlus itself.
     for row in report:
         if row["status"] == "missing-target" and "debugplus" in row["target"].lower():

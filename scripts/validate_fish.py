@@ -43,6 +43,16 @@ def validate_archive():
             ok, error = compile_lua(archive.read(path).decode("utf-8"), "@" + path)
             assert ok, f"Lua syntax failure in {path}: {error}"
         assert 'function M.getNormalizedPath' in archive.read('browser/nativefs.lua').decode('utf-8'), 'Steamodded NativeFS path shim missing'
+        # love.js cannot recover from a failed shader compile, so the WebGL 1
+        # repairs must be present in every packaged shader.
+        smods = archive.read('Mods/Steamodded/src/game_object.lua').decode('utf-8')
+        assert 'vec2[8](' not in smods, 'Steamodded atlas scaling shader still uses a GLSL 3 array'
+        assert 'if self.image_data and self.image_data.release then' in smods, 'Atlas reload memory release missing'
+        import re
+        for path in sorted(n for n in names if n.startswith('Mods/FishAndChips/assets/shaders/') and n.endswith('.fs')):
+            code = archive.read(path).decode('utf-8')
+            assert not re.search(r'\b\w+\s*\[\s*\d*\s*\]\s*\(', code), f'GLSL 3 array constructor in {path}'
+            assert not re.search(r'\b(?:extern|uniform)\b[^;(){}]*=', code), f'Uniform initializer in {path}'
     report = json.loads((ROOT / "build" / "patch-report-fish-and-chips.json").read_text())
     failures = [r for r in report if r["status"] not in ("applied", "not-applicable")]
     assert not failures, f"{len(failures)} unresolved Lovely patches"

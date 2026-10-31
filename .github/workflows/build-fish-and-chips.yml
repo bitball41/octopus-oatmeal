@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/build-fish-and-chips.yml'
       - 'scripts/build_fish.py'
+      - 'scripts/fish_shaders.py'
       - 'scripts/install_fish_launcher.py'
       - 'scripts/validate_fish.py'
   workflow_dispatch:

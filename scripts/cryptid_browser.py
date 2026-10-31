@@ -127,6 +127,23 @@ end
     return p, None
 
 
+def atlas_scaling(s):
+    s = once(s, 'vec2 neigbours[8] = vec2[8](vec2(-1, -1),vec2(0, -1),vec2(1, -1),vec2(-1, 0),vec2(1, 0),vec2(-1, 1),vec2(0, 1),vec2(1, 1));',
+             '// WebGL 1: derive the eight neighbour offsets inside the loop.', 'atlas shader array constructor')
+    s = once(s, 'for (int i = 0; i < 8; i++) {',
+             'for (int i = 0; i < 9; i++) {\n                if (i == 4) continue;', 'atlas shader neighbour loop')
+    s = once(s, 'vec2 c = uv + (neigbours[i] * dim);',
+             'vec2 c = uv + vec2(mod(float(i), 3.0)-1.0, floor(float(i)/3.0)-1.0) * dim;', 'atlas shader offsets')
+    s = s.replace('c.x < 0 || c.x > 1', 'c.x < 0.0 || c.x > 1.0')
+    return s.replace('c.y < 0 || c.y > 1', 'c.y < 0.0 || c.y > 1.0')
+
+
+def repair_atlas_scaling_shader(files):
+    """Steamodded 26.829's atlas scaling shader uses a GLSL 3 array constructor."""
+    name = 'Mods/Steamodded/src/game_object.lua'
+    files[name] = atlas_scaling(files[name].decode()).encode()
+
+
 def prepare_cryptid_sources(files):
     def edit(name, fn):
         files[name] = fn(files[name].decode()).encode()
@@ -135,16 +152,7 @@ def prepare_cryptid_sources(files):
     files.pop('Mods/Amulet/manifest.json', None)
     if 'Mods/Cryptid/Cryptid.lua' in files:
         edit('Mods/Cryptid/lib/content.lua', lambda s: s.replace('mipmaps = true', 'mipmaps = false'))
-    def atlas_scaling(s):
-        s = once(s, 'vec2 neigbours[8] = vec2[8](vec2(-1, -1),vec2(0, -1),vec2(1, -1),vec2(-1, 0),vec2(1, 0),vec2(-1, 1),vec2(0, 1),vec2(1, 1));',
-                 '// WebGL 1: derive the eight neighbour offsets inside the loop.', 'atlas shader array constructor')
-        s = once(s, 'for (int i = 0; i < 8; i++) {',
-                 'for (int i = 0; i < 9; i++) {\n                if (i == 4) continue;', 'atlas shader neighbour loop')
-        s = once(s, 'vec2 c = uv + (neigbours[i] * dim);',
-                    'vec2 c = uv + vec2(mod(float(i), 3.0)-1.0, floor(float(i)/3.0)-1.0) * dim;', 'atlas shader offsets')
-        s = s.replace('c.x < 0 || c.x > 1', 'c.x < 0.0 || c.x > 1.0')
-        return s.replace('c.y < 0 || c.y > 1', 'c.y < 0.0 || c.y > 1.0')
-    edit('Mods/Steamodded/src/game_object.lua', atlas_scaling)
+    repair_atlas_scaling_shader(files)
 
     # Amulet mounts these directories with LuaJIT FFI on desktop. The same
     # modules live directly in the browser's read-only LÖVE archive instead.
