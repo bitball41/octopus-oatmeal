@@ -17,6 +17,8 @@ local function path(value)
     end
     return table.concat(parts, '/')
 end
+-- Steamodded v26.829 uses NativeFS path normalization during mod loading.
+function M.getNormalizedPath(value) return path(value) end
 function M.setWorkingDirectory(value) working = path(value); return true end
 function M.getWorkingDirectory() return working end
 function M.getInfo(value) return fs.getInfo(path(value)) end

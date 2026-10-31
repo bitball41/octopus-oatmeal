@@ -39,6 +39,7 @@ def validate_archive():
         for path in sorted(n for n in names if n.endswith(".lua")):
             ok, error = compile_lua(archive.read(path).decode("utf-8"), "@" + path)
             assert ok, f"Lua syntax failure in {path}: {error}"
+    assert 'function M.getNormalizedPath' in archive.read('browser/nativefs.lua').decode('utf-8'), 'Steamodded NativeFS path shim missing'
     report = json.loads((ROOT / "build" / "patch-report-fish-and-chips.json").read_text())
     failures = [r for r in report if r["status"] not in ("applied", "not-applicable")]
     assert not failures, f"{len(failures)} unresolved Lovely patches"
