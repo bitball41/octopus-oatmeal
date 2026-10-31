@@ -53,6 +53,8 @@ try{
     if(logs.some(x=>/PAGEERROR|Oops! The game crashed|\[Lua Error|Aborted\(|RuntimeError:|out of memory/i.test(x)))break;
   }
   if(visible)await page.waitForTimeout(7000);
+  const saveNamespace=await page.evaluate(()=>window.Module?.persistenceDatabase||null);
+  console.log('Fish save namespace',saveNamespace);
   await page.screenshot({path:path.join(reportDir,'fish-browser.png')});
   writeFileSync(path.join(reportDir,'fish-browser.log'),logs.join('\n'));
   const fatal=logs.filter(x=>/PAGEERROR|Oops! The game crashed|\[Lua Error|Aborted\(|RuntimeError:|out of memory/i.test(x));
