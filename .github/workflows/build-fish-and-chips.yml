@@ -1,0 +1,72 @@
+name: Build Fish and Chips for browser
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-fish-and-chips.yml'
+      - 'scripts/build_fish.py'
+      - 'scripts/install_fish_launcher.py'
+      - 'scripts/validate_fish.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fish-and-chips-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies and pinned Steamodded sources
+        run: |
+          npm ci
+          python -m pip install lupa pillow
+          python scripts/fetch_cryptid_sources.py
+      - name: Build and validate Fish and Chips
+        run: |
+          python scripts/build_fish.py --release
+          python scripts/validate_fish.py
+      - name: Install isolated preset in launchers
+        run: |
+          python scripts/install_fish_launcher.py --persist-hook
+          python scripts/patch_multiplayer_html.py
+          python scripts/validate_fish.py --launcher
+          node scripts/validate_runtime_loader.mjs
+      - name: Commit successful browser build
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fish-and-chips/ scripts/install_mod_selector.py index.html balatro.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Add playable Fish and Chips Balatro browser preset"
+          fi
+          python - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+          sha = subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip()
+          Path('runtime.json').write_text(json.dumps({'sha': sha})+'\n')
+          for name in ('index.html', 'balatro.html'):
+              p = Path(name)
+              p.write_text(re.sub(r'(var FALLBACK_RUNTIME_REF\s*=\s*)"[0-9a-f]{40}"',
+                                  lambda m: m[1] + '"' + sha + '"', p.read_text()))
+          PY
+          git add runtime.json index.html balatro.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Pin Fish and Chips runtime for launcher fallback"
+          fi
+          git push origin HEAD:main
