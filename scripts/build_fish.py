@@ -90,6 +90,9 @@ def build(release=False, candidate=False):
     for row in report:
         if row["status"] == "missing-target" and "debugplus" in row["target"].lower():
             row.update(status="not-applicable", reason="DebugPlus is optional")
+    for row in report:
+        if row["status"] not in ("applied", "not-applicable"):
+            print("FISH PATCH UNRESOLVED", row["mod"], row["manifest"], row["index"], row["kind"], row["status"], row["target"], "matches", row["matches"], "expected", row.get("expected"), flush=True)
     browser.summarize_report(report, "fish-and-chips",
                              "patch-report-fish-and-chips.json", candidate)
     return browser.emit_archive(
