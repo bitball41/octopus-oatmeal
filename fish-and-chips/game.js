@@ -31,7 +31,7 @@ Module.expectedDataFileDownloads++;
       throw "using preloaded data can only be done on a web page or in a web worker";
     }
     var PACKAGE_NAME = "game.data";
-    var REMOTE_PACKAGE_BASE = "game.data?v=b91c4b10";
+    var REMOTE_PACKAGE_BASE = "game.data?v=d3e46c82";
     if (
       typeof Module["locateFilePackage"] === "function" &&
       !Module["locateFile"]
@@ -50,7 +50,7 @@ Module.expectedDataFileDownloads++;
     var PACKAGE_UUID = metadata.package_uuid;
     // jsDelivr 403s any single file over 20 MB. Fat archives ship as
     // game.data.part0, part1, ... and get concatenated before processPackageData.
-    var SPLIT_PACKAGE_PARTS = ["game.data.part0", "game.data.part1", "game.data.part2", "game.data.part3", "game.data.part4", "game.data.part5", "game.data.part6", "game.data.part7", "game.data.part8", "game.data.part9"];
+    var SPLIT_PACKAGE_PARTS = ["game.data.part0", "game.data.part1", "game.data.part2", "game.data.part3", "game.data.part4", "game.data.part5", "game.data.part6", "game.data.part7", "game.data.part8", "game.data.part9", "game.data.part10", "game.data.part11", "game.data.part12", "game.data.part13"];
 
     function fetchRemotePackage(packageName, packageSize, callback, errback) {
       function applyProgress(url, loaded, size) {
@@ -405,14 +405,14 @@ Module.expectedDataFileDownloads++;
     }
   };
   loadPackage({
-    package_uuid: "d9d136fb-6a46-5344-a0b8-329c22826d60",
-    remote_package_size: 104617842,
+    package_uuid: "37a54109-8041-56cc-b132-206c990a4abb",
+    remote_package_size: 136465617,
     files: [
       {
         filename: "/game.love",
         crunched: 0,
         start: 0,
-        end: 104617842,
+        end: 136465617,
         audio: false,
       },
     ],
