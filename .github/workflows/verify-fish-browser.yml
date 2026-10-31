@@ -1,0 +1,35 @@
+name: Verify Fish and Chips Browser
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/validate_fish_browser.mjs'
+      - '.github/workflows/verify-fish-browser.yml'
+      - 'fish-and-chips/parts.json'
+      - 'fish-and-chips/game.js'
+      - 'index.html'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/validate_fish_browser.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fish-browser-smoke
+          path: build/fish-browser-smoke
+          if-no-files-found: ignore
