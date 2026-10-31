@@ -158,6 +158,28 @@ def build(release=False, candidate=False):
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
     )
+    # Fish and Chips ships almost every atlas at 1x, but the browser's
+    # texture-scaling setting requests 2x atlases. Duplicate them with
+    # nearest-neighbor pixel replication without changing runtime filtering.
+    # Linear smoothing and Steamodded mipmaps remain enabled.
+    from PIL import Image
+    generated = 0
+    for path in list(files):
+        if not path.startswith('Mods/FishAndChips/assets/1x/') or not path.lower().endswith('.png'):
+            continue
+        target = path.replace('/assets/1x/', '/assets/2x/', 1)
+        if target in files:
+            continue
+        with Image.open(io.BytesIO(files[path])) as source:
+            scale = (source.width * 2, source.height * 2)
+            if max(scale) > 16384:
+                raise RuntimeError(f'Fish image too large for WebGL 2x atlas: {path}: {scale}')
+            image = source.resize(scale, Image.Resampling.NEAREST)
+            buf = io.BytesIO()
+            image.save(buf, format='PNG', optimize=True)
+            files[target] = buf.getvalue()
+            generated += 1
+    print(f'Generated {generated} missing 2x Fish atlases without changing smoothing')
     # Steamodded's menu Lovely patch reads the mipmap options during
     # Game:set_render_settings, earlier than its config is initialized in
     # the browser. Use the same upstream default values until available.

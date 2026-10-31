@@ -26,6 +26,8 @@ def validate_archive():
             "Mods/Steamodded/src/preflight/loader.lua",
             "browser/platform.lua",
         }
+        assert 'Mods/FishAndChips/assets/2x/core/soup.png' in names, 'Fish 2x core sprites are missing'
+        assert sum(name.startswith('Mods/FishAndChips/assets/2x/') and name.endswith('.png') for name in names) >= 200
         missing = needed - names
         assert not missing, f"Missing content: {sorted(missing)}"
         assert not any(n.startswith("Mods/Multiplayer/") for n in names)
