@@ -158,6 +158,18 @@ def build(release=False, candidate=False):
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
     )
+    # Steamodded's menu Lovely patch reads the mipmap options during
+    # Game:set_render_settings, earlier than its config is initialized in
+    # the browser. Use the same upstream default values until available.
+    # Keep linear mipmaps and the user's existing pixel smoothing enabled.
+    mipmap = 'SMODS.config.graphics_mipmap_level_options[SMODS.config.graphics_mipmap_level]'
+    guarded = '(SMODS.config.graphics_mipmap_level_options or {0, 2, 4, 8})[SMODS.config.graphics_mipmap_level or 3]'
+    for path in ('game.lua', 'Mods/Steamodded/src/game_object.lua'):
+        content = files[path].decode('utf-8')
+        count = content.count(mipmap)
+        if count != 1:
+            raise RuntimeError(f'Unexpected mipmap anchor count {count} in {path}')
+        files[path] = content.replace(mipmap, guarded, 1).encode('utf-8')
     # Optional integration with DebugPlus should not require DebugPlus itself.
     for row in report:
         if row["status"] == "missing-target" and "debugplus" in row["target"].lower():
