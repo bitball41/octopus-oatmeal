@@ -86,3 +86,8 @@ for name in ['index.html','balatro.html']:
         s=s[:a]+canonical[start:end]+s[b:]
     s=s.replace('          if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {', '          if (e.target && /^(INPUT|TEXTAREA|BUTTON|SELECT)$/.test(e.target.tagName)) return;\n          if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {') if 'e.target.tagName' not in s else s
     p.write_text(s)
+
+# Keep the Fish and Chips preset when this selector is regenerated.
+if (ROOT / 'fish-and-chips' / 'parts.json').exists():
+    from install_fish_launcher import install as install_fish
+    install_fish()

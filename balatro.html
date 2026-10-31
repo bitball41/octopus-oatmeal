@@ -241,6 +241,7 @@
       .mode-row button:hover,.mode-row button:focus-visible {transform:translateY(-2px);box-shadow:0 0 0 3px #ffffff42;outline:none;}
       #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid,#mode-entropy {min-width:180px;}
       #mode-entropy {background:#9b2946;}
+      #mode-fish {background:#257f98;}
       #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
       #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
       #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
@@ -286,6 +287,7 @@
           <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
           <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
           <button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>
+          <button id="mode-fish" type="button" data-tip="fish">Fish &amp; Chips</button>
         </div>
         <div class="mode-row" aria-label="More mods">
           <button id="mode-paperback" type="button" data-tip="paperback">Paperback</button>
@@ -680,6 +682,13 @@ async function cachedScriptURL(src) {
             memory: 536870912,
             parts: ["game.data.part0", "game.data.part1"],
           },
+          fish: {
+            persist: "/home/web_user/love-fish-and-chips",
+            dir: "fish-and-chips/",
+            multiplayer: false,
+            memory: 536870912,
+            parts: ["game.data.part0", "game.data.part1", "game.data.part2", "game.data.part3", "game.data.part4", "game.data.part5", "game.data.part6", "game.data.part7"],
+          },
           multiplayer: {
             persist: "/home/web_user/love",
             dir: "",
@@ -834,6 +843,7 @@ async function cachedScriptURL(src) {
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
             handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
             entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Handy and Spectrallib. Separate save.'],
+            fish:['Fish & Chips','Go fishing in Balatro: hundreds of fish, collectible rods and a fishing minigame. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Includes Handy. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
@@ -924,6 +934,7 @@ async function cachedScriptURL(src) {
           bindModSelector();
           bindMode("mode-cryptid", "cryptid");
           bindMode("mode-entropy", "entropy");
+          bindMode("mode-fish", "fish");
           bindMode("mode-multiplayer", "multiplayer");
           var hash =
             typeof location !== "undefined"
