@@ -64,6 +64,7 @@ def build(release=False, candidate=False):
     def fish_adapt(files, flavor='multiplayer'):
         return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
     browser_adapters.adapt_sources = fish_adapt
+    browser.adapt_sources = fish_adapt  # build_upstream imported it by name
     files, report = browser.build_smods_pack(
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
