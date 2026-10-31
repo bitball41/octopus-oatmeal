@@ -110,6 +110,27 @@ def build(release=False, candidate=False):
         if mod != 'FishAndChips' or reason:
             return p, reason
         key = (name, index)
+        if key == ('lovely/stats.toml', 1):
+            # Browser saves use decoded profile objects instead of the
+            # desktop's inline `progress` literal; lazily initialize the
+            # fishing stats on save after the profile has been loaded.
+            p['pattern'] = 'function Game:save_progress()'
+            p['position'] = 'after'
+            fields = ('career_fish_caught', 'career_perfect_catch',
+                      'career_treasure_caught', 'career_lines_snapped',
+                      'career_sand_dollars', 'career_fish_sold')
+            collections = ('environments_data', 'baits_used',
+                           'fish_data', 'rod_data', 'bait_data')
+            defaults = ['    ' + name + ' = 0,' for name in fields]
+            defaults += ['    ' + name + ' = {},' for name in collections]
+            p['payload'] = ('local profile = G.PROFILES and G.PROFILES[G.SETTINGS.profile]\n'
+                            'if profile then\n'
+                            '    profile.fac_fishing = profile.fac_fishing or {\n' +
+                            '\n'.join(defaults) + '\n    }\nend')
+        if key == ('lovely/menu.toml', 7):
+            p['pattern'] = ('G.VIBRATION = G.VIBRATION + 1\n'
+                            'G.MOBILE_VIBRATION_QUEUE = math.max(G.MOBILE_VIBRATION_QUEUE or 0, 2)\n'
+                            'return true\nend)}))')
         if key == ('lovely/fish.toml', 4):
             p['pattern'] = "elseif set == 'Blind' then"
             p['position'] = 'before'
