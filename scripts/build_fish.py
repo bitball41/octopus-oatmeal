@@ -180,6 +180,18 @@ def build(release=False, candidate=False):
             files[target] = buf.getvalue()
             generated += 1
     print(f'Generated {generated} missing 2x Fish atlases without changing smoothing')
+    # Windows treats asset paths case-insensitively. The bundled browser
+    # filesystem is case-sensitive; add lowercase aliases for upstream
+    # mismatches like breukel/Markerels.png vs breukel/markerels.png.
+    prefix = 'Mods/FishAndChips/assets/'
+    aliases = 0
+    for path in list(files):
+        if path.startswith(prefix):
+            alias = prefix + path[len(prefix):].lower()
+            if alias not in files:
+                files[alias] = files[path]
+                aliases += 1
+    print(f'Added {aliases} case-insensitive Fish asset aliases')
     # Steamodded's menu Lovely patch reads the mipmap options during
     # Game:set_render_settings, earlier than its config is initialized in
     # the browser. Use the same upstream default values until available.

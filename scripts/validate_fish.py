@@ -27,6 +27,7 @@ def validate_archive():
             "browser/platform.lua",
         }
         assert 'Mods/FishAndChips/assets/2x/core/soup.png' in names, 'Fish 2x core sprites are missing'
+        assert 'Mods/FishAndChips/assets/2x/breukel/markerels.png' in names, 'Fish mixed-case asset alias missing'
         assert sum(name.startswith('Mods/FishAndChips/assets/2x/') and name.endswith('.png') for name in names) >= 200
         missing = needed - names
         assert not missing, f"Missing content: {sorted(missing)}"
