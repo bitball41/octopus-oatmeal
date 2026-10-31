@@ -57,6 +57,13 @@ def build(release=False, candidate=False):
     lock = json.loads((ROOT / "vendor" / "upstream.json").read_text())
     lock["Steamodded"] = lock["SteamoddedCryptid"]  # v26.829.0
     download_sources(lock)
+    # Steamodded v26.829.0 uses the `file` shader argument, unlike older packs.
+    # Reuse the newer adapter without enabling Cryptid-specific modes or assets.
+    import browser_adapters
+    original_adapt = browser_adapters.adapt_sources
+    def fish_adapt(files, flavor='multiplayer'):
+        return original_adapt(files, flavor='cryptid' if flavor == 'fish-and-chips' else flavor)
+    browser_adapters.adapt_sources = fish_adapt
     files, report = browser.build_smods_pack(
         ["Steamodded", "APotatoPatchUtils", "FishAndChips"],
         "fish-and-chips", ("browser/menu.lua",), lock,
