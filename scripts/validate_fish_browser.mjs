@@ -53,7 +53,8 @@ try{
   await page.screenshot({path:path.join(reportDir,'fish-browser.png')});
   writeFileSync(path.join(reportDir,'fish-browser.log'),logs.join('\n'));
   const fatal=logs.filter(x=>/PAGEERROR|Oops! The game crashed|\[Lua Error|Aborted\(|RuntimeError:|out of memory/i.test(x));
-  console.log(logs.slice(-28).join('\n'));
+  console.log('FISH FULL LOG START\n'+logs.slice(0,140).join('\n')+'\nFISH FULL LOG END');
+  console.log('FISH FATAL ERRORS\n'+fatal.join('\n'));
   if(!visible||fatal.length)throw new Error('Fish & Chips browser startup failed: rendered='+visible+' errors='+fatal.length);
   console.log('Fish & Chips browser startup passed');
 } finally {
