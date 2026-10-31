@@ -23,7 +23,7 @@ def validate_archive():
             "Mods/FishAndChips/src/fishminigamemechanics.lua",
             "Mods/FishAndChips/src/mod_menu.lua",
             "Mods/PotatoPatchUtils/main.lua",
-            "Mods/Steamodded/src/loader.lua",
+            "Mods/Steamodded/src/preflight/loader.lua",
             "browser/platform.lua",
         }
         missing = needed - names
