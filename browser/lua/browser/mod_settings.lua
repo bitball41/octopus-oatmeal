@@ -23,6 +23,23 @@ local function octopus_config()
     return octopus_config_cache
 end
 
+-- Mods load textures through several loaders (Steamodded atlases, Cryptid,
+-- Handy, deck skins), and not all of them pick up the smoothing setting when
+-- it changes. Apply it to every loaded texture directly.
+local function apply_smoothing_filters()
+    local graphics = G and G.SETTINGS and G.SETTINGS.GRAPHICS
+    if not graphics then return end
+    local mode = graphics.texture_scaling == 1 and 'nearest' or 'linear'
+    for _, atlases in ipairs({G.ASSET_ATLAS or {}, G.ANIMATION_ATLAS or {}}) do
+        for _, atlas in pairs(atlases) do
+            local image = type(atlas) == 'table' and atlas.image
+            if image and image.setFilter and not atlas.force_pixel then
+                pcall(image.setFilter, image, mode, mode)
+            end
+        end
+    end
+end
+
 local set_render_settings = Game.set_render_settings
 function Game:set_render_settings(...)
     local settings = self.SETTINGS
@@ -32,7 +49,22 @@ function Game:set_render_settings(...)
             settings.GRAPHICS.texture_scaling = 1
         end
     end
-    return set_render_settings(self, ...)
+    local result = set_render_settings(self, ...)
+    apply_smoothing_filters()
+    return result
+end
+
+local smoothing_wrapped = false
+local function install_smoothing_toggle()
+    if smoothing_wrapped or not (G and G.FUNCS and G.FUNCS.change_pixel_smoothing) then return end
+    smoothing_wrapped = true
+    local change_pixel_smoothing = G.FUNCS.change_pixel_smoothing
+    G.FUNCS.change_pixel_smoothing = function(...)
+        local result = change_pixel_smoothing(...)
+        -- Mod atlases are re-injected after set_render_settings; cover them too.
+        apply_smoothing_filters()
+        return result
+    end
 end
 
 -- Returns true when Steamodded palettes exist and were brought in line with
@@ -90,6 +122,8 @@ local start_up = Game.start_up
 function Game:start_up(...)
     local result = start_up(self, ...)
     install_contrast_toggle()
+    install_smoothing_toggle()
+    apply_smoothing_filters()
     -- Saves where High Contrast was switched on while it had no effect.
     if self.SETTINGS and self.SETTINGS.colourblind_option and sync_contrast_palettes() then
         refresh_card_fronts()
