@@ -34,6 +34,13 @@ function G.FUNCS.update_suit_colours(suit)
     local p = G.SETTINGS.colour_palettes[suit]
     G.C.SUITS[suit] = G.C['SO_' .. (p == 'hc' and 2 or 1)][suit]
 end
+local function image() local i = {filter = 'unset'}; function i:setFilter(a) self.filter = a end; return i end
+G.ASSET_ATLAS = {Joker = {image = image()}, cry_atlas = {image = image()}, pixel_only = {image = image(), force_pixel = true}}
+G.ANIMATION_ATLAS = {blind_chips = {image = image()}}
+function G.FUNCS.change_pixel_smoothing(args)
+    G.SETTINGS.GRAPHICS.texture_scaling = args.to_key
+    G.ASSET_ATLAS.late_mod = {image = image()}  -- re-injected after set_render_settings
+end
 love = {filesystem = {}}
 function love.filesystem.getInfo(path) return config_json and path == 'browser/build_config.json' and {type = 'file'} or nil end
 function love.filesystem.read() return config_json end
@@ -92,6 +99,19 @@ def check_pixel_smoothing():
     assert lua.eval('calls.render') == 1
 
 
+def check_texture_filters():
+    lua = runtime()
+    lua.execute('G:start_up()')
+    filters = lambda: {k: lua.eval(f'G.{t}.{k}.image.filter') for t, k in [('ASSET_ATLAS', 'Joker'), ('ASSET_ATLAS', 'cry_atlas'), ('ANIMATION_ATLAS', 'blind_chips')]}
+    assert set(filters().values()) == {'nearest'}, filters()
+    lua.execute('G.FUNCS.change_pixel_smoothing({to_key = 2})')
+    assert set(filters().values()) == {'linear'}, 'every loaded texture must follow the toggle'
+    assert lua.eval('G.ASSET_ATLAS.late_mod.image.filter') == 'linear', 'atlases injected by the toggle are covered'
+    assert lua.eval('G.ASSET_ATLAS.pixel_only.image.filter') == 'unset', 'force_pixel atlases stay as their mod made them'
+    lua.execute('G.FUNCS.change_pixel_smoothing({to_key = 1})')
+    assert set(filters().values()) == {'nearest'}
+
+
 def check_high_contrast():
     lua = runtime()
     lua.execute('G:start_up()')
@@ -141,6 +161,7 @@ def check_releases():
 
 
 check_pixel_smoothing()
+check_texture_filters()
 check_high_contrast()
 if '--no-releases' not in sys.argv:
     check_releases()
