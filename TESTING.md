@@ -63,9 +63,11 @@ Discord member-count lookup uses Cryptid's upstream offline fallback.
 The Build Cryptid browser mode workflow reproduces and commits the generated
 assets, then updates the launcher fallback to that exact runtime commit.
 
-## Handy in Cryptid
+## Handy with Cryptid
 
-Cryptid also includes pinned Handy 2.0.6. Open **Options → Handy** to configure
+Cryptid and Entropy no longer bundle Handy. Pick **Cryptid + Handy** in Custom Build
+(which also brings JokerDisplay and Overflow) to play with pinned Handy 2.0.6.
+`scripts/validate_handy.py` checks that build. Open **Options → Handy** to configure
 its keybinds, quick buy/sell/use, hand selection, speed, and animation skipping.
 The existing game settings include speed/animation controls; no launcher
 toolbar or extra in-game HUD buttons are added.

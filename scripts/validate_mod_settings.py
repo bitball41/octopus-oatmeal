@@ -149,10 +149,20 @@ def release_files(folder):
     return zipfile.ZipFile(io.BytesIO(b''.join((directory / p).read_bytes() for p in parts)))
 
 
+def compiled_source():
+    # Cryptid-flavour builds compile mixed numeric comparisons in every Lua file.
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    from cryptid_browser import compile_comparisons
+    files = {'browser/mod_settings.lua': SOURCE.encode(), 'main.lua': b''}
+    compile_comparisons(files)
+    return files['browser/mod_settings.lua'].decode()
+
+
 def check_releases():
     for folder in ['paperback', 'bunco', 'pokermon', 'cryptid', 'entropy', 'fish-and-chips', '']:
         z = release_files(folder)
-        assert z.read('browser/mod_settings.lua').decode() == SOURCE, f'{folder or "multiplayer"}: stale mod_settings.lua'
+        packed = z.read('browser/mod_settings.lua').decode()
+        assert packed in (SOURCE, compiled_source()), f'{folder or "multiplayer"}: stale mod_settings.lua'
         assert z.read('main.lua').decode().rstrip().endswith(REQUIRE), f'{folder or "multiplayer"}: mod_settings not loaded last'
         assert "love.graphics.setShader( G.SHADERS['CRT'])" in z.read('game.lua').decode(), f'{folder or "multiplayer"}: CRT colour pass missing'
     for folder in ['vanilla', 'vanilla-handy']:

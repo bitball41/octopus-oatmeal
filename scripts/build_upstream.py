@@ -430,7 +430,8 @@ def build_cryptid(candidate=False, release=False):
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
     # Cryptid requires the newer API; keep the other modes on their own pin.
     lock['Steamodded'] = lock['SteamoddedCryptid']
-    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Cryptid', 'Handy'],
+    # Handy is opt-in through Custom Build (Cryptid + Handy).
+    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Cryptid'],
                                     'cryptid', ('browser/menu.lua',), lock)
     summarize_report(report, 'cryptid', 'patch-report-cryptid.json', candidate)
     return emit_archive(files, ROOT/'build/cryptid', (ROOT/'game.js').read_text(),
@@ -440,7 +441,7 @@ def build_cryptid(candidate=False, release=False):
 def build_entropy(candidate=False, release=False):
     lock = json.loads((ROOT/'vendor/upstream.json').read_text())
     lock['Steamodded'] = lock['SteamoddedCryptid']
-    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Spectrallib', 'Entropy', 'Handy'],
+    files, report = build_smods_pack(['Steamodded', 'Amulet', 'Spectrallib', 'Entropy'],
                                     'cryptid', ('browser/menu.lua',), lock)
     summarize_report(report, 'entropy', 'patch-report-entropy.json', candidate)
     return emit_archive(files, ROOT/'build/entropy', (ROOT/'game.js').read_text(),

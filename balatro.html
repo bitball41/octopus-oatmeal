@@ -565,7 +565,7 @@
         }
 
         /* OCTOPUS_ASSET_CACHE_START */
-var ASSET_REVISIONS = {"bunco/game.js": "dea53d5660ad0a39ddbce4285a425f385d3dba8a38cddfcb51bfba7cb860aa6e", "cryptid/game.js": "0e16ff51299d48cbcdeae41519c74a1587effc198bb5a952eef6a7c2ddd1bf80", "entropy/game.js": "1706e128d854ac99aa052fe96e0eeaf4d74c4e5f71d1b7b3397516d7ebaab5c9", "game.js": "c5ebc426a8f1574c91e510f18b2403556e833510d9a3c1dee894ca480f30710c", "love.js": "3be430f3d1da0197090540f21a627f3a286d23f37acf69e3990e9f885ca8be51", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "6ee8ce46b653e9a9e52aed9e408445f50d14bb75f78ec62676c4c5e286b72651", "paperback/game.js": "5e328171de894bc99dfcdea38a90763a6152532b0279e602d2e5e580e0d13749", "pokermon/game.js": "86585a5b175f8238e6590f251d470899f49cc62af0e71a01caae8953f2de6366", "vanilla-handy/game.js": "7a6424fcdf1d9c9a4a71b009dd664ba8fa31fff8643036dfd5e01604a2262983", "vanilla/game.js": "f8a15821716fb9b9d48aa6a203c58fa741159693b803d4e6963ac8c331caa277"};
+var ASSET_REVISIONS = {"bunco/game.js": "dea53d5660ad0a39ddbce4285a425f385d3dba8a38cddfcb51bfba7cb860aa6e", "cryptid/game.js": "6cf8f5829205602dfc50dcb64429bb928b1ea7e50371da90ad7a3f3d74fe7ca4", "entropy/game.js": "ed2d844e6d60d44fae0ef62c765893f2391a8269d0f1dde7d92e9d1532980d67", "game.js": "c5ebc426a8f1574c91e510f18b2403556e833510d9a3c1dee894ca480f30710c", "love.js": "3be430f3d1da0197090540f21a627f3a286d23f37acf69e3990e9f885ca8be51", "love.wasm": "ecc9e098bb8af918d20fbe3f26d23495c5184ff6b5d203d2e4b27bf17a771d6f", "multiplayer_upstream.js": "6ee8ce46b653e9a9e52aed9e408445f50d14bb75f78ec62676c4c5e286b72651", "paperback/game.js": "5e328171de894bc99dfcdea38a90763a6152532b0279e602d2e5e580e0d13749", "pokermon/game.js": "86585a5b175f8238e6590f251d470899f49cc62af0e71a01caae8953f2de6366", "vanilla-handy/game.js": "7a6424fcdf1d9c9a4a71b009dd664ba8fa31fff8643036dfd5e01604a2262983", "vanilla/game.js": "f8a15821716fb9b9d48aa6a203c58fa741159693b803d4e6963ac8c331caa277"};
 // Embedded in both launchers by patch_multiplayer_html.py (including file://).
 var assetDatabase;
 function assetDB() {
@@ -870,9 +870,9 @@ async function cachedScriptURL(src) {
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
             handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
-            entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Handy and Spectrallib. Separate save.'],
+            entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Spectrallib. Separate save.'],
             fish:['Fish & Chips','Go fishing in Balatro: hundreds of fish, collectible rods and a fishing minigame. Separate save.'],
-            cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Includes Handy. Separate save.'],
+            cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Add Handy with Custom Build. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
             bunco:['Bunco','A vanilla-style expansion with new Jokers, exotic suits and extra mechanics. Separate save.'],
             multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],

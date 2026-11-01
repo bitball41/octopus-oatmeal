@@ -3,7 +3,7 @@
 import io,json,zipfile,sys
 from pathlib import Path
 from lupa.lua51 import LuaRuntime
-p=Path(__file__).resolve().parents[1]/(sys.argv[1] if len(sys.argv)>1 else 'cryptid')
+p=Path(__file__).resolve().parents[1]/(sys.argv[1] if len(sys.argv)>1 else 'vanilla-handy')
 z=zipfile.ZipFile(p/'game.data') if (p/'game.data').exists() else zipfile.ZipFile(io.BytesIO(b''.join((p/n).read_bytes() for n in json.loads((p/'parts.json').read_text()))))
 lua=LuaRuntime(unpack_returned_tuples=True)
 lua.execute(z.read('browser/bignum_compare.lua').decode())

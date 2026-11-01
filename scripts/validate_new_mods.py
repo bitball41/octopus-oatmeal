@@ -35,7 +35,7 @@ assert 'Mods/Overflow/Overflow.lua' in handy.namelist()
 assert not any(name.startswith('Mods/Steamodded/') for name in handy.namelist())
 assert 'Mods/Entropy/Entropy.lua' in entropy.namelist()
 assert 'Mods/Spectrallib/main.lua' in entropy.namelist()
-assert 'Mods/Handy/index.lua' in entropy.namelist()
+assert not any(n.startswith('Mods/Handy/') for n in entropy.namelist()), 'Handy is opt-in, not bundled with Entropy'
 assert not any(name.startswith('Mods/Cryptid/') for name in entropy.namelist())
 assert "^E[123]$" in entropy.read('game.lua').decode()
 assert 'self:load_profile(G.SETTINGS.profile)' in entropy.read('game.lua').decode()

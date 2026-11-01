@@ -11,10 +11,12 @@ from pathlib import Path
 from lupa.lua51 import LuaRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
-directory = ROOT / 'cryptid'
-z = zipfile.ZipFile(io.BytesIO(b''.join((directory/n).read_bytes()
-    for n in json.loads((directory/'parts.json').read_text()))))
-files = {name: z.read(name).decode() for name in z.namelist() if name.endswith('.lua')}
+# Handy on Steamodded ships as the Cryptid + Handy custom build (Cryptid itself no longer bundles it).
+recipe = json.loads((ROOT/'custom/manifest.json').read_text())['builds']['Cryptid+Handy']
+files = {}
+for pack in [*recipe['packs'], recipe['overlay']]:
+    z = zipfile.ZipFile(io.BytesIO(b''.join((ROOT/'custom'/n).read_bytes() for n in pack['parts'])))
+    files.update({name: z.read(name).decode() for name in z.namelist() if name.endswith('.lua')})
 
 
 def block(source, anchor):
