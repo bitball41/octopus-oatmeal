@@ -124,3 +124,13 @@ Custom archives are assembled from verified packs before the engine starts and b
 - `npm run test:new-mods`: Lua 5.1 compilation, CDN package limits, Entropy profile isolation, selector integration, and lossless expansion of Overflow saves in Vanilla.
 - `npm run test:new-mods-browser`: instruments temporary copies of the release archives, then boots actual WASM in Chromium. It checks JokerDisplay overlays, negative-consumable stacking and serialization, Constellation contexts, Entropy content loading, a new run, the first dealt hand and a scored hand. Install Chromium with `npx playwright install --with-deps chromium` first. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing binary.
 - Browser test output and screenshots live under `build/mod-smoke/`; instrumented archives are never published.
+
+## Mod settings and saved builds
+
+- **Pixel art smoothing** starts Off on every mod save (Steamodded builds and custom builds) and is an ordinary setting after that: turning it On in Settings → Graphics is saved and kept. Vanilla and Vanilla + Handy keep the game's own default. A custom build played on the Vanilla save keeps Vanilla's choice.
+- **High Contrast Cards** works on mods. Steamodded draws card fronts from per-suit palettes that it seeded only once, so the toggle did nothing; plain `lc`/`hc` palettes now follow it (palettes picked in Customize Deck are kept).
+- Both live in `browser/lua/browser/mod_settings.lua`, loaded last from `main.lua`. New Steamodded builds pick it up in `finish_smods_pack`; `python3 scripts/mod_settings.py` patches the published mod archives in place, and custom builds add it while assembling in the browser.
+- **Saved builds:** every Custom Build / Randomizer launch is listed under *Continue a saved build* on the picker. One click relaunches the same mods, randomizer bounds and save. × removes the entry only; its save data stays.
+- **Vanilla save:** custom builds without Cryptid can tick *Play on my Vanilla save* (Cryptid keeps its own M1–M3 profiles). Launching shows a warning to end any run in progress and to finish the modded run before going back to Vanilla, and flags it when the Vanilla save already has a run in progress.
+
+`npm run test:custom` runs `scripts/validate_mod_settings.py` (Lua behaviour plus every release archive). `npm run test:launcher` drives both launchers in Chromium at desktop and phone width.

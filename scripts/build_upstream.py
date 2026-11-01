@@ -32,6 +32,7 @@ VANILLA_SKIP = {
     'browser/menu.lua',
     'browser/platform.lua',
     'browser/nativefs.lua',
+    'browser/mod_settings.lua',
 }
 PAPERBACK_SKIP = {
     'browser/menu.lua',
@@ -255,7 +256,7 @@ def build_handy(candidate=False, release=False):
     apply_features(files, vanilla=True)
     for module, path in modules.items():
         files[module.replace('.', '/')+'.lua'] = files[path]
-    pack_browser_lua(files, ('browser/menu.lua', 'browser/platform.lua'))
+    pack_browser_lua(files, ('browser/menu.lua', 'browser/platform.lua', 'browser/mod_settings.lua'))
     files['main.lua'] = (b'require "browser.handy_platform"\n' +
                         ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
     from entropy_browser import prepare_sources
@@ -388,6 +389,8 @@ def finish_smods_pack(files, modules, early, flavor, skip_lua=()):
     files['main.lua'] = (b'require "browser.platform"\n' +
                          (b'require "browser.cryptid_platform"\n' if flavor == 'cryptid' else b'') +
                          ''.join(f'require "{m}"\n' for m in early).encode() + files['main.lua'])
+    from mod_settings import apply as apply_mod_settings
+    apply_mod_settings(files)
     if flavor == 'cryptid':
         from cryptid_browser import compile_comparisons
         compile_comparisons(files)

@@ -18,7 +18,7 @@
             multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],
             sleeves:['CardSleeves','Combine a deck with a sleeve for two sets of effects. Choose your sleeve during run setup.'],
             randomizer:['Custom Randomizer','Joker scoring rolls range from 0.1×–10× and usually stay near 1×. Related effects share a roll. Prices, odds and counts vary gently; deck rules and ante progression stay intact. Playing-card enhancements, starting cards and starting money stay unchanged.'],
-            custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves.']
+            custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves, or can play on your Vanilla save. Builds you launch are saved for one-click continuing.']
           };
           var activeTooltip;
           function hideTip(){tooltip.hidden=true;if(activeTooltip)activeTooltip.removeAttribute('aria-describedby');activeTooltip=null;}
@@ -36,18 +36,22 @@
           });
           document.addEventListener('keydown',function(e){if(e.key==='Escape'){hideTip();panel.hidden=true;document.getElementById('mode-custom').setAttribute('aria-expanded','false');}});
           panel.addEventListener('scroll',hideTip);window.addEventListener('resize',hideTip);
-          var boxes=[].slice.call(panel.querySelectorAll('input[type=checkbox]'));
+          var boxes=[].slice.call(panel.querySelectorAll('.build-option input[type=checkbox]'));
           var minimum=document.getElementById('randomizer-min'),maximum=document.getElementById('randomizer-max');
-          try{var saved=JSON.parse(localStorage.getItem('octopus-custom-build')||'null');if(saved){boxes.forEach(function(b){b.checked=saved.mods.includes(b.value);});if(saved.rangeMode==='multiplier'){minimum.value=saved.min;maximum.value=saved.max;}}}catch(_){}
+          var vanillaBox=document.getElementById('vanilla-save'),vanillaRow=document.getElementById('vanilla-save-row');
+          try{var saved=JSON.parse(localStorage.getItem('octopus-custom-build')||'null');if(saved){boxes.forEach(function(b){b.checked=saved.mods.includes(b.value);});if(saved.rangeMode==='multiplier'){minimum.value=saved.min;maximum.value=saved.max;}vanillaBox.checked=!!saved.vanillaSave;}}catch(_){}
           var standalone=false;
           function update(){
-            var chosen=boxes.filter(function(b){return b.checked;});
-            document.getElementById('randomizer-range').hidden=!chosen.some(function(b){return b.value==='randomizer';});
-            document.getElementById('build-summary').textContent=chosen.length?chosen.map(function(b){return tips[b.value][0];}).join(' + ')+(chosen.length>1?' · Experimental · Separate save':' · Separate save'):'Select two or more mods.';
+            var chosen=boxes.filter(function(b){return b.checked;}),ids=chosen.map(function(b){return b.value;});
+            document.getElementById('randomizer-range').hidden=ids.indexOf('randomizer')<0;
+            var eligible=ids.length>0&&canUseVanillaSave(ids);
+            vanillaRow.hidden=!eligible;
+            var save=eligible&&vanillaBox.checked?' · Vanilla save':' · Separate save';
+            document.getElementById('build-summary').textContent=chosen.length?chosen.map(function(b){return tips[b.value][0];}).join(' + ')+(chosen.length>1?' · Experimental':'')+save:'Select two or more mods.';
             document.getElementById('build-error').textContent='';
-            try{localStorage.setItem('octopus-custom-build',JSON.stringify({mods:chosen.map(function(b){return b.value;}),min:minimum.value,max:maximum.value,rangeMode:'multiplier'}));}catch(_){}
+            try{localStorage.setItem('octopus-custom-build',JSON.stringify({mods:ids,min:minimum.value,max:maximum.value,rangeMode:'multiplier',vanillaSave:vanillaBox.checked}));}catch(_){}
           }
-          boxes.forEach(function(b){b.addEventListener('change',update);});minimum.addEventListener('input',update);maximum.addEventListener('input',update);
+          boxes.forEach(function(b){b.addEventListener('change',update);});minimum.addEventListener('input',update);maximum.addEventListener('input',update);vanillaBox.addEventListener('change',update);
           function open(single){hideTip();standalone=!!single;panel.hidden=false;document.getElementById('mode-custom').setAttribute('aria-expanded','true');
             if(single)boxes.forEach(function(b){b.checked=b.value===single;});
             document.getElementById('build-heading').textContent=single?tips[single][0]:'Custom Build';update();panel.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -56,18 +60,108 @@
           document.getElementById('mode-randomizer').onclick=function(){open('randomizer');minimum.focus();};
           document.getElementById('mode-sleeves').onclick=function(){launchCustom(['sleeves'],{}).catch(showBuildError);};
           function showBuildError(error){booting=false;document.getElementById('mode-overlay').classList.remove('hidden');document.getElementById('loading-overlay').classList.add('hidden');panel.hidden=false;document.getElementById('build-error').textContent=error.message||String(error);}
+          function launchSaved(selected,bounds,vanillaSave){
+            confirmVanillaSave(selected,vanillaSave).then(function(ok){
+              if(ok)return launchCustom(selected,bounds,{vanillaSave:vanillaSave,remember:true});
+            }).catch(showBuildError);
+          }
           document.getElementById('launch-build').onclick=function(){
             var selected=boxes.filter(function(b){return b.checked;}).map(function(b){return b.value;});
             if(!standalone&&selected.length<2){showBuildError(new Error('Select at least two mods for a custom build.'));return;}
-            launchCustom(selected,{min:minimum.value,max:maximum.value}).catch(showBuildError);
+            launchSaved(selected,{min:minimum.value,max:maximum.value},vanillaBox.checked&&canUseVanillaSave(selected));
           };
+          // Saved builds: one click relaunches the same mods, bounds and save.
+          var labels={};boxes.forEach(function(b){labels[b.value]=b.parentNode.textContent.trim();});
+          var savedList=document.getElementById('saved-builds-list'),savedSection=document.getElementById('saved-builds');
+          function renderSaved(){
+            var entries=readSavedBuilds();
+            savedSection.hidden=!entries.length;
+            savedList.replaceChildren.apply(savedList,entries.map(function(entry){
+              var item=document.createElement('div');item.className='saved-build';
+              var play=document.createElement('button');play.type='button';play.className='saved-build-play';
+              var name=document.createElement('strong');name.textContent=savedBuildName(entry,labels);
+              var detail=document.createElement('span');detail.textContent=entry.vanillaSave?'Vanilla save':'Own save';
+              play.append(name,detail);
+              play.onclick=function(){hideTip();launchSaved(entry.mods,{min:entry.min,max:entry.max},entry.vanillaSave);};
+              var remove=document.createElement('button');remove.type='button';remove.className='saved-build-remove';remove.textContent='×';
+              remove.setAttribute('aria-label','Remove '+name.textContent+' from saved builds. Its save data is kept.');
+              remove.title='Remove from list (save data is kept)';
+              remove.onclick=function(){forgetSavedBuild(entry.key);renderSaved();};
+              item.append(play,remove);return item;
+            }));
+          }
           window.OctopusLaunch.custom=launchCustom;
+          renderSaved();
           update();
         }
-        async function launchCustom(selected,bounds){
+        var SAVED_BUILDS_KEY='octopus-saved-builds';
+        function canUseVanillaSave(selected){return selected.indexOf('cryptid')<0;}
+        function readSavedBuilds(){
+          try{var list=JSON.parse(localStorage.getItem(SAVED_BUILDS_KEY)||'[]');return Array.isArray(list)?list.filter(function(e){return e&&Array.isArray(e.mods)&&e.key;}):[];}catch(_){return [];}
+        }
+        function writeSavedBuilds(list){try{localStorage.setItem(SAVED_BUILDS_KEY,JSON.stringify(list.slice(0,12)));}catch(_){}}
+        function rememberBuild(build){
+          var key=build.identity+(build.vanillaSave?'@vanilla':'');
+          var list=readSavedBuilds().filter(function(e){return e.key!==key;});
+          list.unshift({key:key,mods:build.mods,min:build.min,max:build.max,vanillaSave:build.vanillaSave,lastPlayed:Date.now()});
+          writeSavedBuilds(list);
+        }
+        function forgetSavedBuild(key){writeSavedBuilds(readSavedBuilds().filter(function(e){return e.key!==key;}));}
+        function savedBuildName(entry,labels){
+          return entry.mods.map(function(id){
+            if(id==='randomizer')return 'Randomizer '+entry.min+'×–'+entry.max+'×';
+            return labels[id]||id;
+          }).join(' + ');
+        }
+        // Reads the Vanilla save without creating it: a new empty database would
+        // break the game's own first open of it.
+        function vanillaRunInProgress(){
+          return new Promise(function(resolve){
+            var done=false,timer=setTimeout(function(){finish(null);},2000);
+            function finish(value){if(done)return;done=true;clearTimeout(timer);resolve(value);}
+            try{
+              var req=indexedDB.open('/home/web_user/love-vanilla');
+              req.onupgradeneeded=function(e){e.target.transaction.abort();};
+              req.onerror=function(e){if(e&&e.preventDefault)e.preventDefault();finish(false);};
+              req.onblocked=function(){finish(null);};
+              req.onsuccess=function(){
+                var db=req.result;
+                try{
+                  if(!db.objectStoreNames.contains('FILE_DATA')){db.close();return finish(false);}
+                  var keys=db.transaction('FILE_DATA','readonly').objectStore('FILE_DATA').getAllKeys();
+                  keys.onsuccess=function(){db.close();finish(keys.result.some(function(k){return /\/save\.jkr$/.test(String(k));}));};
+                  keys.onerror=function(){db.close();finish(null);};
+                }catch(_){db.close();finish(null);}
+              };
+            }catch(_){finish(null);}
+          });
+        }
+        function confirmVanillaSave(selected,vanillaSave){
+          if(!vanillaSave)return Promise.resolve(true);
+          var dialog=document.getElementById('vanilla-save-dialog');
+          if(!dialog||typeof dialog.showModal!=='function')return Promise.resolve(window.confirm('Play this build on your Vanilla save? End any run you have in progress first, and finish this modded run before going back to Vanilla.'));
+          var runNote=document.getElementById('vanilla-save-run');runNote.hidden=true;
+          vanillaRunInProgress().then(function(inProgress){runNote.hidden=!inProgress;});
+          return new Promise(function(resolve){
+            function close(result){
+              dialog.removeEventListener('close',onClose);
+              document.getElementById('vanilla-save-confirm').onclick=null;
+              resolve(result);
+            }
+            function onClose(){close(dialog.returnValue==='play');}
+            dialog.returnValue='';
+            dialog.addEventListener('close',onClose);
+            document.getElementById('vanilla-save-cancel').onclick=function(){dialog.close('cancel');};
+            document.getElementById('vanilla-save-confirm').onclick=function(){dialog.close('play');};
+            dialog.showModal();
+          });
+        }
+        async function launchCustom(selected,bounds,options){
           if(booting)return;
+          options=options||{};
           await customModule();
-          var build=window.OctopusCustom.normalizeBuild(selected,bounds);
+          var build=window.OctopusCustom.normalizeBuild(selected,bounds,{vanillaSave:options.vanillaSave});
+          if(options.remember)rememberBuild(build);
           booting=true;
           document.getElementById('mode-tooltip').hidden=true;
           document.getElementById('mode-overlay').classList.add('hidden');document.getElementById('loading-overlay').classList.remove('hidden');
@@ -75,8 +169,8 @@
           Module.setStatus('Preparing your mod combination…');
           var result=await window.OctopusCustom.assembleBuild(build,w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
           window.__octopusBuild=result.config;window.__octopusMode='custom';
-          Module.persistenceDatabase='/home/web_user/love-custom-'+build.identity;
-          Module.archiveCacheNamespace=Module.persistenceDatabase;
+          Module.persistenceDatabase=build.persist;
+          Module.archiveCacheNamespace=build.cache;
           Module.INITIAL_MEMORY=536870912;
           Module.getPreloadedPackage=function(){return result.archive.buffer.slice(result.archive.byteOffset,result.archive.byteOffset+result.archive.byteLength);};
           var template=await (await cachedAsset(w.assetBase+'game.js')).text();
