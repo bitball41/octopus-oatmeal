@@ -13,7 +13,32 @@ CSS='''
       #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
       #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
       #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
-      #build-panel[hidden],#randomizer-range[hidden] {display:none;}
+      #build-panel[hidden],#randomizer-range[hidden],#saved-builds[hidden],#vanilla-save-row[hidden],#vanilla-save-run[hidden] {display:none;}
+      #saved-builds {width:min(760px,100%);}
+      #saved-builds h2 {font-size:15px;font-weight:600;color:#b0ccdd;margin:0 0 10px;}
+      .saved-builds-list {display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
+      .saved-build {display:flex;align-items:stretch;border:1px solid #426077;border-radius:10px;background:#102b3f;overflow:hidden;}
+      .saved-build button {background:transparent;border:0;color:white;cursor:pointer;font:inherit;}
+      .saved-build-play {display:grid;gap:3px;text-align:left;padding:11px 14px;min-width:0;}
+      .saved-build-play strong {font-size:14px;overflow-wrap:anywhere;}
+      .saved-build-play span {font-size:12px;color:#9fbdd0;}
+      .saved-build-remove {padding:0 13px;color:#9fbdd0!important;font-size:18px!important;border-left:1px solid #2c4a5e!important;}
+      .saved-build button:hover,.saved-build button:focus-visible {background:#214760;outline:none;}
+      #vanilla-save-row {display:flex;align-items:flex-start;gap:10px;text-align:left;margin:16px 0 0;padding:12px 13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
+      #vanilla-save-row:has(input:checked) {border-color:#e6c46a;background:#2f3a2c;}
+      #vanilla-save-row input {accent-color:#e6c46a;width:17px;height:17px;margin:2px 0 0;flex:none;}
+      #vanilla-save-row span {display:grid;gap:3px;}
+      #vanilla-save-row small {color:#b0ccdd;font-size:12.5px;line-height:1.45;}
+      #vanilla-save-dialog {margin:auto;max-width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:#102b3f;color:#daebf6;border:1px solid #6b5a2a;border-radius:14px;padding:22px;text-align:left;line-height:1.5;}
+      #vanilla-save-dialog::backdrop {background:#000a;}
+      #vanilla-save-dialog h2 {font-size:18px;margin:0 0 10px;color:white;}
+      #vanilla-save-dialog p {margin:0 0 10px;font-size:14px;}
+      #vanilla-save-dialog ul {margin:0 0 12px;padding-left:20px;font-size:14px;}
+      #vanilla-save-run {background:#4a2a1a;border:1px solid #b06a3a;border-radius:8px;padding:9px 11px;color:#ffd9c2;}
+      .dialog-actions {display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap;}
+      .dialog-actions button {border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;}
+      #vanilla-save-cancel {background:transparent;color:#daebf6;border:1px solid #6b8ba3;}
+      #vanilla-save-confirm {background:#c9a13a;color:#1c1606;}
       #build-panel h2 {font-size:18px;margin:0 0 18px;}
       .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
       .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
@@ -52,6 +77,10 @@ HTML='''      <div id="mode-overlay">
         <div class="mode-row">
           <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom">Custom Build</button>
         </div>
+        <section id="saved-builds" hidden aria-labelledby="saved-builds-heading">
+          <h2 id="saved-builds-heading">Continue a saved build</h2>
+          <div id="saved-builds-list" class="saved-builds-list"></div>
+        </section>
         <section id="build-panel" hidden aria-labelledby="build-heading">
           <h2 id="build-heading">Custom Build</h2>
           <div class="build-options">
@@ -61,10 +90,21 @@ HTML='''      <div id="mode-overlay">
             <label>Maximum scoring multiplier (×)<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="10"></label>
             <p style="flex-basis:100%;margin:0;color:#b0ccdd;font-size:13px">Usually near 1×; extreme rolls are rare. Prices, odds and counts vary gently. Your deck’s starting limits and the ante curve stay intact.</p>
           </div>
+          <label id="vanilla-save-row" hidden><input id="vanilla-save" type="checkbox"><span>Play on my Vanilla save<small>Uses your Vanilla profile, unlocks and stats instead of a separate save for this build. Not available with Cryptid, which keeps its own profiles.</small></span></label>
           <div id="build-actions"><div id="build-summary" aria-live="polite">Select two or more mods.</div><button id="launch-build" type="button">Launch Build</button></div>
           <div id="build-error" role="alert"></div>
         </section>
         <div id="mode-tooltip" role="tooltip" hidden></div>
+        <dialog id="vanilla-save-dialog" aria-labelledby="vanilla-save-title">
+          <h2 id="vanilla-save-title">Use your Vanilla save?</h2>
+          <p>This modded build will load and update your Vanilla profile, unlocks and stats.</p>
+          <p id="vanilla-save-run" role="status" hidden>Your Vanilla save has a run in progress. Finish or abandon it in Vanilla first: continuing it with mods can break it.</p>
+          <ul>
+            <li>End any run you have in progress before you play.</li>
+            <li>Finish this modded run before going back to Vanilla. Vanilla can’t continue a run that has modded cards in it.</li>
+          </ul>
+          <div class="dialog-actions"><button id="vanilla-save-cancel" type="button">Cancel</button><button id="vanilla-save-confirm" type="button">Play on Vanilla save</button></div>
+        </dialog>
       </div>
 '''
 JS=(ROOT/'browser/mod-selector.js').read_text()
@@ -82,8 +122,16 @@ for name in ['index.html','balatro.html']:
         start=canonical.index('    <!-- OCTOPUS_PINNED_RUNTIME_START -->')
         end=canonical.index('    <!-- OCTOPUS_PINNED_RUNTIME_END -->')+len('    <!-- OCTOPUS_PINNED_RUNTIME_END -->')
         a=s.index('    <script>\n      (function () {',s.index('<!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->'))
+        # Replace an existing pinned block whole so reruns do not repeat its marker.
+        marker=s.find('    <!-- OCTOPUS_PINNED_RUNTIME_START -->',s.index('<!-- OCTOPUS_MULTIPLAYER_BOOTSTRAP_END -->'))
+        if marker!=-1 and marker<a:a=marker
         b=s.index('\n  </body>',a)
         s=s[:a]+canonical[start:end]+s[b:]
+        # The copied strict-mode runtime assigns this global; index.html declares it.
+        if 'var REMOTE_ASSET_BASE' not in s:
+            anchor='      var canvas = document.getElementById("loadingCanvas");'
+            assert s.count(anchor)==1,'balatro.html canvas anchor missing'
+            s=s.replace(anchor,'      // Set by the pinned runtime loader once it resolves one exact commit.\n      var REMOTE_ASSET_BASE = "";\n\n'+anchor)
     s=s.replace('          if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {', '          if (e.target && /^(INPUT|TEXTAREA|BUTTON|SELECT)$/.test(e.target.tagName)) return;\n          if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {') if 'e.target.tagName' not in s else s
     p.write_text(s)
 

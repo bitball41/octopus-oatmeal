@@ -22,4 +22,19 @@ assert.equal(strFromU8(files['Mods/ValueRandomizer/ValueRandomizer.lua']),await 
 for(const path of ['Mods/Cryptid/Cryptid.lua','Mods/Multiplayer/core.lua','Mods/CardSleeves/CardSleeves.lua','Mods/Handy/index.lua'])assert(files[path],path);
 assert(!files['Mods/Bunco/Bunco.lua']);
 assert.match(strFromU8(files['card.lua']),/LiminalRandomizer.literal/);
-console.log('Browser assembly: exact selected mods, normalized saves, range validation, verified packs and injected configuration passed');
+assert.equal(strFromU8(files['browser/mod_settings.lua']),await readFile(new URL('../browser/lua/browser/mod_settings.lua',import.meta.url),'utf8'));
+assert.equal(strFromU8(files['main.lua']).match(/require "browser\.mod_settings"/g).length,1);
+assert(strFromU8(files['main.lua']).trimEnd().endsWith('require "browser.mod_settings"'));
+assert.equal(config.vanilla_save,false);
+// Vanilla save: allowed without Cryptid, never with it; the custom save stays separate otherwise.
+const ownSave=normalizeBuild(['paperback','bunco']);
+assert.equal(ownSave.persist,'/home/web_user/love-custom-'+ownSave.identity);assert.equal(ownSave.vanillaSave,false);
+const vanillaSave=normalizeBuild(['bunco','paperback'],{},{vanillaSave:true});
+assert.equal(vanillaSave.persist,'/home/web_user/love-vanilla');assert.equal(vanillaSave.cache,'/home/web_user/love-custom-'+vanillaSave.identity);
+assert.equal(vanillaSave.identity,ownSave.identity);
+assert.equal(normalizeBuild(['handy','sleeves'],{},{vanillaSave:true}).persist,'/home/web_user/love-vanilla');
+const cryptidBuild=normalizeBuild(['cryptid','paperback'],{},{vanillaSave:true});
+assert.equal(cryptidBuild.vanillaSave,false);assert.notEqual(cryptidBuild.persist,'/home/web_user/love-vanilla');
+const vanillaResult=await assembleBuild(vanillaSave,'',fetchAsset,()=>{});
+assert.equal(JSON.parse(strFromU8(unzipSync(vanillaResult.archive)['browser/build_config.json'])).vanilla_save,true);
+console.log('Browser assembly: exact selected mods, normalized saves, range validation, verified packs and injected configuration, mod settings and Vanilla save routing passed');
