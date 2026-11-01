@@ -154,6 +154,7 @@ def check_releases():
         z = release_files(folder)
         assert z.read('browser/mod_settings.lua').decode() == SOURCE, f'{folder or "multiplayer"}: stale mod_settings.lua'
         assert z.read('main.lua').decode().rstrip().endswith(REQUIRE), f'{folder or "multiplayer"}: mod_settings not loaded last'
+        assert "love.graphics.setShader( G.SHADERS['CRT'])" in z.read('game.lua').decode(), f'{folder or "multiplayer"}: CRT colour pass missing'
     for folder in ['vanilla', 'vanilla-handy']:
         z = release_files(folder)
         assert 'browser/mod_settings.lua' not in z.namelist(), folder + ' must keep Vanilla settings behaviour'
@@ -165,4 +166,4 @@ check_texture_filters()
 check_high_contrast()
 if '--no-releases' not in sys.argv:
     check_releases()
-print('Mod settings: smoothing defaults Off and stays toggleable, Vanilla save keeps its choice, High Contrast follows the toggle; all mod releases load it')
+print('Mod settings: smoothing defaults Off and stays toggleable, Vanilla save keeps its choice, High Contrast follows the toggle; all mod releases load it and keep the CRT colour pass')

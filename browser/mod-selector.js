@@ -18,7 +18,7 @@
             multiplayer:['Multiplayer','Host or join a match. For modded matches, both players must select the same build and randomizer bounds.'],
             sleeves:['CardSleeves','Combine a deck with a sleeve for two sets of effects. Choose your sleeve during run setup.'],
             randomizer:['Custom Randomizer','Joker scoring rolls range from 0.1×–10× and usually stay near 1×. Related effects share a roll. Prices, odds and counts vary gently; deck rules and ante progression stay intact. Playing-card enhancements, starting cards and starting money stay unchanged.'],
-            custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves, or can play on your Vanilla save. Builds you launch are saved for one-click continuing.']
+            custom:['Custom Build','Mix two or more mods in one game. Combinations are experimental and keep their own saves, or can play on your Vanilla save. Builds you launch are saved for one-click continuing and stay downloaded until you remove them.']
           };
           var activeTooltip;
           function hideTip(){tooltip.hidden=true;if(activeTooltip)activeTooltip.removeAttribute('aria-describedby');activeTooltip=null;}
@@ -84,8 +84,8 @@
               play.append(name,detail);
               play.onclick=function(){hideTip();launchSaved(entry.mods,{min:entry.min,max:entry.max},entry.vanillaSave);};
               var remove=document.createElement('button');remove.type='button';remove.className='saved-build-remove';remove.textContent='×';
-              remove.setAttribute('aria-label','Remove '+name.textContent+' from saved builds. Its save data is kept.');
-              remove.title='Remove from list (save data is kept)';
+              remove.setAttribute('aria-label','Remove '+name.textContent+' from saved builds and delete its cached download. Its save data is kept.');
+              remove.title='Remove and delete cached download (save data is kept)';
               remove.onclick=function(){forgetSavedBuild(entry.key);renderSaved();};
               item.append(play,remove);return item;
             }));
@@ -99,14 +99,44 @@
         function readSavedBuilds(){
           try{var list=JSON.parse(localStorage.getItem(SAVED_BUILDS_KEY)||'[]');return Array.isArray(list)?list.filter(function(e){return e&&Array.isArray(e.mods)&&e.key;}):[];}catch(_){return [];}
         }
-        function writeSavedBuilds(list){try{localStorage.setItem(SAVED_BUILDS_KEY,JSON.stringify(list.slice(0,12)));}catch(_){}}
+        function writeSavedBuilds(list){
+          list.slice(12).forEach(function(e){deleteCachedBuild(e.key);});
+          try{localStorage.setItem(SAVED_BUILDS_KEY,JSON.stringify(list.slice(0,12)));}catch(_){}
+        }
+        function savedBuildKey(build){return build.identity+(build.vanillaSave?'@vanilla':'');}
+        // Saved builds keep their assembled archive until the player removes them,
+        // so relaunching skips the mod downloads and assembly entirely.
+        function savedArchiveStore(mode,work){
+          return new Promise(function(resolve){
+            try{
+              var request=indexedDB.open('octopus-saved-build-archives',1);
+              request.onupgradeneeded=function(){request.result.createObjectStore('archives');};
+              request.onerror=function(){resolve(null);};
+              request.onsuccess=function(){
+                var db=request.result,tx=db.transaction('archives',mode),result=null;
+                work(tx.objectStore('archives'),function(value){result=value;});
+                tx.oncomplete=function(){db.close();resolve(result);};
+                tx.onerror=tx.onabort=function(e){if(e&&e.preventDefault)e.preventDefault();db.close();resolve(null);};
+              };
+            }catch(_){resolve(null);}
+          });
+        }
+        function readCachedBuild(key){
+          return savedArchiveStore('readonly',function(store,done){var r=store.get(key);r.onsuccess=function(){done(r.result||null);};});
+        }
+        function storeCachedBuild(key,result){
+          return savedArchiveStore('readwrite',function(store){store.put({archive:result.archive,config:result.config,savedAt:Date.now()},key);});
+        }
+        function deleteCachedBuild(key){
+          return savedArchiveStore('readwrite',function(store){store.delete(key);});
+        }
         function rememberBuild(build){
-          var key=build.identity+(build.vanillaSave?'@vanilla':'');
+          var key=savedBuildKey(build);
           var list=readSavedBuilds().filter(function(e){return e.key!==key;});
           list.unshift({key:key,mods:build.mods,min:build.min,max:build.max,vanillaSave:build.vanillaSave,lastPlayed:Date.now()});
           writeSavedBuilds(list);
         }
-        function forgetSavedBuild(key){writeSavedBuilds(readSavedBuilds().filter(function(e){return e.key!==key;}));}
+        function forgetSavedBuild(key){deleteCachedBuild(key);writeSavedBuilds(readSavedBuilds().filter(function(e){return e.key!==key;}));}
         function savedBuildName(entry,labels){
           return entry.mods.map(function(id){
             if(id==='randomizer')return 'Randomizer '+entry.min+'×–'+entry.max+'×';
@@ -166,8 +196,16 @@
           document.getElementById('mode-tooltip').hidden=true;
           document.getElementById('mode-overlay').classList.add('hidden');document.getElementById('loading-overlay').classList.remove('hidden');
           var w=await warmupPromise;
-          Module.setStatus('Preparing your mod combination…');
-          var result=await window.OctopusCustom.assembleBuild(build,w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
+          var cached=options.remember?await readCachedBuild(savedBuildKey(build)):null;
+          var result;
+          if(cached&&cached.archive&&cached.config){
+            Module.setStatus('Loading your saved build…');
+            result={archive:cached.archive instanceof Uint8Array?cached.archive:new Uint8Array(cached.archive),config:cached.config};
+          }else{
+            Module.setStatus('Preparing your mod combination…');
+            result=await window.OctopusCustom.assembleBuild(build,w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
+            if(options.remember){Module.setStatus('Saving this build for next time…');await storeCachedBuild(savedBuildKey(build),result);}
+          }
           window.__octopusBuild=result.config;window.__octopusMode='custom';
           Module.persistenceDatabase=build.persist;
           Module.archiveCacheNamespace=build.cache;

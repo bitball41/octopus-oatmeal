@@ -8,6 +8,15 @@ def adapt_patch(mod, name, index, patch, files, target, flavor):
     key = (name, index)
     if mod == 'Overflow' and key == ('lovely/fixes.toml', 1):
         return p, 'Optional DebugPlus integration is absent from this browser bundle.'
+    # On Steamodded these targets moved into Steamodded's own localize and
+    # CardArea code, so desktop Lovely leaves them unapplied as well.
+    steamodded_moved = {('JokerDisplay', 'lovely/core.toml', 6), ('JokerDisplay', 'lovely/core.toml', 7),
+                        ('Overflow', 'lovely/fixes.toml', 5)}
+    if (mod, name, index) in steamodded_moved and any(n.startswith('Mods/Steamodded/') for n in files):
+        pattern = p.get('pattern', '')
+        found = re.search(pattern, source) if 'regex' in str(patch.get('kind', '')) or name == 'lovely/core.toml' else pattern in source
+        if not found:
+            return p, 'Steamodded replaces this vanilla code; the patch target does not exist with Steamodded loaded.'
     if mod not in ('Entropy', 'Spectrallib', 'Amulet') or 'Mods/Entropy/Entropy.lua' not in files:
         return p, None
     if mod == 'Entropy' and name == 'lovely/compat.toml':

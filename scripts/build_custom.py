@@ -52,7 +52,9 @@ def compile_combo(mods):
     lock=json.loads((ROOT/'vendor/upstream.json').read_text())
     cryptid='Cryptid' in mods;mp='Multiplayer' in mods
     if cryptid:lock['Steamodded']=lock['SteamoddedCryptid']
-    selected=['Steamodded']+(['Amulet'] if cryptid else [])+mods
+    # Handy ships with JokerDisplay overlays and Overflow stacking, as in Vanilla + Handy.
+    extras=['JokerDisplay','Overflow'] if 'Handy' in mods else []
+    selected=['Steamodded']+(['Amulet'] if cryptid else [])+mods+extras
     flavor='cryptid' if cryptid else ('multiplayer' if mp else ('bunco' if 'Bunco' in mods else 'custom'))
     files,report=b.build_smods_pack(selected,flavor,() if mp else ('browser/menu.lua',),lock)
     failures=b.summarize_report(report,'+'.join(mods) or 'randomizer','patch-report-custom-'+('-'.join(mods) or 'base')+'.json',True)

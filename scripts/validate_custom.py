@@ -23,7 +23,9 @@ for key in ['base','CardSleeves','Cryptid+Multiplayer','CardSleeves+Cryptid+Hand
     assert 'Mods/ValueRandomizer/ValueRandomizer.lua' in names
     for mod in ['CardSleeves','Cryptid','Handy','Multiplayer','Bunco']:
         assert any(n.startswith('Mods/'+mod+'/') for n in names)==(mod in spec['mods']), (key,mod)
+    for extra in ['JokerDisplay','Overflow']:
+        assert any(n.startswith('Mods/'+extra+'/') for n in names)==('Handy' in spec['mods']), (key,extra)
 
 from validate_randomizer_design import validate
 validate()
-print('64 exact mod recipes, pack checksums/CDN sizes and selected-only mod contents passed')
+print('64 exact mod recipes, pack checksums/CDN sizes and selected-only mod contents (JokerDisplay/Overflow with Handy) passed')

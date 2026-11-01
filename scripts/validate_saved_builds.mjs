@@ -40,15 +40,21 @@ for (const file of ['index.html','balatro.html']) {
   assert.deepEqual(names,['Bunco + PaperbackVanilla save','Handy + Randomizer 1×–5×Own save'].map(x=>x));
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
   assert.equal(overflow,false,'no horizontal scroll');
+  // Removing a saved build deletes its cached archive, and only that one.
+  const putArchive=key=>page.evaluate(key=>new Promise(r=>{const q=indexedDB.open('octopus-saved-build-archives',1);q.onupgradeneeded=()=>q.result.createObjectStore('archives');q.onsuccess=()=>{const tx=q.result.transaction('archives','readwrite');tx.objectStore('archives').put({archive:new Uint8Array(4),config:{}},key);tx.oncomplete=()=>{q.result.close();r();};};}),key);
+  const archiveKeys=()=>page.evaluate(()=>new Promise(r=>{const q=indexedDB.open('octopus-saved-build-archives',1);q.onsuccess=()=>{const k=q.result.transaction('archives').objectStore('archives').getAllKeys();k.onsuccess=()=>{q.result.close();r(k.result);};};}));
+  await putArchive('bunco-paperback@vanilla');await putArchive('handy-randomizer-designed-v3-1-5');
   await page.click('.saved-build-remove >> nth=1');
   assert.equal(await page.$$eval('.saved-build',x=>x.length),1);
+  await page.waitForFunction(()=>true);await page.waitForTimeout(200);
+  assert.deepEqual(await archiveKeys(),['bunco-paperback@vanilla']);
   // Its vanilla-save entry asks for confirmation before launching.
   await page.click('.saved-build-play');
   await page.waitForSelector('#vanilla-save-dialog[open]');
   await page.keyboard.press('Escape');
   assert.equal(await page.isHidden('#loading-overlay'),true);
   assert.deepEqual(errors,[]);
-  console.log(file+' at '+width+'px: saved builds, Vanilla save option, run-in-progress warning and cancel passed');
+  console.log(file+' at '+width+'px: saved builds, Vanilla save option, run-in-progress warning, cancel and cached-archive removal passed');
   }
 }
 await browser.close();server.close();
