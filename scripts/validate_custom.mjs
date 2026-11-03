@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 globalThis.window={};
-const {normalizeBuild,assembleBuild}=await import('../browser/custom-runtime.js');
+const {normalizeBuild,assembleBuild,assembleBrainstormPreset}=await import('../browser/custom-runtime.js');
 assert.equal(normalizeBuild(['cryptid','multiplayer','randomizer'],{min:1,max:100}).identity,
   normalizeBuild(['randomizer','multiplayer','cryptid','cryptid'],{min:1,max:100}).identity);
 assert.notEqual(normalizeBuild(['multiplayer','randomizer'],{min:1,max:100}).identity,
@@ -42,4 +42,25 @@ const vanillaResult=await assembleBuild(vanillaSave,'',fetchAsset,()=>{});
 const noHandy=unzipSync(vanillaResult.archive);
 assert(!noHandy['Mods/JokerDisplay/JokerDisplay.lua']&&!noHandy['Mods/Overflow/Overflow.lua'],'JokerDisplay/Overflow only come with Handy');
 assert.equal(JSON.parse(strFromU8(unzipSync(vanillaResult.archive)['browser/build_config.json'])).vanilla_save,true);
+// Brainstorm is injected at launch; it keeps the build's save and multiplayer identity.
+const withBrainstorm=normalizeBuild(['handy','paperback','brainstorm']),plain=normalizeBuild(['handy','paperback']);
+assert.equal(withBrainstorm.brainstorm,true);assert.equal(plain.brainstorm,false);
+assert.equal(withBrainstorm.key,plain.key);assert.equal(withBrainstorm.identity,plain.identity);assert.equal(withBrainstorm.persist,plain.persist);
+assert.notEqual(withBrainstorm.archiveKey,plain.archiveKey);
+const brainstormSource=await readFile(new URL('../browser/brainstorm.lua',import.meta.url),'utf8');
+const brainstormFiles=unzipSync((await assembleBuild(withBrainstorm,'',fetchAsset,()=>{})).archive);
+assert.equal(strFromU8(brainstormFiles['browser/brainstorm.lua']),brainstormSource);
+const brainstormMain=strFromU8(brainstormFiles['main.lua']);
+assert.equal(brainstormMain.match(/require "browser\.brainstorm"/g).length,1);
+assert(brainstormMain.indexOf('require "browser.mod_settings"')<brainstormMain.indexOf('require "browser.brainstorm"'));
+assert.equal(JSON.parse(strFromU8(brainstormFiles['browser/build_config.json'])).brainstorm,true);
+assert(!files['browser/brainstorm.lua']&&!/browser\.brainstorm/.test(strFromU8(files['main.lua'])),'Brainstorm only when selected');
+// Vanilla + Brainstorm keeps every Vanilla file byte for byte and only adds Brainstorm.
+const vanillaFiles=unzipSync(new Uint8Array(await readFile(new URL('../vanilla/game.data',import.meta.url))));
+const preset=unzipSync((await assembleBrainstormPreset('',fetchAsset,()=>{})).archive);
+assert.deepEqual(Object.keys(preset).sort(),[...new Set([...Object.keys(vanillaFiles),'browser/brainstorm.lua'])].sort());
+assert.equal(strFromU8(preset['browser/brainstorm.lua']),brainstormSource);
+for(const [name,data] of Object.entries(vanillaFiles))if(name!=='main.lua'&&name!=='browser/brainstorm.lua')assert(Buffer.from(preset[name]).equals(Buffer.from(data)),name);
+assert.equal(strFromU8(preset['main.lua']),strFromU8(vanillaFiles['main.lua'])+'\nrequire "browser.brainstorm"\n');
+console.log('Brainstorm: injected only when selected, after mod settings, keeping save identity; Vanilla + Brainstorm is Vanilla plus Brainstorm');
 console.log('Browser assembly: exact selected mods, normalized saves, range validation, verified packs and injected configuration, mod settings and Vanilla save routing passed');

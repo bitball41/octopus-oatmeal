@@ -16,6 +16,7 @@ This browser port bundles pinned source snapshots of:
 - Paperback `f40ee0de1b56ec1bf28a1f6c6c4d34b7e64146bb` (v0.8.1, MIT)
 - Bunco `016e4cda5525fcb74ec6b6e70e7fdba1f0609547` (v5.1; upstream ships no LICENSE file)
 - Pokermon `2f462f609c271d5b2f2be0e8ba9d0b73b4ed8b71` (v3.8.1-0910b, GPL-3.0)
+- Brainstorm `9a8fd6a0b9db081087c3359f7fdb9326e58503f9` (v1.1.0-alpha, MPL-2.0), by OceanRamen
 
 Their upstream URLs and exact checksums are recorded in `vendor/upstream.json`.
 `scripts/fetch_cryptid_sources.py` fetches any missing pinned source archives into
@@ -40,3 +41,10 @@ Entropy is a separate preset with Spectrallib, Amulet and Handy, isolated from C
 Vanilla + Handy also bundles JokerDisplay and Overflow without Steamodded. Plain Vanilla
 expands Overflow stacks when loading the shared save, retaining each consumable.
 `scripts/entropy_browser.py` records browser patch adaptations and WebGL 1 shader repairs.
+
+Brainstorm is ported, not vendored: `browser/brainstorm.lua` is a modified
+version of its Lua (MPL-2.0, notice kept in the file header). Its Lovely patches become
+function hooks so one file runs on Vanilla and on every Steamodded custom build, settings
+live in the save directory instead of the mod folder, and reroll keys use Shift because
+browsers keep Ctrl+T. The launcher injects it at launch (Vanilla + Brainstorm, or the
+Brainstorm option in Custom Build), so no archive or custom pack is rebuilt for it.
