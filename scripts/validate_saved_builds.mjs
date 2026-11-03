@@ -16,7 +16,11 @@ for (const file of ['index.html','balatro.html']) {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url+'/'+file);
   assert.equal(await page.isHidden('#saved-builds'),true,'no saved builds yet');
+  assert.equal(await page.isVisible('#mode-brainstorm'),true,'Vanilla + Brainstorm button');
   await page.click('#mode-custom');
+  await page.check('input[value=brainstorm]');await page.check('input[value=handy]');
+  assert.match(await page.textContent('#build-summary'),/Handy \+ Brainstorm|Brainstorm \+ Handy/);
+  await page.uncheck('input[value=brainstorm]');await page.uncheck('input[value=handy]');
   await page.check('input[value=paperback]');await page.check('input[value=bunco]');
   assert.equal(await page.isVisible('#vanilla-save-row'),true);
   await page.check('input[value=cryptid]');

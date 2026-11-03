@@ -139,3 +139,30 @@ Custom archives are assembled from verified packs before the engine starts and b
 - **Vanilla save:** custom builds without Cryptid can tick *Play on my Vanilla save* (Cryptid keeps its own M1–M3 profiles). Launching shows a warning to end any run in progress and to finish the modded run before going back to Vanilla, and flags it when the Vanilla save already has a run in progress.
 
 `npm run test:custom` runs `scripts/validate_mod_settings.py` (Lua behaviour plus every release archive). `npm run test:launcher` drives both launchers in Chromium at desktop and phone width.
+
+## Brainstorm
+
+**Vanilla + Brainstorm** (or `index.html#brainstorm`) is the released Vanilla archive
+with Brainstorm 1.1.0-alpha added at launch; it shares the Vanilla save. **Brainstorm**
+in Custom Build adds it to any combination. It keeps that build's save and multiplayer
+identity, and saved builds with and without it are cached separately.
+
+- **Shift + A:** auto-reroll until the run matches the search in
+  Options → Settings → Brainstorm (first skip tag, The Soul in the Charm Tag's
+  Mega Arcana, first shop pack). Defaults to Charm Tag + 1 Soul. Press again to stop.
+- **Shift + T:** restart on a new seed immediately.
+- **Hold Z + 1–5 / X + 1–5:** save or load a run state.
+- Game Speed gains 8×, 16× and 32×.
+
+Upstream uses Ctrl+T, which browsers keep for a new tab, so Shift is used
+(Ctrl still works where the browser passes it through). Keys are ignored while
+typing into a text box and inside a Multiplayer lobby. Candidates are judged by the
+game's own `get_next_tag_key` and `get_pack` against each seed's fresh RNG state,
+so the prediction is exact on Vanilla and Steamodded builds alike.
+
+Run `node scripts/validate_custom.mjs` and `npm run test:brainstorm`
+(`BRAINSTORM_BUILD=paperback,bunco npm run test:brainstorm` for a Custom Build).
+The browser check boots the real WASM runtime, compares 300 seeds' predicted tags and
+packs with the game's rolls, confirms predicting leaves the live RNG untouched, then
+presses Shift+A and checks the found run really has a Charm Tag whose Mega Arcana pack
+creates The Soul, then Shift+T and X+1.

@@ -19,7 +19,8 @@
     "build:entropy": "python3 scripts/fetch_cryptid_sources.py && python3 scripts/build_upstream.py --entropy-only --release && python3 scripts/install_mod_selector.py && python3 scripts/patch_multiplayer_html.py",
     "test:new-mods": "python3 scripts/validate_new_mods.py",
     "test:new-mods-browser": "python3 scripts/prepare_mod_smoke.py && node scripts/validate_new_mods_browser.mjs",
-    "test:launcher": "node scripts/validate_saved_builds.mjs"
+    "test:launcher": "node scripts/validate_saved_builds.mjs",
+    "test:brainstorm": "node scripts/validate_brainstorm_browser.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",

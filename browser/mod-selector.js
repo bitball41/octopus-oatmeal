@@ -11,6 +11,7 @@
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
             handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
+            brainstorm:['Brainstorm','Seed rerolling for runs that start strong. Shift+A auto-rerolls until the first skip tag, The Soul and the first shop pack match your search (set it in Options → Settings → Brainstorm). Shift+T rerolls once; hold Z or X + 1–5 to save or load a state. On Vanilla it shares your Vanilla save; in Custom Build it adds to any mods.'],
             entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Spectrallib. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Add Handy with Custom Build. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
@@ -59,6 +60,9 @@
           document.getElementById('mode-custom').onclick=function(){standalone=false;open();};
           document.getElementById('mode-randomizer').onclick=function(){open('randomizer');minimum.focus();};
           document.getElementById('mode-sleeves').onclick=function(){launchCustom(['sleeves'],{}).catch(showBuildError);};
+          var brainstormButton=document.getElementById('mode-brainstorm');
+          if(brainstormButton)brainstormButton.onclick=function(){hideTip();launchBrainstorm().catch(showBuildError);};
+          if(String(location.hash||'')==='#brainstorm')launchBrainstorm().catch(showBuildError);
           function showBuildError(error){booting=false;document.getElementById('mode-overlay').classList.remove('hidden');document.getElementById('loading-overlay').classList.add('hidden');panel.hidden=false;document.getElementById('build-error').textContent=error.message||String(error);}
           function launchSaved(selected,bounds,vanillaSave){
             confirmVanillaSave(selected,vanillaSave).then(function(ok){
@@ -103,7 +107,7 @@
           list.slice(12).forEach(function(e){deleteCachedBuild(e.key);});
           try{localStorage.setItem(SAVED_BUILDS_KEY,JSON.stringify(list.slice(0,12)));}catch(_){}
         }
-        function savedBuildKey(build){return build.identity+(build.vanillaSave?'@vanilla':'');}
+        function savedBuildKey(build){return (build.archiveKey||build.identity)+(build.vanillaSave?'@vanilla':'');}
         // Saved builds keep their assembled archive until the player removes them,
         // so relaunching skips the mod downloads and assembly entirely.
         function savedArchiveStore(mode,work){
@@ -210,8 +214,28 @@
           Module.persistenceDatabase=build.persist;
           Module.archiveCacheNamespace=build.cache;
           Module.INITIAL_MEMORY=536870912;
+          await bootArchive(w,result.archive,'game.js',build.multiplayer);
+        }
+        // Vanilla + Brainstorm: the Vanilla archive with Brainstorm injected,
+        // on the shared Vanilla save.
+        async function launchBrainstorm(){
+          if(booting)return;
+          await customModule();
+          booting=true;
+          document.getElementById('mode-tooltip').hidden=true;
+          document.getElementById('mode-overlay').classList.add('hidden');document.getElementById('loading-overlay').classList.remove('hidden');
+          var w=await warmupPromise;
+          Module.setStatus('Preparing Vanilla + Brainstorm…');
+          var result=await window.OctopusCustom.assembleBrainstormPreset(w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
+          window.__octopusMode='brainstorm';
+          Module.persistenceDatabase='/home/web_user/love-vanilla';
+          Module.archiveCacheNamespace='/home/web_user/love-vanilla-brainstorm';
+          await bootArchive(w,result.archive,'vanilla/game.js',false);
+        }
+        async function bootArchive(w,archive,templatePath,multiplayer){
+          var result={archive:archive};
           Module.getPreloadedPackage=function(){return result.archive.buffer.slice(result.archive.byteOffset,result.archive.byteOffset+result.archive.byteLength);};
-          var template=await (await cachedAsset(w.assetBase+'game.js')).text();
+          var template=await (await cachedAsset(w.assetBase+templatePath)).text();
           template=template.replace('openDatabase(function (db) {', 'if (Module.getPreloadedPackage) { processPackageData(Module.getPreloadedPackage()); } else openDatabase(function (db) {')
             .replace('function fetchRemotePackage(packageName, packageSize, callback, errback) {', 'function fetchRemotePackage(packageName, packageSize, callback, errback) { if (Module.getPreloadedPackage) { callback(Module.getPreloadedPackage()); return; }')
             .replace(/var SPLIT_PACKAGE_PARTS = \[[^\]]*\];/,'var SPLIT_PACKAGE_PARTS = [];')
@@ -219,7 +243,7 @@
             .replace(/(filename:\s*"\/game\.love",\s*crunched:\s*0,\s*start:\s*0,\s*end:)\s*\d+/,'$1 '+result.archive.length);
           var src=URL.createObjectURL(new Blob([template],{type:'text/javascript'}));
           try{
-            await Promise.all([loadScript(src,false),loadScript(w.assetBase+'love.js',false),build.multiplayer?loadScript(w.assetBase+'multiplayer_upstream.js',true):Promise.resolve()]);
+            await Promise.all([loadScript(src,false),loadScript(w.assetBase+'love.js',false),multiplayer?loadScript(w.assetBase+'multiplayer_upstream.js',true):Promise.resolve()]);
             await wasmReady;applicationLoad();
           }finally{URL.revokeObjectURL(src);}
         }
