@@ -54,8 +54,6 @@ try {
     await page.waitForFunction(()=>window.OctopusLaunch&&window.OctopusLaunch.custom);
     await page.evaluate(mods=>window.OctopusLaunch.custom([...mods,'brainstorm'],{}),mods);
   } else await page.goto(url+'/index.html#brainstorm');
-  // Cryptid opens with a first-launch intro; click its Next button until the menu is up.
-  if(mods.includes('cryptid'))for(let i=0;i<240&&!seen('PROBE MENU PASSED');i++){await page.waitForTimeout(2500);await page.mouse.click(598,537);}
   await waitFor('PROBE READY FOR AUTOREROLL',Number(process.env.BRAINSTORM_BOOT_SECONDS||240));
   await page.mouse.click(600,400);
   await chord('Shift','a');

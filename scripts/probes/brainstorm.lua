@@ -63,6 +63,10 @@ local function arcana_has_soul()
 end
 
 function love.update(dt)
+    -- Cryptid opens with a paused first-launch intro; mark it seen.
+    if Cryptid and G and G.PROFILES and G.SETTINGS and G.PROFILES[G.SETTINGS.profile] then
+        G.PROFILES[G.SETTINGS.profile].cry_intro_complete = true
+    end
     probe_update(dt)
     local ok, err = pcall(function()
         if step == 0 and G and G.STAGE == G.STAGES.MAIN_MENU and G.MAIN_MENU_UI and G.P_CENTERS and G.P_CENTERS.j_joker then
