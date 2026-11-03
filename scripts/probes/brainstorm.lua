@@ -68,6 +68,10 @@ function love.update(dt)
         G.PROFILES[G.SETTINGS.profile].cry_intro_complete = true
     end
     probe_update(dt)
+    -- First-launch unlock popups (e.g. Cryptid's Blue Deck) cover the menu.
+    if step == 0 and G and G.STAGES and G.STAGE == G.STAGES.MAIN_MENU and G.OVERLAY_MENU and G.FUNCS.exit_overlay_menu then
+        pcall(G.FUNCS.exit_overlay_menu)
+    end
     local ok, err = pcall(function()
         if step == 0 and G and G.STAGE == G.STAGES.MAIN_MENU and G.MAIN_MENU_UI and G.P_CENTERS and G.P_CENTERS.j_joker then
             assert(Brainstorm and Brainstorm.INITIALIZED, 'Brainstorm did not load')
