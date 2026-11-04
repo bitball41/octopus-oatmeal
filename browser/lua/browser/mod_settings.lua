@@ -118,6 +118,88 @@ local function install_contrast_toggle()
     end
 end
 
+-- Unlocks and discoveries of mod content.
+--
+-- The browser base's Game:save_progress rewrites meta.jkr from whatever is in
+-- G.P_CENTERS at that moment (desktop Balatro only ever adds entries). At boot,
+-- Steamodded's SAVE_UNLOCKS calls save_progress *before* it restores the mod
+-- items' unlocks from meta.jkr, so every modded joker, deck, voucher, consumable,
+-- blind and tag was written back as locked/undiscovered: after a reload only
+-- the vanilla content stayed unlocked. Keep save_progress additive like desktop.
+--
+-- A profile that pressed Unlock All also gets every loaded item (including
+-- content from newly added mods) unlocked again; the button is gone after the
+-- first press, so this repairs saves that already lost their mod unlocks.
+--
+-- The profile itself (Unlock All, deck/stake wins, stats) was also lost on
+-- every boot: start_up loads it only after init_item_prototypes, whose
+-- save_progress stores the still-blank in-memory profile over profile.jkr.
+-- Load it from the file before the first save if nothing has loaded it yet
+-- (Cryptid and Entropy builds already load their profile first).
+local META_FLAGS = {'unlocked', 'discovered', 'alerted'}
+local function profile_meta()
+    local profile = G and G.SETTINGS and G.SETTINGS.profile
+    return profile ~= nil and G.FILES and G.FILES[profile .. '/meta.jkr'] or nil
+end
+
+local profile_loaded = false
+local load_profile = Game.load_profile
+if load_profile then
+    function Game:load_profile(...)
+        profile_loaded = true
+        return load_profile(self, ...)
+    end
+end
+
+local function load_profile_before_saving(game)
+    if profile_loaded or not (load_profile and G.SETTINGS and G.SETTINGS.profile ~= nil and G.PROFILES) then return end
+    profile_loaded = true
+    game:load_profile(G.SETTINGS.profile)
+end
+
+local save_settings = Game.save_settings
+function Game:save_settings(...)
+    load_profile_before_saving(self)
+    return save_settings(self, ...)
+end
+
+local save_progress = Game.save_progress
+function Game:save_progress(...)
+    load_profile_before_saving(self)
+    local kept = {}
+    local meta = profile_meta()
+    if meta then
+        for _, flag in ipairs(META_FLAGS) do
+            kept[flag] = {}
+            for k, v in pairs(meta[flag] or {}) do
+                if v then kept[flag][k] = true end
+            end
+        end
+    end
+    local profile = G.PROFILES and G.PROFILES[G.SETTINGS.profile]
+    if profile and profile.all_unlocked then
+        for _, pool in ipairs({self.P_CENTERS or {}, self.P_BLINDS or {}, self.P_TAGS or {}}) do
+            for k, v in pairs(pool) do
+                if type(v) == 'table' and not v.demo and not v.wip then
+                    for _, flag in ipairs(META_FLAGS) do
+                        kept[flag] = kept[flag] or {}
+                        kept[flag][k] = true
+                    end
+                end
+            end
+        end
+    end
+    local result = save_progress(self, ...)
+    meta = profile_meta()
+    if meta then
+        for flag, keys in pairs(kept) do
+            meta[flag] = meta[flag] or {}
+            for k in pairs(keys) do meta[flag][k] = true end
+        end
+    end
+    return result
+end
+
 local start_up = Game.start_up
 function Game:start_up(...)
     local result = start_up(self, ...)

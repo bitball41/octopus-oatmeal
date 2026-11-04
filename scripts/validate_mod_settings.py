@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Mod builds: pixel smoothing defaults Off but can be turned On; High Contrast works.
+"""Mod builds: pixel smoothing defaults Off but can be turned On; High Contrast works;
+mod unlocks, discoveries and the profile (Unlock All, wins, stats) survive a reload.
 
 Runs browser/lua/browser/mod_settings.lua against small Game/G/SMODS stubs, then
 checks every published Steamodded archive loads it and Vanilla builds do not.
@@ -21,6 +22,18 @@ Game = {}
 function Game:set_render_settings() calls.render = self.SETTINGS.GRAPHICS.texture_scaling end
 function Game:start_up() self:set_render_settings() end
 function Game:save_settings() calls.saved = (calls.saved or 0) + 1 end
+-- The browser base's save_progress: rewrites meta from the current prototypes.
+function Game:save_progress()
+    local meta = G.FILES[G.SETTINGS.profile .. '/meta.jkr'] or {}
+    G.FILES[G.SETTINGS.profile .. '/meta.jkr'] = meta
+    meta.unlocked = meta.unlocked or {}; meta.discovered = meta.discovered or {}; meta.alerted = meta.alerted or {}
+    for _, pool in ipairs({self.P_CENTERS, self.P_BLINDS, self.P_TAGS}) do
+        for k, v in pairs(pool) do
+            meta.unlocked[k], meta.discovered[k], meta.alerted[k] = v.unlocked or nil, v.discovered or nil, v.alerted or nil
+        end
+    end
+    calls.progress = meta
+end
 G = setmetatable({}, {__index = Game})
 G.SETTINGS = {GRAPHICS = {texture_scaling = 2}}
 G.C = {SO_1 = {Hearts = 'h1', Spades = 's1', bunc_Fleurons = 'f1'}, SO_2 = {Hearts = 'h2', Spades = 's2', bunc_Fleurons = 'f2'}, SUITS = {}}
@@ -142,6 +155,73 @@ def check_high_contrast():
     assert lua.eval('calls.original') == 1 and lua.eval('calls.saved') is None
 
 
+def check_unlocks_survive_reload():
+    # Steamodded boot: save_progress runs while mod items are still locked,
+    # before SAVE_UNLOCKS restores them from meta.jkr. Their entries must stay.
+    lua = runtime("""
+        G.SETTINGS.profile = 1
+        G.PROFILES = {{}}
+        G.FILES = {['1/meta.jkr'] = {unlocked = {j_joker = true, j_mod_a = true}, discovered = {j_joker = true, j_mod_a = true}, alerted = {j_mod_a = true}}}
+        G.P_CENTERS = {j_joker = {unlocked = true, discovered = true, alerted = true}, j_mod_a = {unlocked = false, discovered = false}, j_mod_b = {unlocked = false, discovered = false}, c_demo = {demo = true}}
+        G.P_BLINDS = {bl_mod = {discovered = false}}
+        G.P_TAGS = {}
+    """)
+    lua.execute('G:save_progress()')
+    meta = lambda flag, key: lua.eval(f"calls.progress.{flag}.{key}")
+    assert meta('unlocked', 'j_mod_a') and meta('discovered', 'j_mod_a') and meta('alerted', 'j_mod_a'), 'mod unlocks were dropped on save'
+    assert meta('unlocked', 'j_joker') and not meta('unlocked', 'j_mod_b'), 'save_progress must not invent unlocks'
+    # Newly unlocked items are still recorded.
+    lua.execute('G.P_CENTERS.j_mod_b.unlocked = true; G:save_progress()')
+    assert meta('unlocked', 'j_mod_b')
+    # A deleted profile (meta cleared) does not come back.
+    lua.execute("G.FILES['1/meta.jkr'] = nil; G.P_CENTERS = {}; G:save_progress()")
+    assert not meta('unlocked', 'j_mod_a')
+
+    # Unlock All profiles whose mod unlocks were already lost get every loaded item back.
+    lua = runtime("""
+        G.SETTINGS.profile = 2
+        G.PROFILES = {{}, {all_unlocked = true}}
+        G.FILES = {['2/meta.jkr'] = {unlocked = {j_joker = true}, discovered = {j_joker = true}, alerted = {j_joker = true}}}
+        G.P_CENTERS = {j_joker = {unlocked = true, discovered = true, alerted = true}, j_mod_a = {unlocked = false}, c_wip = {wip = true}}
+        G.P_BLINDS = {bl_mod = {}}
+        G.P_TAGS = {tag_mod = {}}
+    """)
+    lua.execute('G:save_progress()')
+    for flag in ('unlocked', 'discovered', 'alerted'):
+        for key in ('j_mod_a', 'bl_mod', 'tag_mod'):
+            assert meta(flag, key), f'Unlock All profile lost {flag} {key}'
+    assert not meta('unlocked', 'c_wip'), 'wip items stay locked, as with the Unlock All button'
+
+
+def check_profile_survives_boot():
+    # Browser start_up order: init_item_prototypes (save_progress) runs before
+    # load_profile. The saved profile must be loaded, not overwritten by {}.
+    boot = """
+        G.SETTINGS.profile = 1
+        G.SETTINGS.profile_counters = {}
+        G.PROFILES = {{}, {}, {}}
+        G.FILES = {['1/profile.jkr'] = {all_unlocked = true, career_stats = {c_wins = 4}}, ['1/meta.jkr'] = {}}
+        G.P_CENTERS, G.P_BLINDS, G.P_TAGS = {j_mod_a = {unlocked = false}}, {}, {}
+        function Game:load_profile(p)
+            calls.loads = (calls.loads or 0) + 1
+            G.PROFILES[p] = {}
+            for k, v in pairs(G.FILES[p .. '/profile.jkr'] or {}) do G.PROFILES[p][k] = v end
+        end
+    """
+    lua = runtime(boot)
+    lua.execute('G:save_progress(); G.FILES["1/profile.jkr"] = G.PROFILES[1]; G:load_profile(1)')
+    assert lua.eval('G.PROFILES[1].all_unlocked') is True, 'boot save_progress wiped the saved profile'
+    assert lua.eval('G.PROFILES[1].career_stats.c_wins') == 4
+    assert lua.eval('calls.progress.unlocked.j_mod_a'), 'restored Unlock All profile re-unlocks mod content'
+    lua.execute('G:save_progress(); G:save_settings()')
+    assert lua.eval('calls.loads') == 2, 'the profile is loaded once before the first save, then left alone'
+
+    # Builds that load the profile before prototypes (Cryptid, Entropy) are not reloaded.
+    lua = runtime(boot)
+    lua.execute('G:load_profile(1); G.PROFILES[1].fresh = true; G:save_settings(); G:save_progress()')
+    assert lua.eval('calls.loads') == 1 and lua.eval('G.PROFILES[1].fresh') is True
+
+
 def release_files(folder):
     directory = ROOT / folder if folder else ROOT
     parts_file = directory / 'parts.json'
@@ -174,6 +254,8 @@ def check_releases():
 check_pixel_smoothing()
 check_texture_filters()
 check_high_contrast()
+check_unlocks_survive_reload()
+check_profile_survives_boot()
 if '--no-releases' not in sys.argv:
     check_releases()
-print('Mod settings: smoothing defaults Off and stays toggleable, Vanilla save keeps its choice, High Contrast follows the toggle; all mod releases load it and keep the CRT colour pass')
+print('Mod settings: smoothing defaults Off and stays toggleable, Vanilla save keeps its choice, High Contrast follows the toggle, mod unlocks and the profile survive a reload; all mod releases load it and keep the CRT colour pass')
