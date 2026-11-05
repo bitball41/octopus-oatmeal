@@ -16,9 +16,15 @@ function CardArea:load(saved)
     if total > 10000 then
         error('This run has too many stacked consumables for plain Vanilla. Open Vanilla + Handy to continue.')
     end
-    local expanded = {config = saved.config, cards = {}}
+    local expanded = {config = saved.config and copy_table(saved.config), cards = {}}
     for _, card in ipairs(saved.cards) do
-        for i = 1, math.floor(card.overflow_amount or 1) do
+        local qty = math.floor(card.overflow_amount or 1)
+        -- A negative stack added one slot for its single card. Each expanded
+        -- negative copy adds its own, as it would have in Vanilla.
+        if card.edition and card.edition.negative and expanded.config and expanded.config.card_limit then
+            expanded.config.card_limit = expanded.config.card_limit + qty - 1
+        end
+        for i = 1, qty do
             local item = copy_table(card)
             item.overflow_amount = nil
             item.overflow_infinite = nil

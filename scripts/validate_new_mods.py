@@ -33,6 +33,12 @@ for z in (handy, entropy):
 assert 'Mods/JokerDisplay/JokerDisplay.lua' in handy.namelist()
 assert 'Mods/Overflow/Overflow.lua' in handy.namelist()
 assert not any(name.startswith('Mods/Steamodded/') for name in handy.namelist())
+# Vanilla's set_edition ignores Steamodded edition keys; Perkeo must pass a table.
+for name in ('main.lua', 'Mods/Overflow/Overflow.lua'):
+    source = handy.read(name).decode()
+    assert 'set_edition("e_negative"' not in source and source.count('set_edition({negative = true}, true)') == 5, name
+    assert 'if card.qty and card.edition and card.edition.negative then' in source, name
+assert 'not (v.edition.card_limit or v.edition.negative)' in handy.read('cardarea.lua').decode()
 assert 'Mods/Entropy/Entropy.lua' in entropy.namelist()
 assert 'Mods/Spectrallib/main.lua' in entropy.namelist()
 assert not any(n.startswith('Mods/Handy/') for n in entropy.namelist()), 'Handy is opt-in, not bundled with Entropy'
@@ -71,6 +77,13 @@ area:load(original); assert(area.saved==original)
 local previous=area.saved
 local ok,err=pcall(function()area:load({cards={{overflow_amount=10001}}})end)
 assert(not ok and err:find('Vanilla + Handy',1,true) and area.saved==previous)
+-- A Perkeo stack of 3 negatives held one extra slot; expanded, each copy needs one.
+local negatives={config={card_limit=3},cards={
+    {key='c_fool',overflow_amount=3,edition={negative=true,type='negative'}}, {key='c_fool',overflow_amount=2}
+}}
+area:load(negatives)
+assert(#area.saved.cards==5 and area.saved.cards[3].edition.negative and not area.saved.cards[4].edition)
+assert(area.saved.config.card_limit==5 and negatives.config.card_limit==3)
 ''')
 # Profile metadata must be loaded before mod discovery, including a saved E2/E3.
 source = entropy.read('game.lua').decode()

@@ -1,5 +1,6 @@
 """Browser adaptations for the pinned Entropy and quality-of-life mods."""
 import re
+from browser_adapters import once
 
 
 def adapt_patch(mod, name, index, patch, files, target, flavor):
@@ -8,6 +9,13 @@ def adapt_patch(mod, name, index, patch, files, target, flavor):
     key = (name, index)
     if mod == 'Overflow' and key == ('lovely/fixes.toml', 1):
         return p, 'Optional DebugPlus integration is absent from this browser bundle.'
+    if mod == 'Overflow' and key == ('lovely/fixes.toml', 5):
+        # Only Steamodded gives negative editions a card_limit. In Vanilla a
+        # negative stack would otherwise fill one slot per copy, although each
+        # copy should cost no slot.
+        p['payload'] = once(p['payload'], 'if not v.edition or not v.edition.card_limit then',
+                            'if not v.edition or not (v.edition.card_limit or v.edition.negative) then',
+                            'Overflow negative stack slots')
     # On Steamodded these targets moved into Steamodded's own localize and
     # CardArea code, so desktop Lovely leaves them unapplied as well.
     steamodded_moved = {('JokerDisplay', 'lovely/core.toml', 6), ('JokerDisplay', 'lovely/core.toml', 7),
@@ -200,6 +208,24 @@ def prepare_sources(files):
             files[name] = files[name].replace(
                 b"self.ability.name == 'Constellation' and not context.blueprint and context.consumeable.ability.set",
                 b"self.ability.name == 'Constellation' and context.using_consumeable and not context.blueprint and context.consumeable.ability.set")
+    # Perkeo must always add a negative copy.
+    if 'Mods/Overflow/Overflow.lua' in files:
+        for name in ('Mods/Overflow/Overflow.lua', 'main.lua'):
+            text = files[name].decode()
+            # Vanilla's Card:set_edition only reads edition tables, so Steamodded's
+            # "e_negative" key left the copy with no edition. Both accept the table.
+            old = 'new_card:set_edition("e_negative", true)'
+            assert text.count(old) == 5, f'{name}: Overflow Perkeo edition calls changed'
+            text = text.replace(old, 'new_card:set_edition({negative = true}, true)')
+            # With "Only stack negative consumables" off, a stacked non-negative
+            # pick grew by one plain copy. Only a negative pick may grow in place.
+            text = once(text,
+                'elseif card and Overflow.can_merge(card, card, true) and not Overflow.is_blacklisted(card) then\n'
+                '                if card.qty then\n',
+                'elseif card and Overflow.can_merge(card, card, true) and not Overflow.is_blacklisted(card) then\n'
+                '                if card.qty and card.edition and card.edition.negative then\n',
+                f'{name}: Overflow Perkeo stack pick')
+            files[name] = text.encode()
     name = 'Mods/JokerDisplay/libs/nativefs/nativefs.lua'
     if name in files:
         files[name] = b'return require("browser.nativefs")\n'
