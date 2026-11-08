@@ -20,7 +20,8 @@
     "test:new-mods": "python3 scripts/validate_new_mods.py",
     "test:new-mods-browser": "python3 scripts/prepare_mod_smoke.py && node scripts/validate_new_mods_browser.mjs",
     "test:launcher": "node scripts/validate_saved_builds.mjs",
-    "test:brainstorm": "node scripts/validate_brainstorm_browser.mjs"
+    "test:brainstorm": "node scripts/validate_brainstorm_wasm.mjs && node scripts/validate_brainstorm_browser.mjs",
+    "build:brainstorm": "python3 scripts/build_brainstorm_wasm.py"
   },
   "devDependencies": {
     "esbuild": "0.25.12",

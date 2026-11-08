@@ -1,8 +1,9 @@
--- Browser probe for Brainstorm. validate_brainstorm_browser.mjs splices this
--- in front of brainstorm.lua's final return and drives the keys from Chromium.
+-- Browser probe for Brainstorm Rerolled. validate_brainstorm_browser.mjs
+-- splices this in front of browser/brainstorm.lua's final return and drives
+-- the keys from Chromium.
 local probe_update = love.update
 local step, waited = 0, 0
-local found_seed, ready_sent
+local found_seed, ready_sent, rare_job, rare_started
 
 local function probe(text) print('PROBE ' .. text) end
 
@@ -13,46 +14,50 @@ local function contains(node, wanted, seen)
     if seen[node] then return false end
     seen[node] = true
     for k, v in pairs(node) do
-        if k ~= 'parent' and (contains(v, wanted, seen)) then return true end
+        if k ~= 'parent' and contains(v, wanted, seen) then return true end
     end
     return false
 end
 
+-- Immolate (WebAssembly, in the page) must agree with this game's own rolls.
 local function check_predictions()
     local game = G.GAME
-    local saved, ante, first = game.pseudorandom, game.round_resets.ante, game.first_shop_buffoon
-    local tags, packs = {}, {}
-    for i = 1, 300 do
+    local saved, ante = game.pseudorandom, game.round_resets.ante
+    local native = Brainstorm.native
+    local tags, vouchers = {}, {}
+    for i = 1, 40 do
         local seed = random_string(8, i * 0.1372)
-        local predictor = Brainstorm.predictor(seed)
-        local predicted_tag = Brainstorm.first_tag(predictor)
-        local predicted_pack = Brainstorm.first_shop_pack(predictor)
         game.pseudorandom = {seed = seed, hashed_seed = pseudohash(seed)}
         game.round_resets.ante = 1
-        local actual_tag = get_next_tag_key()
-        game.first_shop_buffoon = true
-        local actual_pack = get_pack('shop_pack').key
-        assert(game.pseudorandom.seed == seed and game.round_resets.ante == 1, 'prediction leaked into the run state')
-        assert(predicted_tag == actual_tag, 'tag mismatch for ' .. seed .. ': ' .. tostring(predicted_tag) .. ' vs ' .. tostring(actual_tag))
-        assert(predicted_pack == actual_pack, 'pack mismatch for ' .. seed .. ': ' .. tostring(predicted_pack) .. ' vs ' .. tostring(actual_pack))
-        tags[actual_tag], packs[actual_pack] = true, true
+        local tag = get_next_tag_key()
+        local voucher = get_next_voucher_key()
+        game.pseudorandom, game.round_resets.ante = saved, ante
+        assert(native.check_seed({filter_spec = 'tag ' .. tag .. ' ante=1 blind=small'}, seed) == true,
+            'engine disagrees: ' .. seed .. ' small blind tag ' .. tag)
+        assert(native.check_seed({filter_spec = 'voucher ' .. voucher .. ' ante=1'}, seed) == true,
+            'engine disagrees: ' .. seed .. ' voucher ' .. voucher)
+        local other = tag == 'tag_charm' and 'tag_double' or 'tag_charm'
+        assert(native.check_seed({filter_spec = 'tag ' .. other .. ' ante=1 blind=small'}, seed) == false,
+            'engine accepts the wrong tag for ' .. seed)
+        tags[tag], vouchers[voucher] = true, true
     end
-    game.pseudorandom, game.round_resets.ante, game.first_shop_buffoon = saved, ante, first
-    -- Predicting must leave the live run's RNG state untouched.
-    local before = {}
-    for k, v in pairs(game.pseudorandom) do before[k] = v end
-    Brainstorm.seed_matches('ZZZZ1234', {searchTag = 'tag_charm', searchForSoul = 2, searchPack = {'p_arcana_mega_1'}})
-    for k, v in pairs(before) do assert(game.pseudorandom[k] == v, 'live RNG changed: ' .. tostring(k)) end
-    for k in pairs(game.pseudorandom) do assert(before[k] ~= nil, 'live RNG gained ' .. tostring(k)) end
-    local nt, np = 0, 0
+    local nt, nv = 0, 0
     for _ in pairs(tags) do nt = nt + 1 end
-    for _ in pairs(packs) do np = np + 1 end
-    assert(nt > 10 and np > 10, 'too little variety in sampled seeds')
+    for _ in pairs(vouchers) do nv = nv + 1 end
+    assert(nt > 8 and nv > 8, 'too little variety in sampled seeds')
+end
+
+-- The start seed the page's search job reports.
+local function job_start_seed(job)
+    local path = 'brainstorm_reply.lua'
+    print('callJavascriptFunction window.OctopusBrainstorm.call(' .. Brainstorm.native.encode(love.filesystem.getSaveDirectory()) .. ',{"op":"poll","job":' .. job.id .. '})')
+    local reply = assert(love.filesystem.load(path))()
+    love.filesystem.remove(path)
+    return reply.start_seed
 end
 
 local function arcana_has_soul()
-    local soul = false
-    local made = {}
+    local soul, made = false, {}
     for _ = 1, 5 do
         local card = create_card('Tarot', G.consumeables, nil, nil, true, true, nil, 'ar1')
         made[#made + 1] = card
@@ -63,59 +68,90 @@ local function arcana_has_soul()
 end
 
 function love.update(dt)
-    -- Cryptid opens with a paused first-launch intro; mark it seen.
+    -- First-launch screens (Cryptid's intro, unlock popups) cover the menu.
     if Cryptid and G and G.PROFILES and G.SETTINGS and G.PROFILES[G.SETTINGS.profile] then
         G.PROFILES[G.SETTINGS.profile].cry_intro_complete = true
     end
     probe_update(dt)
-    -- First-launch unlock popups (e.g. Cryptid's Blue Deck) cover the menu.
     if step == 0 and G and G.STAGES and G.STAGE == G.STAGES.MAIN_MENU and G.OVERLAY_MENU and G.FUNCS.exit_overlay_menu then
         pcall(G.FUNCS.exit_overlay_menu)
     end
     local ok, err = pcall(function()
         if step == 0 and G and G.STAGE == G.STAGES.MAIN_MENU and G.MAIN_MENU_UI and G.P_CENTERS and G.P_CENTERS.j_joker then
-            assert(Brainstorm and Brainstorm.INITIALIZED, 'Brainstorm did not load')
-            assert(contains(create_UIBox_settings(), 'Brainstorm'), 'Settings has no Brainstorm tab')
-            assert(Brainstorm.settings_tab(), 'Brainstorm tab did not build')
-            assert(contains(G.UIDEF.settings_tab('Game'), 32), 'Game speed 32 was not added')
+            assert(Brainstorm and Brainstorm.initialized, 'Brainstorm Rerolled did not start')
+            assert(Brainstorm.native and Brainstorm.native.lib, 'search engine unavailable: ' .. tostring(Brainstorm.native_error))
+            probe('ENGINE ' .. Brainstorm.native.build_info())
+            assert(contains(create_UIBox_settings(), 'Brainstorm-Rerolled'), 'Settings has no Brainstorm-Rerolled tab')
+            assert(Brainstorm.FB.settings_tab(), 'settings tab did not build')
+            local problem = Brainstorm.FB.problem({conditions = {{kind = 'tag', key = 'tag_bogus', ante = 1, ante_to = 1, blind = 'small'}}})
+            assert(problem, 'a bad filter was accepted')
+            -- Immolate predicts for a played profile; the test profile is new.
+            for _, key in ipairs({'j_blueprint', 'e_foil', 'e_holo', 'e_polychrome', 'e_negative'}) do
+                G.P_CENTERS[key].discovered = true
+            end
+            for _, v in ipairs(G.P_CENTER_POOLS.Joker) do v.unlocked = true end
+            Brainstorm.warned_new_profile = true
+            -- Use the Charm + Soul starter filter.
+            local filters = Brainstorm.config.filters
+            for i, f in ipairs(filters.list) do
+                if f.name == 'Charm + Soul' then filters.active = i end
+            end
+            assert(filters.list[filters.active] and filters.list[filters.active].name == 'Charm + Soul', 'no Charm + Soul starter filter')
             probe('MENU PASSED')
+            -- A rare filter: progress must climb, then cancel must stop it.
+            rare_job = assert(Brainstorm.native.start({start_seed = 'AAAAAAAA', filter_spec =
+                'tag tag_charm ante=1 blind=small\nsoul ante=1 packs=1 size=5 legendary=j_perkeo\njoker j_blueprint ante=1 within=2 edition=e_negative'}))
+            rare_started = love.timer.getTime()
+            step = 0.5
+        elseif step == 0.5 then
+            local status, seed, checked = Brainstorm.native.poll(rare_job)
+            assert(status == 'running' or status == 'found', 'rare search ' .. tostring(status))
+            if checked >= 3000000 or status == 'found' then
+                Brainstorm.native.cancel(rare_job)
+                local after = Brainstorm.native.poll(rare_job)
+                assert(status == 'running' and after == 'cancelled', 'search ' .. tostring(status) .. ', then ' .. tostring(after) .. ' after cancel')
+                Brainstorm.native.free(rare_job)
+                probe(string.format('PROGRESS PASSED %d seeds in %.1fs (%.1fM/s)', checked, love.timer.getTime() - rare_started,
+                    checked / math.max(0.001, love.timer.getTime() - rare_started) / 1e6))
+                step = 0.75
+            end
+            assert(love.timer.getTime() - rare_started < 120, 'rare search made no progress')
+        elseif step == 0.75 then
             step = 1
-            -- A fresh browser profile is mid-tutorial, which forces the first tags.
             G.SETTINGS.tutorial_complete = true
             G.SETTINGS.tutorial_progress = nil
             G.FUNCS.start_run(nil, {seed = 'BRAINST1'})
         elseif step == 1 and G.STAGE == G.STAGES.RUN and G.GAME.round_resets.blind_tags and G.GAME.round_resets.blind_tags.Small then
             assert(G.GAME.pseudorandom.seed == 'BRAINST1')
-            local predicted = Brainstorm.first_tag(Brainstorm.predictor('BRAINST1'))
-            assert(G.GAME.round_resets.blind_tags.Small == predicted, 'live run tag ' .. tostring(G.GAME.round_resets.blind_tags.Small) .. ' differs from prediction ' .. tostring(predicted))
+            local tag = G.GAME.round_resets.blind_tags.Small
+            assert(Brainstorm.native.check_seed({filter_spec = 'tag ' .. tag .. ' ante=1 blind=small'}, 'BRAINST1'), 'engine disagrees with the live run tag')
             check_predictions()
             probe('PREDICTIONS PASSED')
-            local opts = Brainstorm.SETTINGS.autoreroll
-            local t0, n = love.timer.getTime(), 0
-            while love.timer.getTime() - t0 < 1 do
-                Brainstorm.seed_matches(Brainstorm.next_candidate(), opts)
-                n = n + 1
-            end
-            probe(string.format('SEARCH RATE %d seeds/s', n / (love.timer.getTime() - t0)))
             save_run()
-            assert(Brainstorm.save_state('1'), 'save state failed')
-            assert(get_compressed(G.SETTINGS.profile .. '/saveState1.jkr'), 'save state was not written')
             step = 2
         elseif step == 2 and not G.screenwipe and not ready_sent then
             -- The game ignores keys until the run's screen wipe finishes.
-            ready_sent = true
+            ready_sent = 'save'
+            probe('READY FOR SAVE STATE')
+        elseif step == 2 and ready_sent == 'save' and get_compressed(G.SETTINGS.profile .. '/saveState1.jkr') then
+            ready_sent = 'auto'
             probe('READY FOR AUTOREROLL')
-        elseif step == 2 and Brainstorm.AUTOREROLL.autoRerollActive then
+        elseif step == 2 and Brainstorm.ar_job then
+            -- The search must begin at the mod's random start seed.
+            local sent = Brainstorm.ar_opts.start_seed
+            local job = job_start_seed(Brainstorm.ar_job)
+            assert(job == sent, 'search started at ' .. tostring(job) .. ', not the start seed ' .. tostring(sent))
             step = 3
             waited = love.timer.getTime()
             probe('AUTOREROLL STARTED')
-        elseif step == 3 and not Brainstorm.AUTOREROLL.autoRerollActive and G.STAGE == G.STAGES.RUN
+        elseif step == 3 and not Brainstorm.ar_job and G.STAGE == G.STAGES.RUN
             and G.GAME.round_resets.blind_tags and G.GAME.pseudorandom.seed ~= 'BRAINST1' then
             found_seed = G.GAME.pseudorandom.seed
+            assert(G.GAME.used_filter, 'run was not started by the filter')
             assert(G.GAME.round_resets.blind_tags.Small == 'tag_charm', 'found seed has ' .. tostring(G.GAME.round_resets.blind_tags.Small))
             assert(G.GAME.seeded == false, 'found run should play unseeded')
             assert(arcana_has_soul(), 'found seed has no Soul in the Charm Tag pack')
-            probe(string.format('AUTOREROLL PASSED %s after %d seeds in %.1fs', found_seed, Brainstorm.AUTOREROLL.seedsChecked or -1, love.timer.getTime() - waited))
+            probe(string.format('AUTOREROLL PASSED %s in %.1fs (%s)', found_seed, love.timer.getTime() - waited, Brainstorm.ar_status))
             step = 4
         elseif step == 4 and not G.screenwipe and ready_sent ~= 4 then
             ready_sent = 4

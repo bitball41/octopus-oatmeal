@@ -16,7 +16,8 @@ This browser port bundles pinned source snapshots of:
 - Paperback `f40ee0de1b56ec1bf28a1f6c6c4d34b7e64146bb` (v0.8.1, MIT)
 - Bunco `016e4cda5525fcb74ec6b6e70e7fdba1f0609547` (v5.1; upstream ships no LICENSE file)
 - Pokermon `2f462f609c271d5b2f2be0e8ba9d0b73b4ed8b71` (v3.8.1-0910b, GPL-3.0)
-- Brainstorm `9a8fd6a0b9db081087c3359f7fdb9326e58503f9` (v1.1.0-alpha, MPL-2.0), by OceanRamen
+- Brainstorm Rerolled `e0a729809b2fe507ed02e3ce48d4ea27ea4f8ff9` (v2.0.0-alpha), by ABGamma, built on
+  Brainstorm (MPL-2.0) by OceanRamen and Immolate (CC BY-NC-SA 4.0) by SpectralPack
 
 Their upstream URLs and exact checksums are recorded in `vendor/upstream.json`.
 `scripts/fetch_cryptid_sources.py` fetches any missing pinned source archives into
@@ -42,9 +43,13 @@ Vanilla + Handy also bundles JokerDisplay and Overflow without Steamodded. Plain
 expands Overflow stacks when loading the shared save, retaining each consumable.
 `scripts/entropy_browser.py` records browser patch adaptations and WebGL 1 shader repairs.
 
-Brainstorm is ported, not vendored: `browser/brainstorm.lua` is a modified
-version of its Lua (MPL-2.0, notice kept in the file header). Its Lovely patches become
-function hooks so one file runs on Vanilla and on every Steamodded custom build, settings
-live in the save directory instead of the mod folder, and reroll keys use Shift because
-browsers keep Ctrl+T. The launcher injects it at launch (Vanilla + Brainstorm, or the
-Brainstorm option in Custom Build), so no archive or custom pack is rebuilt for it.
+Brainstorm Rerolled is pinned in `vendor/BrainstormRerolled.zip`. Its Lua is in
+`brainstorm/lua/` with browser changes marked `Browser:` (files come from the game archive and
+the save folder, keys from the game's controller, Shift instead of Ctrl because browsers keep
+Ctrl+R and Ctrl+A); `brainstorm/lua/native.lua` replaces its FFI loader with a bridge to the
+page. Its seed searcher, Immolate, is built unmodified into `brainstorm/immolate.wasm` by
+`scripts/build_brainstorm_wasm.py` (plus `scripts/brainstorm_wasm/`: exports for Web Workers and
+single-threaded stand-ins for `<thread>`/`<mutex>`). Immolate is licensed CC BY-NC-SA 4.0
+(non-commercial, share-alike); the WebAssembly build and those files are distributed under the
+same license. The launcher injects all of it at launch (Vanilla + Brainstorm Rerolled, or the
+option in Custom Build), so no archive or custom pack is rebuilt for it.

@@ -1,0 +1,11 @@
+// Stand-in for <mutex> in the single-threaded WebAssembly build (see thread).
+#pragma once
+namespace std {
+struct mutex {
+  void lock() {}
+  void unlock() {}
+};
+template <class M> struct lock_guard {
+  explicit lock_guard(M &) {}
+};
+} // namespace std

@@ -11,7 +11,7 @@
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
             handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
-            brainstorm:['Brainstorm','Seed rerolling for runs that start strong. Shift+A auto-rerolls until the first skip tag, The Soul and the first shop pack match your search (set it in Options → Settings → Brainstorm). Shift+T rerolls once; hold Z or X + 1–5 to save or load a state. On Vanilla it shares your Vanilla save; in Custom Build it adds to any mods.'],
+            brainstorm:['Brainstorm Rerolled','Seed finder. Build filters in Options → Settings → Brainstorm-Rerolled (skip tags, vouchers, packs, shop Jokers and editions, The Soul and its legendary, boss blinds, in any ante), then Shift+A searches millions of seeds in the background and starts a run on a match. Shift+R rerolls once; hold Z or X + 1–5 to save or load a state. Predicts the base game, so it can’t be combined with content mods. On Vanilla it shares your Vanilla save.'],
             entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Spectrallib. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Add Handy with Custom Build. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
@@ -45,6 +45,9 @@
           function update(){
             var chosen=boxes.filter(function(b){return b.checked;}),ids=chosen.map(function(b){return b.value;});
             document.getElementById('randomizer-range').hidden=ids.indexOf('randomizer')<0;
+            // Brainstorm Rerolled predicts the base game, so not with content mods.
+            var contentMod=ids.some(function(id){return ['cryptid','paperback','bunco'].indexOf(id)>=0;});
+            boxes.forEach(function(b){if(b.value==='brainstorm'){b.disabled=contentMod;if(contentMod&&b.checked){b.checked=false;ids=ids.filter(function(id){return id!=='brainstorm';});chosen=chosen.filter(function(c){return c!==b;});}}});
             var eligible=ids.length>0&&canUseVanillaSave(ids);
             vanillaRow.hidden=!eligible;
             var save=eligible&&vanillaBox.checked?' · Vanilla save':' · Separate save';
@@ -211,6 +214,7 @@
             if(options.remember){Module.setStatus('Saving this build for next time…');await storeCachedBuild(savedBuildKey(build),result);}
           }
           window.__octopusBuild=result.config;window.__octopusMode='custom';
+          if(build.brainstorm)await startBrainstormEngine(w);
           Module.persistenceDatabase=build.persist;
           Module.archiveCacheNamespace=build.cache;
           Module.INITIAL_MEMORY=536870912;
@@ -227,10 +231,20 @@
           var w=await warmupPromise;
           Module.setStatus('Preparing Vanilla + Brainstorm…');
           var result=await window.OctopusCustom.assembleBrainstormPreset(w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
+          await startBrainstormEngine(w);
           window.__octopusMode='brainstorm';
           Module.persistenceDatabase='/home/web_user/love-vanilla';
           Module.archiveCacheNamespace='/home/web_user/love-vanilla-brainstorm';
           await bootArchive(w,result.archive,'vanilla/game.js',false);
+        }
+        // Brainstorm Rerolled's seed search (Immolate in WebAssembly workers).
+        // The game still starts if it cannot load; auto-reroll then says why.
+        async function startBrainstormEngine(w){
+          Module.setStatus('Starting the seed search…');
+          try{
+            await loadScript(w.assetBase+'brainstorm/host.js',false);
+            await window.OctopusBrainstorm.init(w.assetBase,cachedAsset);
+          }catch(error){console.warn('[Brainstorm-Rerolled] search engine unavailable',error);}
         }
         async function bootArchive(w,archive,templatePath,multiplayer){
           var result={archive:archive};
