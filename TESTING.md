@@ -140,29 +140,38 @@ Custom archives are assembled from verified packs before the engine starts and b
 
 `npm run test:custom` runs `scripts/validate_mod_settings.py` (Lua behaviour plus every release archive). `npm run test:launcher` drives both launchers in Chromium at desktop and phone width.
 
-## Brainstorm
+## Brainstorm Rerolled
 
-**Vanilla + Brainstorm** (or `index.html#brainstorm`) is the released Vanilla archive
-with Brainstorm 1.1.0-alpha added at launch; it shares the Vanilla save. **Brainstorm**
-in Custom Build adds it to any combination. It keeps that build's save and multiplayer
-identity, and saved builds with and without it are cached separately.
+**Vanilla + Brainstorm Rerolled** (or `index.html#brainstorm`) is the released Vanilla
+archive with [Brainstorm Rerolled](https://github.com/ABGamma/Brainstorm-Rerolled) 2.0.0-alpha
+added at launch; it shares the Vanilla save. **Brainstorm Rerolled** in Custom Build adds it to
+Handy, Multiplayer, CardSleeves and Randomizer builds, keeping that build's save and multiplayer
+identity. It is unavailable with Cryptid, Paperback or Bunco: its searcher predicts the base
+game's card pools.
 
-- **Shift + A:** auto-reroll until the run matches the search in
-  Options → Settings → Brainstorm (first skip tag, The Soul in the Charm Tag's
-  Mega Arcana, first shop pack). Defaults to Charm Tag + 1 Soul. Press again to stop.
-- **Shift + T:** restart on a new seed immediately.
-- **Hold Z + 1–5 / X + 1–5:** save or load a run state.
-- Game Speed gains 8×, 16× and 32×.
+- **Settings → Brainstorm-Rerolled:** pick the ACTIVE FILTER, or EDIT FILTERS to build them from
+  conditions (skip tag, voucher, booster pack, shop Joker with edition, The Soul and its
+  legendary, boss blind) on any ante or range of antes. Starter filters: Charm + Soul, and
+  Charm + Soul + Observatory.
+- **Shift + A:** search for a seed matching the active filter and start a run on it; the game
+  keeps running and shows seeds checked. Press again to cancel.
+- **Shift + R:** restart on a new seed. **Hold Z / X + 1–5:** save or load a run state.
 
-Upstream uses Ctrl+T, which browsers keep for a new tab, so Shift is used
-(Ctrl still works where the browser passes it through). Keys are ignored while
-typing into a text box and inside a Multiplayer lobby. Candidates are judged by the
-game's own `get_next_tag_key` and `get_pack` against each seed's fresh RNG state,
-so the prediction is exact on Vanilla and Steamodded builds alike.
+The search is Immolate compiled to WebAssembly (`npm run build:brainstorm`), running in Web
+Workers (all cores but one, up to 8) from `brainstorm/host.js`. The mod's Lua reaches it through
+`print("callJavascriptFunction …")`, which the page evaluates synchronously and answers by
+writing `brainstorm_reply.lua` to the save folder, so upstream's synchronous
+`native.start/poll/check_seed` calls keep working. Like the native library, predictions assume
+a played profile (Blueprint and the Foil, Holographic, Polychrome and Negative editions
+discovered, every Joker unlocked); on a newer profile the mod says so once when a search starts.
 
-Run `node scripts/validate_custom.mjs` and `npm run test:brainstorm`
-(`BRAINSTORM_BUILD=paperback,bunco npm run test:brainstorm` for a Custom Build).
-The browser check boots the real WASM runtime, compares 300 seeds' predicted tags and
-packs with the game's rolls, confirms predicting leaves the live RNG untouched, then
-presses Shift+A and checks the found run really has a Charm Tag whose Mega Arcana pack
-creates The Soul, then Shift+T and X+1.
+Run `npm run test:brainstorm`. `scripts/validate_brainstorm_wasm.mjs` reproduces Brainstorm
+Rerolled's own golden reference with the WebAssembly build (13 filters × 200,000 seeds: match
+counts, a hash of exactly which seeds match, and single-threaded search results), plus filter
+text parsing and seed IDs. `scripts/validate_brainstorm_browser.mjs` boots the real game in
+Chromium (`BRAINSTORM_BUILD=handy` for a Custom Build). It checks that the engine agrees with
+the game's own tag and voucher rolls on 40 seeds and on the live run, and that a rare search
+reports progress and cancels. Then it presses Z+1, plain A (must not search) and Shift+A with the
+Charm + Soul filter. The found run must really have a Charm Tag whose Mega Arcana creates The
+Soul, and must start from the mod's random start seed. Finally Shift+R and X+1.
+`node scripts/validate_custom.mjs` checks what is packed and when.

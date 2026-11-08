@@ -20,7 +20,13 @@ for (const file of ['index.html','balatro.html']) {
   await page.click('#mode-custom');
   await page.check('input[value=brainstorm]');await page.check('input[value=handy]');
   assert.match(await page.textContent('#build-summary'),/Handy \+ Brainstorm|Brainstorm \+ Handy/);
-  await page.uncheck('input[value=brainstorm]');await page.uncheck('input[value=handy]');
+  // Not with content mods: Brainstorm Rerolled predicts the base game.
+  await page.check('input[value=cryptid]');
+  assert.equal(await page.isDisabled('input[value=brainstorm]'),true,'Brainstorm is disabled with Cryptid');
+  assert.equal(await page.isChecked('input[value=brainstorm]'),false,'Cryptid clears Brainstorm');
+  await page.uncheck('input[value=cryptid]');
+  assert.equal(await page.isDisabled('input[value=brainstorm]'),false);
+  await page.uncheck('input[value=handy]');
   await page.check('input[value=paperback]');await page.check('input[value=bunco]');
   assert.equal(await page.isVisible('#vanilla-save-row'),true);
   await page.check('input[value=cryptid]');

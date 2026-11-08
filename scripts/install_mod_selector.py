@@ -44,6 +44,7 @@ CSS='''
       .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
       .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
       .build-option:has(input:checked) {border-color:#8ec3e3;background:#214760;}
+      .build-option:has(input:disabled) {opacity:.45;cursor:not-allowed;}
       .build-option input {accent-color:#87c8ef;width:17px;height:17px;}
       #randomizer-range {display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
       #randomizer-range label {display:grid;gap:7px;text-align:left;font-size:13px;color:#b0ccdd;}
@@ -65,7 +66,7 @@ HTML='''      <div id="mode-overlay">
         </div>
         <div class="mode-row" aria-label="Featured modes">
           <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
-          <button id="mode-brainstorm" type="button" data-tip="brainstorm">Vanilla + Brainstorm</button>
+          <button id="mode-brainstorm" type="button" data-tip="brainstorm">Vanilla + Brainstorm Rerolled</button>
           <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
           <button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>
         </div>
@@ -86,7 +87,7 @@ HTML='''      <div id="mode-overlay">
         <section id="build-panel" hidden aria-labelledby="build-heading">
           <h2 id="build-heading">Custom Build</h2>
           <div class="build-options">
-'''+''.join(f'            <label class="build-option" data-tip="{id}"><input type="checkbox" value="{id}"> {label}</label>\n' for id,label in [('handy','Handy'),('cryptid','Cryptid'),('paperback','Paperback'),('bunco','Bunco'),('multiplayer','Multiplayer'),('sleeves','CardSleeves'),('brainstorm','Brainstorm'),('randomizer','Randomizer')])+'''          </div>
+'''+''.join(f'            <label class="build-option" data-tip="{id}"><input type="checkbox" value="{id}"> {label}</label>\n' for id,label in [('handy','Handy'),('cryptid','Cryptid'),('paperback','Paperback'),('bunco','Bunco'),('multiplayer','Multiplayer'),('sleeves','CardSleeves'),('brainstorm','Brainstorm Rerolled'),('randomizer','Randomizer')])+'''          </div>
           <div id="randomizer-range" hidden>
             <label>Minimum scoring multiplier (×)<input id="randomizer-min" type="number" min="0" max="1000000" step="any" value="0.1"></label>
             <label>Maximum scoring multiplier (×)<input id="randomizer-max" type="number" min="0" max="1000000" step="any" value="10"></label>

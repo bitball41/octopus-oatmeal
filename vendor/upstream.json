@@ -88,5 +88,11 @@
     "commit": "a543cc33107a8dbb3a201afb083b14d28450d74a",
     "archive": "Spectrallib.zip",
     "sha256": "5e718baf6ce0ae9d5cae17ba7e20eeaab5e81b29029e3a437cc4300e54cd4c1a"
+  },
+  "BrainstormRerolled": {
+    "url": "https://github.com/ABGamma/Brainstorm-Rerolled",
+    "commit": "e0a729809b2fe507ed02e3ce48d4ea27ea4f8ff9",
+    "archive": "BrainstormRerolled.zip",
+    "sha256": "2a794eeafe815bd5092792a3b1bc545e7ba5ec55a6e232956a58fa279f81c207"
   }
 }
