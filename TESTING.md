@@ -123,8 +123,8 @@ Custom archives are assembled from verified packs before the engine starts and b
 
 ## Entropy and the Handy QoL bundle
 
-- `npm run test:new-mods`: Lua 5.1 compilation, CDN package limits, Entropy profile isolation, selector integration, and lossless expansion of Overflow saves in Vanilla.
-- `npm run test:new-mods-browser`: instruments temporary copies of the release archives, then boots actual WASM in Chromium. It checks JokerDisplay overlays, negative-consumable stacking and serialization, Constellation contexts, Entropy content loading, a new run, the first dealt hand and a scored hand. Install Chromium with `npx playwright install --with-deps chromium` first. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing binary.
+- `npm run test:new-mods`: Lua 5.1 compilation, CDN package limits, Entropy profile isolation, selector integration, and lossless expansion of Overflow saves in Vanilla, including the extra slot each negative copy brings.
+- `npm run test:new-mods-browser`: instruments temporary copies of the release archives, then boots actual WASM in Chromium. It checks JokerDisplay overlays, negative-consumable stacking and serialization, Perkeo's negative copies (stacking without using slots, and with *Only stack negative consumables* off), Constellation contexts, Entropy content loading, a new run, the first dealt hand and a scored hand. Install Chromium with `npx playwright install --with-deps chromium` first. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing binary.
 - Browser test output and screenshots live under `build/mod-smoke/`; instrumented archives are never published.
 
 ## Mod settings and saved builds

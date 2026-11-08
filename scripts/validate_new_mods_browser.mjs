@@ -18,7 +18,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const url='http://127.0.0.1:'+server.address().port;
 let browser;
 try {
-  for(const [mode,success] of [['handy','PROBE CONSTELLATION NIL CONTEXT PASSED'],['entropy','PROBE ENTROPY HAND SCORED']]) {
+  for(const [mode,success] of [['handy','PROBE PERKEO PLAIN STACK PASSED'],['entropy','PROBE ENTROPY HAND SCORED']]) {
     if(process.env.TEST_MOD && process.env.TEST_MOD!==mode)continue;
     browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE||undefined,args:['--no-sandbox','--no-zygote','--single-process','--disable-dev-shm-usage','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
     const context=await browser.newContext({viewport:{width:1200,height:800}});
