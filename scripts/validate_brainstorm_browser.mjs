@@ -1,6 +1,6 @@
 // Run with: node scripts/validate_brainstorm_browser.mjs
 // (BRAINSTORM_BUILD=handy node scripts/validate_brainstorm_browser.mjs for a Custom Build)
-// Boots Vanilla + Brainstorm Rerolled from the launcher in Chromium, checks
+// Boots Vanilla + Brainstorm Rerolled + Handy from the launcher in Chromium, checks
 // that its WebAssembly searcher agrees with the game's own rolls, then drives
 // its keys: Z+1 save state, Shift+A auto-reroll with the Charm + Soul starter
 // filter (plain A must not search), Shift+R reroll and X+1 load state.
@@ -69,7 +69,7 @@ try {
   await waitFor('PROBE READY FOR LOAD STATE',30);
   await chord('x','1');
   await waitFor('PROBE BRAINSTORM ALL PASSED',30);
-  console.log((mods.length?'Custom Build ('+mods.join(' + ')+') + Brainstorm Rerolled':'Vanilla + Brainstorm Rerolled')+' browser check passed');
+  console.log((mods.length?'Custom Build ('+mods.join(' + ')+') + Brainstorm Rerolled':'Vanilla + Brainstorm Rerolled + Handy')+' browser check passed');
 } finally {
   mkdirSync(root+'/build/mod-smoke',{recursive:true});
   if(page)await page.screenshot({path:root+'/build/mod-smoke/brainstorm.png'}).catch(()=>{});

@@ -142,9 +142,10 @@ Custom archives are assembled from verified packs before the engine starts and b
 
 ## Brainstorm Rerolled
 
-**Vanilla + Brainstorm Rerolled** (or `index.html#brainstorm`) is the released Vanilla
-archive with [Brainstorm Rerolled](https://github.com/ABGamma/Brainstorm-Rerolled) 2.0.0-alpha
-added at launch; it shares the Vanilla save. **Brainstorm Rerolled** in Custom Build adds it to
+**Vanilla + Brainstorm Rerolled + Handy** (or `index.html#brainstorm`) is the released
+Vanilla + Handy archive (with JokerDisplay and Overflow) with
+[Brainstorm Rerolled](https://github.com/ABGamma/Brainstorm-Rerolled) 2.0.0-alpha added at
+launch; it shares the Vanilla save. **Brainstorm Rerolled** in Custom Build adds it to
 Handy, Multiplayer, CardSleeves and Randomizer builds, keeping that build's save and multiplayer
 identity. It is unavailable with Cryptid, Paperback or Bunco: its searcher predicts the base
 game's card pools.
@@ -169,9 +170,18 @@ Run `npm run test:brainstorm`. `scripts/validate_brainstorm_wasm.mjs` reproduces
 Rerolled's own golden reference with the WebAssembly build (13 filters × 200,000 seeds: match
 counts, a hash of exactly which seeds match, and single-threaded search results), plus filter
 text parsing and seed IDs. `scripts/validate_brainstorm_browser.mjs` boots the real game in
-Chromium (`BRAINSTORM_BUILD=handy` for a Custom Build). It checks that the engine agrees with
+Chromium (`BRAINSTORM_BUILD=handy` for a Custom Build), with Handy's own keys active. It checks that the engine agrees with
 the game's own tag and voucher rolls on 40 seeds and on the live run, and that a rare search
 reports progress and cancels. Then it presses Z+1, plain A (must not search) and Shift+A with the
 Charm + Soul filter. The found run must really have a Charm Tag whose Mega Arcana creates The
 Soul, and must start from the mod's random start seed. Finally Shift+R and X+1.
 `node scripts/validate_custom.mjs` checks what is packed and when.
+
+## Launcher layout
+
+The picker groups modes as Vanilla (one shared save), Mods (separate saves) and More, in a
+three-column grid (one column on phones). Each button gives its name and one line; hovering
+still shows the longer description. The layout lives in `scripts/install_mod_selector.py`;
+the Handy, Cryptid and Fish installers only add their buttons when missing, so rerunning any
+of them leaves both launchers unchanged. `scripts/validate_saved_builds.mjs` checks both
+launchers at desktop and phone width.

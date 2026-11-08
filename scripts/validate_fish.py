@@ -66,7 +66,6 @@ def validate_launcher():
         assert 'bindMode("mode-fish", "fish");' in s
         assert '"fish-and-chips/"' in s
         assert 'love-fish-and-chips' in s
-        assert '#mode-fish {background:' in s
         assert 'image-rendering: pixelated' not in s, "Do not disable smoothing in CSS"
     print("Fish and Chips mode appears in both launchers; smoothing CSS unchanged")
 
