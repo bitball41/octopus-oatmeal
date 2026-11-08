@@ -3,16 +3,15 @@ from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
 CSS='''
-      #mode-overlay {overflow-y:auto;justify-content:safe center;gap:20px;padding:40px 20px;}
-      #mode-overlay h1 {margin:0 0 12px;}
-      .mode-row {gap:12px;width:100%;max-width:1000px;}
-      .mode-row button {min-width:180px;min-height:58px;padding:15px 22px;letter-spacing:.02em;text-transform:none;color:white;transition:transform .14s,box-shadow .14s;}
-      .mode-row button:hover,.mode-row button:focus-visible {transform:translateY(-2px);box-shadow:0 0 0 3px #ffffff42;outline:none;}
-      #mode-paperback,#mode-bunco,#mode-pokermon,#mode-cryptid,#mode-entropy {min-width:180px;}
-      #mode-entropy {background:#9b2946;}
-      #mode-brainstorm {background:#6b4bb0;}
-      #mode-sleeves {background:#336eaa;} #mode-randomizer {background:#bb4774;}
-      #mode-custom {background:transparent;border:1px solid #6b8ba3;min-width:240px;}
+      #mode-overlay {overflow-y:auto;justify-content:safe center;gap:22px;padding:40px 16px;}
+      #mode-overlay h1 {margin:0;font-size:1.5em;}
+      .mode-group {width:min(760px,100%);text-align:left;}
+      .mode-group h2 {margin:0 0 8px;font:600 12px/1.2 arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#7f9fb3;}
+      #mode-overlay .mode-row {display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;}
+      #mode-overlay .mode-row button {display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-width:0;min-height:62px;padding:11px 14px;background:#132f44;color:#e6f2f9;border:1px solid #284a61;border-radius:8px;font:600 15px/1.25 arial,sans-serif;letter-spacing:0;text-transform:none;text-align:left;cursor:pointer;transition:background .12s,border-color .12s;}
+      #mode-overlay .mode-row button span {font-weight:400;font-size:12.5px;color:#93b2c5;}
+      #mode-overlay .mode-row button:hover,#mode-overlay .mode-row button:focus-visible {background:#183a53;border-color:#6aa6c9;outline:none;}
+      #mode-overlay #mode-vanilla {border-color:#3d9be8;}
       #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
       #build-panel[hidden],#randomizer-range[hidden],#saved-builds[hidden],#vanilla-save-row[hidden],#vanilla-save-run[hidden] {display:none;}
       #saved-builds {width:min(760px,100%);}
@@ -40,12 +39,13 @@ CSS='''
       .dialog-actions button {border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;}
       #vanilla-save-cancel {background:transparent;color:#daebf6;border:1px solid #6b8ba3;}
       #vanilla-save-confirm {background:#c9a13a;color:#1c1606;}
-      #build-panel h2 {font-size:18px;margin:0 0 18px;}
+      #build-panel {text-align:left;}
+      #build-panel h2 {font-size:16px;margin:0 0 14px;}
       .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
       .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
       .build-option:has(input:checked) {border-color:#8ec3e3;background:#214760;}
       .build-option:has(input:disabled) {opacity:.45;cursor:not-allowed;}
-      .build-option input {accent-color:#87c8ef;width:17px;height:17px;}
+      .build-option input {accent-color:#87c8ef;width:17px;height:17px;flex:none;}
       #randomizer-range {display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
       #randomizer-range label {display:grid;gap:7px;text-align:left;font-size:13px;color:#b0ccdd;}
       #randomizer-range input {width:150px;background:#091f2f;border:1px solid #638297;color:white;border-radius:7px;padding:10px;font:inherit;}
@@ -57,29 +57,37 @@ CSS='''
       #mode-tooltip[hidden] {display:none;}
       #mode-tooltip strong {display:block;margin-bottom:4px;color:white;}
       #loading-error-back {pointer-events:auto;background:#3d9be8;border:0;border-radius:8px;color:white;padding:12px 20px;cursor:pointer;}
-      @media(max-width:620px) {.mode-row{gap:9px}.mode-row button{min-width:135px!important;padding:12px 14px;font-size:14px;}.build-options{grid-template-columns:repeat(2,1fr)}#build-actions{flex-direction:column;align-items:stretch;}#mode-overlay{padding:24px 14px;}}
+      @media(max-width:620px) {#mode-overlay .mode-row{grid-template-columns:1fr}.build-options{grid-template-columns:repeat(2,1fr)}#build-actions{flex-direction:column;align-items:stretch;}#mode-overlay{padding:24px 16px;}}
 '''
 HTML='''      <div id="mode-overlay">
         <h1>Balatro</h1>
-        <div class="mode-row" aria-label="Original game">
-          <button id="mode-vanilla" type="button" data-tip="vanilla">Vanilla</button>
-        </div>
-        <div class="mode-row" aria-label="Featured modes">
-          <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy</button>
-          <button id="mode-brainstorm" type="button" data-tip="brainstorm">Vanilla + Brainstorm Rerolled</button>
-          <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid</button>
-          <button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>
-        </div>
-        <div class="mode-row" aria-label="More mods">
-          <button id="mode-paperback" type="button" data-tip="paperback">Paperback</button>
-          <button id="mode-bunco" type="button" data-tip="bunco">Bunco</button>
-          <button id="mode-multiplayer" type="button" data-tip="multiplayer">Multiplayer</button>
-          <button id="mode-sleeves" type="button" data-tip="sleeves">CardSleeves</button>
-          <button id="mode-randomizer" type="button" data-tip="randomizer">Custom Randomizer</button>
-        </div>
-        <div class="mode-row">
-          <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom">Custom Build</button>
-        </div>
+        <section class="mode-group" aria-labelledby="group-vanilla">
+          <h2 id="group-vanilla">Vanilla · one shared save</h2>
+          <div class="mode-row">
+            <button id="mode-vanilla" type="button" data-tip="vanilla">Vanilla<span>The original game</span></button>
+            <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy<span>Quick controls, faster speeds</span></button>
+            <button id="mode-brainstorm" type="button" data-tip="brainstorm">Vanilla + Brainstorm Rerolled + Handy<span>Seed finder, with Handy</span></button>
+          </div>
+        </section>
+        <section class="mode-group" aria-labelledby="group-mods">
+          <h2 id="group-mods">Mods · separate saves</h2>
+          <div class="mode-row">
+            <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid<span>Unbalanced Jokers, huge scores</span></button>
+            <button id="mode-entropy" type="button" data-tip="entropy">Entropy<span>Chaotic expansion</span></button>
+            <button id="mode-fish" type="button" data-tip="fish">Fish &amp; Chips<span>Fishing and hundreds of fish</span></button>
+            <button id="mode-paperback" type="button" data-tip="paperback">Paperback<span>Vanilla-style expansion</span></button>
+            <button id="mode-bunco" type="button" data-tip="bunco">Bunco<span>Exotic suits, new Jokers</span></button>
+            <button id="mode-sleeves" type="button" data-tip="sleeves">CardSleeves<span>Pair a deck with a sleeve</span></button>
+          </div>
+        </section>
+        <section class="mode-group" aria-labelledby="group-more">
+          <h2 id="group-more">More</h2>
+          <div class="mode-row">
+            <button id="mode-multiplayer" type="button" data-tip="multiplayer">Multiplayer<span>Host or join a match</span></button>
+            <button id="mode-randomizer" type="button" data-tip="randomizer">Custom Randomizer<span>Rolled Joker values</span></button>
+            <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom">Custom Build<span>Mix mods yourself</span></button>
+          </div>
+        </section>
         <section id="saved-builds" hidden aria-labelledby="saved-builds-heading">
           <h2 id="saved-builds-heading">Continue a saved build</h2>
           <div id="saved-builds-list" class="saved-builds-list"></div>

@@ -51,5 +51,5 @@ page. Its seed searcher, Immolate, is built unmodified into `brainstorm/immolate
 `scripts/build_brainstorm_wasm.py` (plus `scripts/brainstorm_wasm/`: exports for Web Workers and
 single-threaded stand-ins for `<thread>`/`<mutex>`). Immolate is licensed CC BY-NC-SA 4.0
 (non-commercial, share-alike); the WebAssembly build and those files are distributed under the
-same license. The launcher injects all of it at launch (Vanilla + Brainstorm Rerolled, or the
-option in Custom Build), so no archive or custom pack is rebuilt for it.
+same license. The launcher injects all of it at launch (Vanilla + Brainstorm Rerolled + Handy,
+or the option in Custom Build), so no archive or custom pack is rebuilt for it.

@@ -48,16 +48,18 @@ async function injectBrainstorm(files,base,fetchAsset) {
     files['brainstorm_rerolled/'+name+'.lua']=new Uint8Array(await (await fetchAsset(base+'brainstorm/lua/'+name+'.lua')).arrayBuffer());
   await injectModule(files,'browser.brainstorm','browser/brainstorm.lua',base,fetchAsset);
 }
-// Vanilla + Brainstorm: the released Vanilla archive with Brainstorm added, so
-// it keeps Vanilla's exact game code and save.
+// Vanilla + Brainstorm Rerolled + Handy: the released Vanilla + Handy archive
+// (Vanilla's game code with standalone Handy, JokerDisplay and Overflow) with
+// Brainstorm Rerolled added. It shares the Vanilla save, as Vanilla + Handy does.
+export const BRAINSTORM_PRESET_DIR='vanilla-handy/';
 export async function assembleBrainstormPreset(base, fetchAsset, status) {
-  status('Downloading Vanilla…');
-  const files=unzipSync(new Uint8Array(await (await fetchAsset(base+'vanilla/game.data')).arrayBuffer()));
-  if(!files['main.lua']) throw new Error('The Vanilla download is incomplete. Please reload.');
+  status('Downloading Vanilla + Handy…');
+  const files=unzipSync(new Uint8Array(await (await fetchAsset(base+BRAINSTORM_PRESET_DIR+'game.data')).arrayBuffer()));
+  if(!files['main.lua']) throw new Error('The Vanilla + Handy download is incomplete. Please reload.');
   status('Adding Brainstorm…');
   await injectBrainstorm(files,base,fetchAsset);
   const archive=zipSync(files,{level:0});
-  return {archive,config:{brainstorm:true,mods:['brainstorm'],identity:'vanilla',vanilla_save:true}};
+  return {archive,config:{brainstorm:true,mods:['handy','brainstorm'],identity:'vanilla',vanilla_save:true}};
 }
 async function sha256(bytes) {
   const digest=await crypto.subtle.digest('SHA-256',bytes);

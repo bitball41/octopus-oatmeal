@@ -11,7 +11,7 @@
           var tips={
             vanilla:['Vanilla','The original game, plus the existing cheats. Start here if you’re new.'],
             handy:['Vanilla + Handy','The original game with quick controls, bulk selling, faster speeds and animation skipping. Includes JokerDisplay overlays and Overflow consumable stacking. Shares your Vanilla save.'],
-            brainstorm:['Brainstorm Rerolled','Seed finder. Build filters in Options → Settings → Brainstorm-Rerolled (skip tags, vouchers, packs, shop Jokers and editions, The Soul and its legendary, boss blinds, in any ante), then Shift+A searches millions of seeds in the background and starts a run on a match. Shift+R rerolls once; hold Z or X + 1–5 to save or load a state. Predicts the base game, so it can’t be combined with content mods. On Vanilla it shares your Vanilla save.'],
+            brainstorm:['Brainstorm Rerolled','Seed finder. Build filters in Options → Settings → Brainstorm-Rerolled (skip tags, vouchers, packs, shop Jokers and editions, The Soul and its legendary, boss blinds, in any ante), then Shift+A searches millions of seeds in the background and starts a run on a match. Shift+R rerolls once; hold Z or X + 1–5 to save or load a state. Predicts the base game, so it can’t be combined with content mods. The Vanilla button includes Handy and shares your Vanilla save.'],
             entropy:['Entropy','A chaotic expansion with inverted consumables, new Jokers and decks. Includes Spectrallib. Separate save.'],
             cryptid:['Cryptid','Unbalanced Jokers, strange decks and enormous scores. Add Handy with Custom Build. Separate save.'],
             paperback:['Paperback','A vanilla-style content expansion with new Jokers, cards and mechanics. Separate save.'],
@@ -220,8 +220,8 @@
           Module.INITIAL_MEMORY=536870912;
           await bootArchive(w,result.archive,'game.js',build.multiplayer);
         }
-        // Vanilla + Brainstorm: the Vanilla archive with Brainstorm injected,
-        // on the shared Vanilla save.
+        // Vanilla + Brainstorm Rerolled + Handy: the Vanilla + Handy archive with
+        // Brainstorm injected, on the shared Vanilla save.
         async function launchBrainstorm(){
           if(booting)return;
           await customModule();
@@ -229,13 +229,13 @@
           document.getElementById('mode-tooltip').hidden=true;
           document.getElementById('mode-overlay').classList.add('hidden');document.getElementById('loading-overlay').classList.remove('hidden');
           var w=await warmupPromise;
-          Module.setStatus('Preparing Vanilla + Brainstorm…');
+          Module.setStatus('Preparing Vanilla + Brainstorm Rerolled + Handy…');
           var result=await window.OctopusCustom.assembleBrainstormPreset(w.assetBase,cachedAsset,function(t){Module.setStatus(t);});
           await startBrainstormEngine(w);
           window.__octopusMode='brainstorm';
           Module.persistenceDatabase='/home/web_user/love-vanilla';
-          Module.archiveCacheNamespace='/home/web_user/love-vanilla-brainstorm';
-          await bootArchive(w,result.archive,'vanilla/game.js',false);
+          Module.archiveCacheNamespace='/home/web_user/love-vanilla-handy-brainstorm';
+          await bootArchive(w,result.archive,'vanilla-handy/game.js',false);
         }
         // Brainstorm Rerolled's seed search (Immolate in WebAssembly workers).
         // The game still starts if it cannot load; auto-reroll then says why.

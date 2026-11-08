@@ -37,12 +37,6 @@ def install():
                 '<button id="mode-entropy" type="button" data-tip="entropy">Entropy</button>\n'
                 '          <button id="mode-fish" type="button" data-tip="fish">Fish &amp; Chips</button>',
                 path)
-        if "#mode-fish {background:" not in text:
-            text = require_replace(
-                text, '#mode-entropy {background:#9b2946;}',
-                '#mode-entropy {background:#9b2946;}\n'
-                '      #mode-fish {background:#257f98;}',
-                path)
         tooltip = "fish:['Fish & Chips','Go fishing in Balatro: hundreds of fish, collectible rods and a fishing minigame. Separate save.'],"
         if tooltip not in text:
             text = require_replace(text,

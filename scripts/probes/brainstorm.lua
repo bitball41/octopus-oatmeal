@@ -79,6 +79,7 @@ function love.update(dt)
     local ok, err = pcall(function()
         if step == 0 and G and G.STAGE == G.STAGES.MAIN_MENU and G.MAIN_MENU_UI and G.P_CENTERS and G.P_CENTERS.j_joker then
             assert(Brainstorm and Brainstorm.initialized, 'Brainstorm Rerolled did not start')
+            probe('HANDY ' .. tostring(Handy ~= nil))
             assert(Brainstorm.native and Brainstorm.native.lib, 'search engine unavailable: ' .. tostring(Brainstorm.native_error))
             probe('ENGINE ' .. Brainstorm.native.build_info())
             assert(contains(create_UIBox_settings(), 'Brainstorm-Rerolled'), 'Settings has no Brainstorm-Rerolled tab')
