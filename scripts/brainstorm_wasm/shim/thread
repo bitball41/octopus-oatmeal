@@ -1,0 +1,14 @@
+// Stand-in for <thread> in the single-threaded WebAssembly build.
+// brainstorm_api.cpp's thread pool is never started there: each browser Web
+// Worker runs its own instance and calls scanRange() directly (wasm_api.cpp).
+#pragma once
+namespace std {
+struct thread {
+  thread() = default;
+  template <class F> explicit thread(F &&) { __builtin_trap(); }
+  thread(thread &&) = default;
+  thread &operator=(thread &&) = default;
+  void join() {}
+  static unsigned hardware_concurrency() { return 1; }
+};
+} // namespace std

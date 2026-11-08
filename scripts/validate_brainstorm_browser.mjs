@@ -1,8 +1,9 @@
 // Run with: node scripts/validate_brainstorm_browser.mjs
 // (BRAINSTORM_BUILD=handy node scripts/validate_brainstorm_browser.mjs for a Custom Build)
-// Boots Vanilla + Brainstorm from the launcher in Chromium, checks Brainstorm's
-// predictions against the game's own rolls, then drives its keys: Shift+A
-// auto-reroll (Charm Tag + The Soul), Shift+T reroll and X+1 load state.
+// Boots Vanilla + Brainstorm Rerolled from the launcher in Chromium, checks
+// that its WebAssembly searcher agrees with the game's own rolls, then drives
+// its keys: Z+1 save state, Shift+A auto-reroll with the Charm + Soul starter
+// filter (plain A must not search), Shift+R reroll and X+1 load state.
 import {chromium} from 'playwright';
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import http from 'node:http';
@@ -17,7 +18,7 @@ const server=http.createServer((req,res)=>{
     let body=readFileSync(file);
     if(relative==='browser/brainstorm.lua') {
       const source=body.toString();const tail='\nreturn Brainstorm\n';
-      if(!source.endsWith(tail))throw new Error('brainstorm.lua must end with return Brainstorm');
+      if(!source.endsWith(tail))throw new Error('browser/brainstorm.lua must end with return Brainstorm');
       body=Buffer.from(source.slice(0,-tail.length)+'\n'+probe+tail);
     }
     res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.wasm')?'application/wasm':file.endsWith('.html')?'text/html':'application/octet-stream');
@@ -54,21 +55,21 @@ try {
     await page.waitForFunction(()=>window.OctopusLaunch&&window.OctopusLaunch.custom);
     await page.evaluate(mods=>window.OctopusLaunch.custom([...mods,'brainstorm'],{}),mods);
   } else await page.goto(url+'/index.html#brainstorm');
-  // Cryptid opens with a first-launch intro; click its Next button until the menu is up.
-  if(mods.includes('cryptid'))for(let i=0;i<240&&!seen('PROBE MENU PASSED');i++){await page.waitForTimeout(2500);await page.mouse.click(598,537);}
-  await waitFor('PROBE READY FOR AUTOREROLL',Number(process.env.BRAINSTORM_BOOT_SECONDS||240));
+  await waitFor('PROBE READY FOR SAVE STATE',Number(process.env.BRAINSTORM_BOOT_SECONDS||240));
   await page.mouse.click(600,400);
+  await chord('z','1');
+  await waitFor('PROBE READY FOR AUTOREROLL',30);
+  // A plain A (no Shift) must not search.
+  await page.keyboard.press('a');await page.waitForTimeout(2500);
+  if(seen('PROBE AUTOREROLL STARTED'))throw new Error('A without Shift started a search');
   await chord('Shift','a');
   await waitFor('PROBE AUTOREROLL STARTED',10);
   await waitFor('PROBE READY FOR FAST REROLL',300);
-  // A plain T (no Shift) must not reroll.
-  await page.keyboard.press('t');await page.waitForTimeout(2500);
-  if(seen('PROBE FAST REROLL PASSED'))throw new Error('T without Shift rerolled the run');
-  await chord('Shift','t');
+  await chord('Shift','r');
   await waitFor('PROBE READY FOR LOAD STATE',30);
   await chord('x','1');
   await waitFor('PROBE BRAINSTORM ALL PASSED',30);
-  console.log((mods.length?'Custom Build ('+mods.join(' + ')+') + Brainstorm':'Vanilla + Brainstorm')+' browser check passed');
+  console.log((mods.length?'Custom Build ('+mods.join(' + ')+') + Brainstorm Rerolled':'Vanilla + Brainstorm Rerolled')+' browser check passed');
 } finally {
   mkdirSync(root+'/build/mod-smoke',{recursive:true});
   if(page)await page.screenshot({path:root+'/build/mod-smoke/brainstorm.png'}).catch(()=>{});
