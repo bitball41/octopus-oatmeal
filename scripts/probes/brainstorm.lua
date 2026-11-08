@@ -3,7 +3,7 @@
 -- the keys from Chromium.
 local probe_update = love.update
 local step, waited = 0, 0
-local found_seed, ready_sent, rare_job, rare_started
+local found_seed, ready_sent, rare_job, rare_started, started_job_seed, started_seed
 
 local function probe(text) print('PROBE ' .. text) end
 
@@ -56,6 +56,21 @@ local function job_start_seed(job)
     return reply.start_seed
 end
 
+-- Seen when Shift+A really starts a search (it may finish within a frame).
+local auto_started, start_ref = false, nil
+local function watch_start()
+    if start_ref or not (Brainstorm and Brainstorm.startAutoReroll) then return end
+    start_ref = Brainstorm.startAutoReroll
+    Brainstorm.startAutoReroll = function(...)
+        start_ref(...)
+        if Brainstorm.ar_job then
+            auto_started = true
+            started_seed = Brainstorm.ar_opts.start_seed
+            started_job_seed = job_start_seed(Brainstorm.ar_job)
+        end
+    end
+end
+
 local function arcana_has_soul()
     local soul, made = false, {}
     for _ = 1, 5 do
@@ -68,6 +83,7 @@ local function arcana_has_soul()
 end
 
 function love.update(dt)
+    watch_start()
     -- First-launch screens (Cryptid's intro, unlock popups) cover the menu.
     if Cryptid and G and G.PROFILES and G.SETTINGS and G.PROFILES[G.SETTINGS.profile] then
         G.PROFILES[G.SETTINGS.profile].cry_intro_complete = true
@@ -137,10 +153,10 @@ function love.update(dt)
         elseif step == 2 and ready_sent == 'save' and get_compressed(G.SETTINGS.profile .. '/saveState1.jkr') then
             ready_sent = 'auto'
             probe('READY FOR AUTOREROLL')
-        elseif step == 2 and Brainstorm.ar_job then
+        elseif step == 2 and auto_started then
             -- The search must begin at the mod's random start seed.
-            local sent = Brainstorm.ar_opts.start_seed
-            local job = job_start_seed(Brainstorm.ar_job)
+            local sent = started_seed
+            local job = started_job_seed
             assert(job == sent, 'search started at ' .. tostring(job) .. ', not the start seed ' .. tostring(sent))
             step = 3
             waited = love.timer.getTime()

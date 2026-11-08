@@ -354,7 +354,7 @@ end
 
 -- Called every frame while a search is running.
 function Brainstorm.pollAutoReroll()
-  local status, seed, checked = Brainstorm.native.poll(Brainstorm.ar_job)
+  local status, seed, checked, why = Brainstorm.native.poll(Brainstorm.ar_job)
   if status == "running" then
     local elapsed = love.timer.getTime() - Brainstorm.ar_started_at
     local rate = elapsed > 0 and checked / elapsed or 0
@@ -369,7 +369,9 @@ function Brainstorm.pollAutoReroll()
   elseif status == "exhausted" then
     Brainstorm.stopAutoReroll("No seed matches these filters")
   else
-    Brainstorm.stopAutoReroll("Search stopped (" .. status .. ")")
+    -- Browser: say why, not only the status.
+    print("[Brainstorm-Rerolled] search stopped: " .. tostring(why or status))
+    Brainstorm.stopAutoReroll("Search stopped: " .. tostring(why or status))
   end
 end
 

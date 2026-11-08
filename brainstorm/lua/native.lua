@@ -113,13 +113,23 @@ function native.start(opts)
 end
 
 -- Returns status ("running", "found", "exhausted", "cancelled", "error"),
--- the seed string (only when "found"), and the number of seeds checked.
+-- the seed string (only when "found"), the number of seeds checked, and,
+-- for "error", why (browser: upstream only reports the status).
+-- A single missing answer from the page is not an error: the search keeps
+-- running there, so it is asked again next frame.
 function native.poll(job)
   local reply = call({ op = "poll", job = job.id })
   if not reply then
-    return "error", nil, 0
+    job.misses = (job.misses or 0) + 1
+    if job.misses < 120 then
+      return "running", nil, job.checked or 0
+    end
+    return "error", nil, job.checked or 0, "the page stopped answering"
   end
-  return reply.status or "error", reply.seed, reply.checked or 0
+  job.misses = 0
+  job.checked = reply.checked or job.checked
+  local status = reply.status or "error"
+  return status, reply.seed, reply.checked or 0, reply.error
 end
 
 function native.cancel(job)

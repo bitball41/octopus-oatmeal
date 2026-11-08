@@ -175,6 +175,10 @@ the game's own tag and voucher rolls on 40 seeds and on the live run, and that a
 reports progress and cancels. Then it presses Z+1, plain A (must not search) and Shift+A with the
 Charm + Soul filter. The found run must really have a Charm Tag whose Mega Arcana creates The
 Soul, and must start from the mod's random start seed. Finally Shift+R and X+1.
+`BRAINSTORM_WORKERS=none` or `failing` reruns it without Web Workers or with every worker
+crashing: a failed worker is replaced and its block rescanned, and when workers cannot run the
+search continues on the page in short slices. If a search still stops, the game says why
+("Search stopped: …") and the browser console has the details.
 `node scripts/validate_custom.mjs` checks what is packed and when.
 
 ## Launcher layout

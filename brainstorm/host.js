@@ -10,7 +10,7 @@
 (function () {
   'use strict';
   const BLOCK = 1 << 18; // seeds per work unit, ~0.15 s on one worker
-  let engine = null, wasmModule = null, workerURL = null, loadError = 'still loading';
+  let engine = null, wasmModule = null, workerURL = null, engineSource = '', loadError = 'still loading';
   const jobs = new Map();
   let nextJob = 1;
 
@@ -65,21 +65,108 @@ onmessage = event => {
   function stopWorkers(job) {
     for (const worker of job.workers) worker.terminate();
     job.workers = [];
+    if (job.pump) { clearTimeout(job.pump); job.pump = null; }
   }
 
-  // Hands `worker` the next block of seed IDs: start, start+1, ... wrapping
-  // from "ZZZZZZZZ" back to "1", so every seed is visited once.
+  function fail(job, message) {
+    job.status = 'error';
+    job.error = message;
+    console.error('[Brainstorm-Rerolled] search stopped: ' + message);
+    stopWorkers(job);
+  }
+
+  function finish(job, foundId, count) {
+    job.checked += count;
+    if (foundId >= 0 && job.status === 'running') {
+      job.status = 'found';
+      job.seed = engine.seedString(foundId);
+      stopWorkers(job);
+    }
+  }
+
+  // The next block of seed IDs: start, start+1, ... wrapping from "ZZZZZZZZ"
+  // back to "1", so every seed is visited once. Blocks a failed worker was
+  // scanning come back first.
+  function nextUnit(job, size) {
+    if (job.retry.length) return job.retry.pop();
+    if (job.offset >= job.total) return null;
+    const first = (job.start - 1 + job.offset) % job.total + 1;
+    const count = Math.min(size, job.total - job.offset, job.total - first + 1);
+    job.offset += count;
+    return {first, count};
+  }
+
   function dispatch(job, worker) {
     if (job.status !== 'running') return;
-    if (job.offset >= job.total) {
-      job.idle++;
-      if (job.idle === job.workers.length) { job.status = 'exhausted'; stopWorkers(job); }
+    worker.unit = nextUnit(job, BLOCK);
+    if (worker.unit) return worker.postMessage({type: 'scan', first: worker.unit.first, count: worker.unit.count});
+    if (job.workers.every(w => !w.unit)) { job.status = 'exhausted'; stopWorkers(job); }
+  }
+
+  // A worker failed: put its block back and start a replacement. After
+  // repeated failures, search on the page instead.
+  function workerFailed(job, worker, message) {
+    if (job.status !== 'running') return;
+    console.warn('[Brainstorm-Rerolled] search worker failed: ' + message);
+    worker.terminate();
+    job.workers = job.workers.filter(w => w !== worker);
+    if (worker.unit) job.retry.push(worker.unit);
+    job.failures++;
+    if (job.failures <= 2 * job.size) return addWorker(job);
+    if (!job.workers.length) searchOnPage(job, 'search workers keep failing (' + message + ')');
+  }
+
+  function addWorker(job) {
+    let worker;
+    try { worker = new Worker(workerURL); } catch (error) {
+      if (!job.workers.length) searchOnPage(job, 'search workers unavailable (' + (error && error.message || error) + ')');
       return;
     }
-    const first = (job.start - 1 + job.offset) % job.total + 1;
-    const count = Math.min(BLOCK, job.total - job.offset, job.total - first + 1);
-    job.offset += count;
-    worker.postMessage({type: 'scan', first, count});
+    job.workers.push(worker);
+    worker.onmessage = event => {
+      const m = event.data;
+      if (job.status !== 'running') return;
+      if (m.type === 'ready') return dispatch(job, worker);
+      if (m.type === 'error') return workerFailed(job, worker, m.message);
+      worker.unit = null;
+      finish(job, m.found, m.count);
+      dispatch(job, worker);
+    };
+    worker.onerror = event => {
+      event.preventDefault();
+      workerFailed(job, worker, (event.message || 'error') + (event.lineno ? ' (line ' + event.lineno + ')' : ''));
+    };
+    worker.onmessageerror = () => workerFailed(job, worker, 'message could not be read');
+    try {
+      worker.postMessage({type: 'init', module: wasmModule, options: job.options});
+    } catch (error) {
+      workerFailed(job, worker, String(error && error.message || error));
+    }
+  }
+
+  // Fallback when Web Workers cannot run: scan on the page in short slices
+  // between frames. Slower, but the game keeps drawing.
+  function searchOnPage(job, reason) {
+    console.warn('[Brainstorm-Rerolled] ' + reason + '; searching on the page instead');
+    stopWorkers(job);
+    let local;
+    try { local = new Function(engineSource + '\nreturn createImmolate;')()(wasmModule); local.configure(job.options); }
+    catch (error) { return fail(job, reason + '; page search failed: ' + (error && error.message || error)); }
+    job.onPage = true;
+    const step = () => {
+      job.pump = null;
+      if (job.status !== 'running') return;
+      const until = performance.now() + 8;
+      try {
+        while (job.status === 'running' && performance.now() < until) {
+          const unit = nextUnit(job, 1 << 14);
+          if (!unit) { job.status = 'exhausted'; return; }
+          finish(job, local.scan(unit.first, unit.count), unit.count);
+        }
+      } catch (error) { return fail(job, 'page search failed: ' + (error && error.message || error)); }
+      if (job.status === 'running') job.pump = setTimeout(step, 0);
+    };
+    job.pump = setTimeout(step, 0);
   }
 
   function start(o) {
@@ -88,32 +175,12 @@ onmessage = event => {
     // repeated searches give different seeds.
     let startId = o.start_seed ? engine.seedId(o.start_seed) : 1;
     if (startId < 1) throw new Error("invalid start seed '" + o.start_seed + "'");
-    const job = {id: nextJob++, status: 'running', seed: null, error: null, checked: 0,
-      startSeed: engine.seedString(startId), start: startId, offset: 0, total: engine.idMax, idle: 0, workers: []};
+    const job = {id: nextJob++, status: 'running', seed: null, error: null, checked: 0, options: o,
+      startSeed: engine.seedString(startId), start: startId, offset: 0, total: engine.idMax,
+      workers: [], retry: [], failures: 0, size: workerCount(), pump: null, onPage: false};
     jobs.set(job.id, job);
-    for (let i = 0; i < workerCount(); i++) {
-      const worker = new Worker(workerURL);
-      job.workers.push(worker);
-      worker.onmessage = event => {
-        const m = event.data;
-        if (job.status !== 'running') return;
-        if (m.type === 'ready') return dispatch(job, worker);
-        if (m.type === 'error') { job.status = 'error'; job.error = m.message; stopWorkers(job); return; }
-        job.checked += m.count;
-        if (m.found >= 0) {
-          job.status = 'found';
-          job.seed = engine.seedString(m.found);
-          stopWorkers(job);
-          return;
-        }
-        dispatch(job, worker);
-      };
-      worker.onerror = event => {
-        if (job.status !== 'running') return;
-        job.status = 'error'; job.error = event.message || 'search worker failed'; stopWorkers(job);
-      };
-      worker.postMessage({type: 'init', module: wasmModule, options: o});
-    }
+    if (typeof Worker !== 'function') searchOnPage(job, 'Web Workers are not available');
+    else for (let i = 0; i < job.size && job.status === 'running' && !job.onPage; i++) addWorker(job);
     return job;
   }
 
@@ -129,8 +196,9 @@ onmessage = event => {
       case 'start':
         return {job: start(options(request.options)).id};
       case 'poll':
-        if (!job) return {status: 'error'};
-        return {status: job.status, seed: job.seed, checked: job.checked, start_seed: job.startSeed};
+        if (!job) return {status: 'error', error: 'search ' + request.job + ' is not running on this page'};
+        return {status: job.status, seed: job.seed, checked: job.checked, start_seed: job.startSeed,
+          error: job.error, on_page: job.onPage};
       case 'cancel':
         if (job && job.status === 'running') { job.status = 'cancelled'; stopWorkers(job); }
         return {};
@@ -150,6 +218,7 @@ onmessage = event => {
           fetchAsset(base + 'brainstorm/immolate.wasm').then(r => r.arrayBuffer()),
         ]);
         wasmModule = await WebAssembly.compile(bytes);
+        engineSource = source;
         engine = new Function(source + '\nreturn createImmolate;')()(wasmModule);
         workerURL = URL.createObjectURL(new Blob([source, WORKER], {type: 'text/javascript'}));
         loadError = null;

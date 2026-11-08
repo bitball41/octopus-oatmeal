@@ -1,5 +1,6 @@
 // Run with: node scripts/validate_brainstorm_browser.mjs
-// (BRAINSTORM_BUILD=handy node scripts/validate_brainstorm_browser.mjs for a Custom Build)
+// (BRAINSTORM_BUILD=handy for a Custom Build; BRAINSTORM_WORKERS=none or failing
+// to check the search falls back to the page when Web Workers cannot run)
 // Boots Vanilla + Brainstorm Rerolled + Handy from the launcher in Chromium, checks
 // that its WebAssembly searcher agrees with the game's own rolls, then drives
 // its keys: Z+1 save state, Shift+A auto-reroll with the Charm + Soul starter
@@ -48,6 +49,11 @@ try {
   page=await (await browser.newContext({viewport:{width:1200,height:800}})).newPage();
   page.on('console',m=>{logs.push(m.text());if(m.text().includes('PROBE'))console.log(m.text());});
   page.on('pageerror',e=>logs.push('PAGEERROR '+e.stack));
+  // BRAINSTORM_WORKERS=none (no Web Workers) or failing (every worker
+  // crashes): the search must still finish on the page.
+  const workers=process.env.BRAINSTORM_WORKERS;
+  if(workers==='none')await page.addInitScript(()=>{delete window.Worker;});
+  if(workers==='failing')await page.addInitScript(()=>{const Real=window.Worker;window.Worker=class extends Real{constructor(){super(URL.createObjectURL(new Blob(['onmessage=()=>{throw new Error("test worker crash")}'],{type:'text/javascript'})));}};});
   // BRAINSTORM_BUILD=handy,paperback checks a Custom Build instead of Vanilla + Brainstorm.
   const mods=(process.env.BRAINSTORM_BUILD||'').split(',').filter(Boolean);
   if(mods.length){
@@ -69,6 +75,7 @@ try {
   await waitFor('PROBE READY FOR LOAD STATE',30);
   await chord('x','1');
   await waitFor('PROBE BRAINSTORM ALL PASSED',30);
+  if(workers&&!seen('searching on the page instead'))throw new Error('the search did not fall back to the page');
   console.log((mods.length?'Custom Build ('+mods.join(' + ')+') + Brainstorm Rerolled':'Vanilla + Brainstorm Rerolled + Handy')+' browser check passed');
 } finally {
   mkdirSync(root+'/build/mod-smoke',{recursive:true});
