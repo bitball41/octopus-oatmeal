@@ -2,92 +2,115 @@
 from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
+def _font_face():
+    # Balatro's own pixel font (m6x11plus), taken from the released Vanilla
+    # archive and embedded so the downloadable launcher has it too.
+    import base64, zipfile
+    with zipfile.ZipFile(ROOT/'vanilla/game.data') as z:
+        data = z.read('resources/fonts/m6x11plus.ttf')
+    return '@font-face {font-family:m6x11;src:url(data:font/ttf;base64,' + base64.b64encode(data).decode() + ') format("truetype");font-display:block;}'
+
+# Styled after the game's own menus: its pixel font, the dark panel with a
+# light outline, and solid buttons in the game's colours with a hard bottom
+# edge. No gradients.
 CSS='''
-      #mode-overlay {overflow-y:auto;justify-content:safe center;gap:22px;padding:40px 16px;}
-      #mode-overlay h1 {margin:0;font-size:1.5em;}
-      .mode-group {width:min(760px,100%);text-align:left;}
-      .mode-group h2 {margin:0 0 8px;font:600 12px/1.2 arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#7f9fb3;}
-      #mode-overlay .mode-row {display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;}
-      #mode-overlay .mode-row button {display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-width:0;min-height:62px;padding:11px 14px;background:#132f44;color:#e6f2f9;border:1px solid #284a61;border-radius:8px;font:600 15px/1.25 arial,sans-serif;letter-spacing:0;text-transform:none;text-align:left;cursor:pointer;transition:background .12s,border-color .12s;}
-      #mode-overlay .mode-row button span {font-weight:400;font-size:12.5px;color:#93b2c5;}
-      #mode-overlay .mode-row button:hover,#mode-overlay .mode-row button:focus-visible {background:#183a53;border-color:#6aa6c9;outline:none;}
-      #mode-overlay #mode-vanilla {border-color:#3d9be8;}
-      #build-panel {width:min(760px,100%);padding:22px;background:#102b3f;border:1px solid #355266;border-radius:14px;}
+      ''' + _font_face() + '''
+      #mode-overlay,#loading-overlay {background:#1e2527;}
+      #mode-overlay {overflow-y:auto;justify-content:safe center;gap:22px;padding:36px 16px;font-family:m6x11,monospace;font-weight:normal;color:#fff;}
+      #mode-overlay * {font-weight:normal;}
+      #mode-overlay h1 {margin:0;font:64px/1 m6x11,monospace;letter-spacing:.03em;text-transform:none;color:#fff;text-shadow:0 5px 0 #c2483f;}
+      .menu-panel {width:min(820px,100%);display:grid;gap:18px;padding:16px 20px 20px;background:#374244;border:3px solid #b8d8d8;border-radius:16px;box-shadow:0 6px 0 #0f1314;}
+      .mode-group {text-align:left;}
+      .mode-group h2 {margin:0 0 9px;font:22px/1 m6x11,monospace;color:#b8d8d8;letter-spacing:0;text-transform:none;}
+      #mode-overlay .mode-row {display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;width:100%;}
+      #mode-overlay .mode-row button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:66px;margin:0 0 6px;padding:10px 12px;background:var(--c);color:#fff;border:0;border-radius:10px;box-shadow:0 6px 0 var(--d);font:26px/1 m6x11,monospace;letter-spacing:0;text-transform:none;text-align:center;text-shadow:0 2px 0 rgba(0,0,0,.28);cursor:pointer;transition:transform .05s,box-shadow .05s,filter .1s;}
+      #mode-overlay .mode-row button span {font-size:18px;line-height:1.05;opacity:.9;text-shadow:none;}
+      #mode-overlay .mode-row.featured button {min-height:96px;font-size:28px;}
+      #mode-overlay .mode-row button:hover {filter:brightness(1.1);}
+      #mode-overlay .mode-row button:active,#mode-overlay .mode-row button[aria-expanded="true"] {transform:translateY(5px);box-shadow:0 1px 0 var(--d);}
+      #mode-overlay button:focus-visible,#mode-overlay input:focus-visible {outline:3px solid #fff;outline-offset:2px;}
+      #build-panel,#saved-builds {width:min(820px,100%);}
+      #build-panel {padding:16px 20px 20px;background:#374244;border:3px solid #b8d8d8;border-radius:16px;box-shadow:0 6px 0 #0f1314;text-align:left;}
       #build-panel[hidden],#randomizer-range[hidden],#saved-builds[hidden],#vanilla-save-row[hidden],#vanilla-save-run[hidden] {display:none;}
-      #saved-builds {width:min(760px,100%);}
-      #saved-builds h2 {font-size:15px;font-weight:600;color:#b0ccdd;margin:0 0 10px;}
-      .saved-builds-list {display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
-      .saved-build {display:flex;align-items:stretch;border:1px solid #426077;border-radius:10px;background:#102b3f;overflow:hidden;}
+      #build-panel h2 {font-size:30px;margin:0 0 14px;color:#fff;}
+      #saved-builds h2 {font-size:22px;color:#b8d8d8;margin:0 0 9px;text-align:left;}
+      .saved-builds-list {display:flex;flex-wrap:wrap;gap:10px 12px;}
+      .saved-build {display:flex;align-items:stretch;border-radius:10px;background:#4f6367;box-shadow:0 5px 0 #2c3739;overflow:hidden;margin-bottom:5px;}
       .saved-build button {background:transparent;border:0;color:white;cursor:pointer;font:inherit;}
-      .saved-build-play {display:grid;gap:3px;text-align:left;padding:11px 14px;min-width:0;}
-      .saved-build-play strong {font-size:14px;overflow-wrap:anywhere;}
-      .saved-build-play span {font-size:12px;color:#9fbdd0;}
-      .saved-build-remove {padding:0 13px;color:#9fbdd0!important;font-size:18px!important;border-left:1px solid #2c4a5e!important;}
-      .saved-build button:hover,.saved-build button:focus-visible {background:#214760;outline:none;}
-      #vanilla-save-row {display:flex;align-items:flex-start;gap:10px;text-align:left;margin:16px 0 0;padding:12px 13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
-      #vanilla-save-row:has(input:checked) {border-color:#e6c46a;background:#2f3a2c;}
-      #vanilla-save-row input {accent-color:#e6c46a;width:17px;height:17px;margin:2px 0 0;flex:none;}
-      #vanilla-save-row span {display:grid;gap:3px;}
-      #vanilla-save-row small {color:#b0ccdd;font-size:12.5px;line-height:1.45;}
-      #vanilla-save-dialog {margin:auto;max-width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:#102b3f;color:#daebf6;border:1px solid #6b5a2a;border-radius:14px;padding:22px;text-align:left;line-height:1.5;}
-      #vanilla-save-dialog::backdrop {background:#000a;}
-      #vanilla-save-dialog h2 {font-size:18px;margin:0 0 10px;color:white;}
-      #vanilla-save-dialog p {margin:0 0 10px;font-size:14px;}
-      #vanilla-save-dialog ul {margin:0 0 12px;padding-left:20px;font-size:14px;}
-      #vanilla-save-run {background:#4a2a1a;border:1px solid #b06a3a;border-radius:8px;padding:9px 11px;color:#ffd9c2;}
-      .dialog-actions {display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap;}
-      .dialog-actions button {border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;}
-      #vanilla-save-cancel {background:transparent;color:#daebf6;border:1px solid #6b8ba3;}
-      #vanilla-save-confirm {background:#c9a13a;color:#1c1606;}
-      #build-panel {text-align:left;}
-      #build-panel h2 {font-size:16px;margin:0 0 14px;}
-      .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-      .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #426077;border-radius:8px;cursor:pointer;}
-      .build-option:has(input:checked) {border-color:#8ec3e3;background:#214760;}
-      .build-option:has(input:disabled) {opacity:.45;cursor:not-allowed;}
-      .build-option input {accent-color:#87c8ef;width:17px;height:17px;flex:none;}
-      #randomizer-range {display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
-      #randomizer-range label {display:grid;gap:7px;text-align:left;font-size:13px;color:#b0ccdd;}
-      #randomizer-range input {width:150px;background:#091f2f;border:1px solid #638297;color:white;border-radius:7px;padding:10px;font:inherit;}
-      #build-actions {display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;}
-      #build-summary {font-size:13px;color:#abc5d6;text-align:left;line-height:1.5;}
-      #launch-build {background:#3d9be8;color:white;border:0;border-radius:8px;padding:13px 22px;font-weight:700;cursor:pointer;white-space:nowrap;}
-      #build-error {color:#ffb5b5;font-size:14px;margin-top:12px;}
-      #mode-tooltip {position:fixed;z-index:20;max-width:min(340px,calc(100vw - 24px));background:#071621;border:1px solid #52758d;border-radius:10px;box-shadow:0 10px 30px #0006;color:#daebf6;font-size:14px;line-height:1.5;padding:13px 16px;text-align:left;pointer-events:none;}
+      .saved-build-play {display:grid;gap:3px;text-align:left;padding:10px 14px;min-width:0;}
+      .saved-build-play strong {font-size:22px;overflow-wrap:anywhere;}
+      .saved-build-play span {font-size:17px;color:#cfe3e3;}
+      .saved-build-remove {padding:0 14px;color:#fff!important;font-size:24px!important;background:#fe5f55!important;}
+      .saved-build button:hover {filter:brightness(1.12);}
+      .build-options {display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;}
+      .build-option {display:flex;align-items:center;gap:10px;text-align:left;padding:11px 13px;margin-bottom:5px;font-size:22px;background:#4f6367;border-radius:10px;box-shadow:0 5px 0 #2c3739;cursor:pointer;}
+      .build-option:has(input:checked) {background:#009dff;box-shadow:0 5px 0 #006bad;}
+      .build-option:has(input:disabled) {opacity:.4;cursor:not-allowed;}
+      .build-option input {accent-color:#fff;width:18px;height:18px;flex:none;margin:0;}
+      #randomizer-range {display:flex;gap:16px;flex-wrap:wrap;margin:16px 0;}
+      #randomizer-range label {display:grid;gap:7px;text-align:left;font-size:20px;color:#b8d8d8;}
+      #randomizer-range p {font-size:18px!important;color:#b8d8d8!important;}
+      #randomizer-range input {width:160px;background:#1e2527;border:2px solid #5f7377;color:white;border-radius:8px;padding:9px 10px;font:22px m6x11,monospace;}
+      #vanilla-save-row {display:flex;align-items:flex-start;gap:10px;text-align:left;margin:14px 0 0;padding:12px 13px;background:#4f6367;border-radius:10px;cursor:pointer;font-size:22px;}
+      #vanilla-save-row:has(input:checked) {background:#b18f43;}
+      #vanilla-save-row input {accent-color:#fff;width:18px;height:18px;margin:2px 0 0;flex:none;}
+      #vanilla-save-row span {display:grid;gap:4px;}
+      #vanilla-save-row small {color:#e4eeee;font-size:18px;line-height:1.1;}
+      #vanilla-save-dialog {margin:auto;max-width:min(500px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:#374244;color:#fff;border:3px solid #b8d8d8;border-radius:16px;padding:20px 22px;text-align:left;font:20px/1.15 m6x11,monospace;}
+      #vanilla-save-dialog::backdrop {background:#000b;}
+      #vanilla-save-dialog h2 {font-size:30px;font-weight:normal;margin:0 0 12px;}
+      #vanilla-save-dialog p {margin:0 0 10px;}
+      #vanilla-save-dialog ul {margin:0 0 12px;padding-left:20px;}
+      #vanilla-save-run {background:#7a2e29;border-radius:8px;padding:9px 11px;}
+      .dialog-actions {display:flex;justify-content:flex-end;gap:12px;margin-top:16px;flex-wrap:wrap;}
+      .dialog-actions button {border:0;border-radius:10px;padding:10px 18px;margin-bottom:5px;font:24px m6x11,monospace;color:#fff;cursor:pointer;}
+      #vanilla-save-cancel {background:#5f7377;box-shadow:0 5px 0 #3b4a4d;}
+      #vanilla-save-confirm {background:#fda200;box-shadow:0 5px 0 #a86c00;}
+      #build-actions {display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;}
+      #build-summary {font-size:20px;color:#b8d8d8;text-align:left;line-height:1.1;}
+      #launch-build {background:#009dff;color:white;border:0;border-radius:10px;padding:12px 24px;margin-bottom:6px;box-shadow:0 6px 0 #006bad;font:28px/1 m6x11,monospace;cursor:pointer;white-space:nowrap;}
+      #launch-build:active {transform:translateY(5px);box-shadow:0 1px 0 #006bad;}
+      #build-error {color:#ff8a82;font-size:20px;margin-top:10px;}
+      #mode-tooltip {position:fixed;z-index:20;max-width:min(340px,calc(100vw - 24px));background:#374244;border:3px solid #b8d8d8;border-radius:12px;box-shadow:0 5px 0 #0f1314;color:#fff;font:19px/1.1 m6x11,monospace;padding:11px 14px;text-align:left;pointer-events:none;}
       #mode-tooltip[hidden] {display:none;}
-      #mode-tooltip strong {display:block;margin-bottom:4px;color:white;}
-      #loading-error-back {pointer-events:auto;background:#3d9be8;border:0;border-radius:8px;color:white;padding:12px 20px;cursor:pointer;}
-      @media(max-width:620px) {#mode-overlay .mode-row{grid-template-columns:1fr}.build-options{grid-template-columns:repeat(2,1fr)}#build-actions{flex-direction:column;align-items:stretch;}#mode-overlay{padding:24px 16px;}}
+      #mode-tooltip strong {display:block;margin-bottom:6px;font-size:24px;font-weight:normal;color:#fda200;}
+      #loading-status {font:24px m6x11,monospace;color:#b8d8d8;letter-spacing:0;}
+      #progress-track {background:#374244;height:10px;border-radius:5px;}
+      #progress-fill {background:#009dff;border-radius:5px;}
+      #loading-error-back {pointer-events:auto;background:#009dff;border:0;border-radius:10px;color:white;padding:10px 20px;box-shadow:0 5px 0 #006bad;font:24px m6x11,monospace;cursor:pointer;}
+      @media(max-width:700px) {#mode-overlay h1{font-size:48px}#mode-overlay .mode-row{grid-template-columns:repeat(2,1fr)}#mode-overlay .mode-row.featured{grid-template-columns:1fr}#mode-overlay .mode-row.featured button{min-height:76px}.menu-panel,#build-panel{padding:14px 14px 16px}.build-options{grid-template-columns:repeat(2,1fr)}#build-actions{flex-direction:column;align-items:stretch;}#mode-overlay{padding:24px 12px;}}
 '''
 HTML='''      <div id="mode-overlay">
         <h1>Balatro</h1>
-        <section class="mode-group" aria-labelledby="group-vanilla">
-          <h2 id="group-vanilla">Vanilla · one shared save</h2>
-          <div class="mode-row">
-            <button id="mode-vanilla" type="button" data-tip="vanilla">Vanilla<span>The original game</span></button>
-            <button id="mode-handy" type="button" data-tip="handy">Vanilla + Handy<span>Quick controls, faster speeds</span></button>
-            <button id="mode-brainstorm" type="button" data-tip="brainstorm">Vanilla + Brainstorm Rerolled + Handy<span>Seed finder, with Handy</span></button>
-          </div>
-        </section>
-        <section class="mode-group" aria-labelledby="group-mods">
-          <h2 id="group-mods">Mods · separate saves</h2>
-          <div class="mode-row">
-            <button id="mode-cryptid" type="button" data-tip="cryptid">Cryptid<span>Unbalanced Jokers, huge scores</span></button>
-            <button id="mode-entropy" type="button" data-tip="entropy">Entropy<span>Chaotic expansion</span></button>
-            <button id="mode-fish" type="button" data-tip="fish">Fish &amp; Chips<span>Fishing and hundreds of fish</span></button>
-            <button id="mode-paperback" type="button" data-tip="paperback">Paperback<span>Vanilla-style expansion</span></button>
-            <button id="mode-bunco" type="button" data-tip="bunco">Bunco<span>Exotic suits, new Jokers</span></button>
-            <button id="mode-sleeves" type="button" data-tip="sleeves">CardSleeves<span>Pair a deck with a sleeve</span></button>
-          </div>
-        </section>
-        <section class="mode-group" aria-labelledby="group-more">
-          <h2 id="group-more">More</h2>
-          <div class="mode-row">
-            <button id="mode-multiplayer" type="button" data-tip="multiplayer">Multiplayer<span>Host or join a match</span></button>
-            <button id="mode-randomizer" type="button" data-tip="randomizer">Custom Randomizer<span>Rolled Joker values</span></button>
-            <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom">Custom Build<span>Mix mods yourself</span></button>
-          </div>
-        </section>
+        <div class="menu-panel">
+          <section class="mode-group" aria-labelledby="group-vanilla">
+            <h2 id="group-vanilla">Vanilla - one shared save</h2>
+            <div class="mode-row featured">
+              <button id="mode-vanilla" type="button" data-tip="vanilla" style="--c:#009dff;--d:#006aad">Vanilla<span>The original game</span></button>
+              <button id="mode-handy" type="button" data-tip="handy" style="--c:#fda200;--d:#ac6e00">Vanilla + Handy<span>Quick controls</span></button>
+              <button id="mode-brainstorm" type="button" data-tip="brainstorm" style="--c:#8867a5;--d:#5c4670">Vanilla + Brainstorm Rerolled + Handy<span>Seed finder, with Handy</span></button>
+            </div>
+          </section>
+          <section class="mode-group" aria-labelledby="group-mods">
+            <h2 id="group-mods">Mods - separate saves</h2>
+            <div class="mode-row">
+              <button id="mode-cryptid" type="button" data-tip="cryptid" style="--c:#4bc292;--d:#338363">Cryptid<span>Unbalanced Jokers</span></button>
+              <button id="mode-entropy" type="button" data-tip="entropy" style="--c:#fe5f55;--d:#ac4039">Entropy<span>Chaotic expansion</span></button>
+              <button id="mode-fish" type="button" data-tip="fish" style="--c:#13afce;--d:#0c778c">Fish &amp; Chips<span>Go fishing</span></button>
+              <button id="mode-paperback" type="button" data-tip="paperback" style="--c:#cb724c;--d:#8a4d33">Paperback<span>Vanilla-style cards</span></button>
+              <button id="mode-bunco" type="button" data-tip="bunco" style="--c:#646eb7;--d:#444a7c">Bunco<span>Exotic suits</span></button>
+              <button id="mode-sleeves" type="button" data-tip="sleeves" style="--c:#4584fa;--d:#2e59aa">CardSleeves<span>Deck + sleeve</span></button>
+            </div>
+          </section>
+          <section class="mode-group" aria-labelledby="group-more">
+            <h2 id="group-more">More</h2>
+            <div class="mode-row">
+              <button id="mode-multiplayer" type="button" data-tip="multiplayer" style="--c:#f06b3f;--d:#a3482a">Multiplayer<span>Host or join a match</span></button>
+              <button id="mode-randomizer" type="button" data-tip="randomizer" style="--c:#c75985;--d:#873c5a">Custom Randomizer<span>Rolled Joker values</span></button>
+              <button id="mode-custom" type="button" aria-expanded="false" aria-controls="build-panel" data-tip="custom" style="--c:#5f7377;--d:#404e50">Custom Build<span>Mix mods yourself</span></button>
+            </div>
+          </section>
+        </div>
         <section id="saved-builds" hidden aria-labelledby="saved-builds-heading">
           <h2 id="saved-builds-heading">Continue a saved build</h2>
           <div id="saved-builds-list" class="saved-builds-list"></div>
