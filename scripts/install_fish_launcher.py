@@ -2,6 +2,7 @@
 """Install Fish and Chips in the selector only after validated runtime assets exist."""
 import argparse
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +55,12 @@ def install():
             )
             text = require_replace(text, '          multiplayer: {\n',
                                    config + '          multiplayer: {\n', path)
+        # A rebuilt archive can have a different number of parts.
+        text, count = re.subn(
+            r'(dir: "fish-and-chips/",\n(?:[^\n]*\n)*?\s*parts: )\[[^\]]*\]',
+            lambda m: m[1] + json.dumps(parts), text, count=1)
+        if count != 1:
+            raise RuntimeError(f"{path}: Fish and Chips parts list missing")
         if 'bindMode("mode-fish", "fish")' not in text:
             text = require_replace(
                 text, '          bindMode("mode-entropy", "entropy");',
