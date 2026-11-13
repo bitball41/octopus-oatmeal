@@ -7,8 +7,15 @@ def adapt(mod, name, index, p, files, target):
     if mod == 'Handy' and name == 'lovely/controls/mp_extension.toml' and index == 1:
         if p['pattern'] not in source:
             return p, 'Pinned Multiplayer dispatches actions through a handler table, not this legacy extension protocol.'
-    if mod == 'Multiplayer' and name == 'lovely/TheOrder.toml' and index == 14 and p['pattern'] not in source:
-        if 'guaranteed' in source:
+    if mod == 'Multiplayer' and name == 'lovely/TheOrder.toml' and index == 14:
+        # Lovely matches this multi-line pattern line by line, ignoring
+        # indentation. Only skip when the old seal poll really is absent;
+        # otherwise a guaranteed seal (Certificate) consumes a shared
+        # 'stdseal' roll and desynchronizes multiplayer seals.
+        lines = [line.strip() for line in p['pattern'].strip().splitlines()]
+        stripped = [line.strip() for line in source.splitlines()]
+        present = any(stripped[i:i+len(lines)] == lines for i in range(len(stripped)))
+        if not present and 'guaranteed' in source:
             return p, 'New Steamodded seal selector already handles guaranteed seals independently of the weighted poll.'
     if mod == 'Multiplayer' and name == 'lovely/misc.toml' and index == 13 and p['pattern'] not in source:
         p['pattern'] = next(line.strip() for line in source.splitlines() if 'local flags = SMODS.calculate_context(' in line and 'create_shop_card' in line)

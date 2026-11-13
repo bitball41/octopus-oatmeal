@@ -36,6 +36,7 @@ on:
       - 'scripts/build_custom.py'
       - 'scripts/bundle_custom.mjs'
       - 'scripts/combo_compatibility.py'
+      - 'scripts/multiplayer_pools.py'
       - 'scripts/randomize_literals.mjs'
       - 'scripts/install_mod_selector.py'
 
