@@ -52,14 +52,14 @@ const fakeSupabase={
   async removeChannel(c){c.active=false;sync();c.status('CLOSED');},
 };
 function sync(){for(const c of channels.filter(x=>x.active))queueMicrotask(()=>c.handlers['presence:sync']?.());}
-function client(buildIdentity){
+function client(buildIdentity,source=bundle.outputFiles[0].text){
   const inbox=[],errors=[];
   const context={testSupabase:fakeSupabase,crypto:globalThis.crypto,TextEncoder,setTimeout,clearTimeout,
     console:{log(){},warn(){},error(...args){errors.push(args);}},
     Module:{FS_createDataFile(path,name,bytes){inbox.push(JSON.parse(new TextDecoder().decode(bytes)));}},
     addEventListener(){}};
   context.__octopusBuild=buildIdentity?{identity:buildIdentity}:undefined;
-  context.window=context;vm.runInNewContext(bundle.outputFiles[0].text,context);
+  context.window=context;vm.runInNewContext(source,context);
   const bridge=context.OctopusMP;bridge.attach('/save');
   return {bridge,inbox,errors,send(packet){bridge.send(JSON.stringify(packet));}};
 }
@@ -158,3 +158,20 @@ for(const mismatch of [false,'bounds','legacy']) {
  await until(()=>channels.every(c=>!c.active),'custom cleanup');
 }
 console.log('Custom multiplayer: matching mods/ranges share a seed; mismatched bounds and legacy absolute-value builds cannot join');
+
+// A peer on an older build (different seeded-pool rules) cannot start a desynced match.
+const current=bundle.outputFiles[0].text;
+assert(/(?:var|const|let) SYNC_VERSION ?= ?\d+;/.test(current),'bridge must declare its sync version');
+const legacy=current.replace(/(?:var|const|let) SYNC_VERSION ?= ?\d+;/,'var SYNC_VERSION = void 0;');
+for(const [hostSource,guestSource] of [[current,legacy],[legacy,current]]) {
+ const a=client(undefined,hostSource),b=client(undefined,guestSource);
+ for(const [c,n]of [[a,'A'],[b,'B']]){c.send({action:'connect'});c.send({action:'username',username:n+'~1',modHash:'test'});c.send({action:'version',version:'0.5.5'});}
+ a.send({action:'createLobby',gameMode:'attrition'});
+ await until(()=>a.inbox.some(p=>p.action==='joinedLobby'),'version host');
+ b.send({action:'joinLobby',code:a.inbox.find(p=>p.action==='joinedLobby').code});
+ await until(()=>[...a.inbox,...b.inbox].some(p=>p.action==='error'&&/older version/.test(p.message)),'older build refused');
+ assert(!b.inbox.some(p=>p.action==='joinedLobby'),'older build must not join');
+ b.send({action:'leaveLobby'});a.send({action:'leaveLobby'});
+ await until(()=>channels.every(c=>!c.active),'version cleanup');
+}
+console.log('Sync version: a guest or host on an older seeded-pool build is refused with a reload message');
