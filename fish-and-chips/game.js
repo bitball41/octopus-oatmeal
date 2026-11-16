@@ -260,18 +260,65 @@ Module.expectedDataFileDownloads++;
         };
       }
 
-      function fetchCachedPackage(db, packageName, callback, errback) {
-        var transaction = db.transaction([PACKAGE_STORE_NAME], IDB_RO);
-        var packages = transaction.objectStore(PACKAGE_STORE_NAME);
+      // OCTOPUS_CHUNKED_PACKAGE_CACHE
+      // Chromium refuses IndexedDB values over ~127 MiB and aborts the
+      // transaction without a request error, which left large archives (Fish
+      // and Chips) on "Downloading data..." forever. Archives are stored in
+      // 32 MiB chunks, and a failed or stalled cache write never blocks boot.
+      var PACKAGE_CHUNK_SIZE = 32 * 1024 * 1024;
 
-        var getRequest = packages.get("package/" + packageName);
-        getRequest.onsuccess = function (event) {
-          var result = event.target.result;
-          callback(result);
-        };
-        getRequest.onerror = function (error) {
-          errback(error);
-        };
+      function fetchCachedPackage(db, packageName, callback, errback) {
+        var settled = false;
+        function fail(error) {
+          if (settled) return;
+          settled = true;
+          errback(error || new Error("cached package unavailable"));
+        }
+        function done(buffer) {
+          if (settled) return;
+          settled = true;
+          callback(buffer);
+        }
+        try {
+          var transaction = db.transaction([PACKAGE_STORE_NAME], IDB_RO);
+          var packages = transaction.objectStore(PACKAGE_STORE_NAME);
+          transaction.onabort = function () {
+            fail(transaction.error);
+          };
+          var getRequest = packages.get("package/" + packageName);
+          getRequest.onsuccess = function (event) {
+            var result = event.target.result;
+            if (result instanceof ArrayBuffer) return done(result);
+            if (!result || !result.octopusChunks) return fail();
+            var count = result.octopusChunks;
+            var out = new Uint8Array(result.size);
+            var remaining = count;
+            for (var i = 0; i < count; i++) {
+              (function (index) {
+                var chunkRequest = packages.get(
+                  "package/" + packageName + "#" + index,
+                );
+                chunkRequest.onsuccess = function (chunkEvent) {
+                  var chunk = chunkEvent.target.result;
+                  if (!(chunk instanceof ArrayBuffer)) return fail();
+                  var offset = index * PACKAGE_CHUNK_SIZE;
+                  if (offset + chunk.byteLength > out.length) return fail();
+                  out.set(new Uint8Array(chunk), offset);
+                  remaining--;
+                  if (!remaining) done(out.buffer);
+                };
+                chunkRequest.onerror = function () {
+                  fail(chunkRequest.error);
+                };
+              })(i);
+            }
+          };
+          getRequest.onerror = function () {
+            fail(getRequest.error);
+          };
+        } catch (error) {
+          fail(error);
+        }
       }
 
       function cacheRemotePackage(
@@ -282,33 +329,63 @@ Module.expectedDataFileDownloads++;
         callback,
         errback,
       ) {
-        var transaction_packages = db.transaction([PACKAGE_STORE_NAME], IDB_RW);
-        var packages = transaction_packages.objectStore(PACKAGE_STORE_NAME);
-
-        var putPackageRequest = packages.put(
-          packageData,
-          "package/" + packageName,
-        );
-        putPackageRequest.onsuccess = function (event) {
-          var transaction_metadata = db.transaction(
-            [METADATA_STORE_NAME],
+        var settled = false;
+        function fail(error) {
+          if (settled) return;
+          settled = true;
+          errback(error || new Error("package cache write failed"));
+        }
+        function done() {
+          if (settled) return;
+          settled = true;
+          callback(packageData);
+        }
+        // Writing a large archive can take a while; never hold boot on it.
+        var timer = setTimeout(function () {
+          fail(new Error("package cache write timed out"));
+        }, 15000);
+        try {
+          var transaction_packages = db.transaction(
+            [PACKAGE_STORE_NAME, METADATA_STORE_NAME],
             IDB_RW,
           );
-          var metadata = transaction_metadata.objectStore(METADATA_STORE_NAME);
-          var putMetadataRequest = metadata.put(
-            packageMeta,
-            "metadata/" + packageName,
-          );
-          putMetadataRequest.onsuccess = function (event) {
-            callback(packageData);
+          var packages = transaction_packages.objectStore(PACKAGE_STORE_NAME);
+          var metadata = transaction_packages.objectStore(METADATA_STORE_NAME);
+          // Invalidate first so an interrupted write is never read back.
+          metadata.delete("metadata/" + packageName);
+          var size = packageData.byteLength;
+          if (size > PACKAGE_CHUNK_SIZE) {
+            var count = Math.ceil(size / PACKAGE_CHUNK_SIZE);
+            for (var i = 0; i < count; i++) {
+              packages.put(
+                packageData.slice(
+                  i * PACKAGE_CHUNK_SIZE,
+                  Math.min(size, (i + 1) * PACKAGE_CHUNK_SIZE),
+                ),
+                "package/" + packageName + "#" + i,
+              );
+            }
+            packages.put(
+              { octopusChunks: count, size: size },
+              "package/" + packageName,
+            );
+          } else {
+            packages.put(packageData, "package/" + packageName);
+          }
+          metadata.put(packageMeta, "metadata/" + packageName);
+          transaction_packages.oncomplete = function () {
+            clearTimeout(timer);
+            done();
           };
-          putMetadataRequest.onerror = function (error) {
-            errback(error);
-          };
-        };
-        putPackageRequest.onerror = function (error) {
-          errback(error);
-        };
+          transaction_packages.onabort = transaction_packages.onerror =
+            function () {
+              clearTimeout(timer);
+              fail(transaction_packages.error);
+            };
+        } catch (error) {
+          clearTimeout(timer);
+          fail(error);
+        }
       }
 
       function processPackageData(arrayBuffer) {

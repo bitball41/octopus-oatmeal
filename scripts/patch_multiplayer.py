@@ -269,6 +269,149 @@ def rebuild_archive() -> bytes:
     return out.getvalue()
 
 
+PACKAGE_CACHE_MARKER = "OCTOPUS_CHUNKED_PACKAGE_CACHE"
+PACKAGE_CACHE_JS = """      // OCTOPUS_CHUNKED_PACKAGE_CACHE
+      // Chromium refuses IndexedDB values over ~127 MiB and aborts the
+      // transaction without a request error, which left large archives (Fish
+      // and Chips) on "Downloading data..." forever. Archives are stored in
+      // 32 MiB chunks, and a failed or stalled cache write never blocks boot.
+      var PACKAGE_CHUNK_SIZE = 32 * 1024 * 1024;
+
+      function fetchCachedPackage(db, packageName, callback, errback) {
+        var settled = false;
+        function fail(error) {
+          if (settled) return;
+          settled = true;
+          errback(error || new Error("cached package unavailable"));
+        }
+        function done(buffer) {
+          if (settled) return;
+          settled = true;
+          callback(buffer);
+        }
+        try {
+          var transaction = db.transaction([PACKAGE_STORE_NAME], IDB_RO);
+          var packages = transaction.objectStore(PACKAGE_STORE_NAME);
+          transaction.onabort = function () {
+            fail(transaction.error);
+          };
+          var getRequest = packages.get("package/" + packageName);
+          getRequest.onsuccess = function (event) {
+            var result = event.target.result;
+            if (result instanceof ArrayBuffer) return done(result);
+            if (!result || !result.octopusChunks) return fail();
+            var count = result.octopusChunks;
+            var out = new Uint8Array(result.size);
+            var remaining = count;
+            for (var i = 0; i < count; i++) {
+              (function (index) {
+                var chunkRequest = packages.get(
+                  "package/" + packageName + "#" + index,
+                );
+                chunkRequest.onsuccess = function (chunkEvent) {
+                  var chunk = chunkEvent.target.result;
+                  if (!(chunk instanceof ArrayBuffer)) return fail();
+                  var offset = index * PACKAGE_CHUNK_SIZE;
+                  if (offset + chunk.byteLength > out.length) return fail();
+                  out.set(new Uint8Array(chunk), offset);
+                  remaining--;
+                  if (!remaining) done(out.buffer);
+                };
+                chunkRequest.onerror = function () {
+                  fail(chunkRequest.error);
+                };
+              })(i);
+            }
+          };
+          getRequest.onerror = function () {
+            fail(getRequest.error);
+          };
+        } catch (error) {
+          fail(error);
+        }
+      }
+
+      function cacheRemotePackage(
+        db,
+        packageName,
+        packageData,
+        packageMeta,
+        callback,
+        errback,
+      ) {
+        var settled = false;
+        function fail(error) {
+          if (settled) return;
+          settled = true;
+          errback(error || new Error("package cache write failed"));
+        }
+        function done() {
+          if (settled) return;
+          settled = true;
+          callback(packageData);
+        }
+        // Writing a large archive can take a while; never hold boot on it.
+        var timer = setTimeout(function () {
+          fail(new Error("package cache write timed out"));
+        }, 15000);
+        try {
+          var transaction_packages = db.transaction(
+            [PACKAGE_STORE_NAME, METADATA_STORE_NAME],
+            IDB_RW,
+          );
+          var packages = transaction_packages.objectStore(PACKAGE_STORE_NAME);
+          var metadata = transaction_packages.objectStore(METADATA_STORE_NAME);
+          // Invalidate first so an interrupted write is never read back.
+          metadata.delete("metadata/" + packageName);
+          var size = packageData.byteLength;
+          if (size > PACKAGE_CHUNK_SIZE) {
+            var count = Math.ceil(size / PACKAGE_CHUNK_SIZE);
+            for (var i = 0; i < count; i++) {
+              packages.put(
+                packageData.slice(
+                  i * PACKAGE_CHUNK_SIZE,
+                  Math.min(size, (i + 1) * PACKAGE_CHUNK_SIZE),
+                ),
+                "package/" + packageName + "#" + i,
+              );
+            }
+            packages.put(
+              { octopusChunks: count, size: size },
+              "package/" + packageName,
+            );
+          } else {
+            packages.put(packageData, "package/" + packageName);
+          }
+          metadata.put(packageMeta, "metadata/" + packageName);
+          transaction_packages.oncomplete = function () {
+            clearTimeout(timer);
+            done();
+          };
+          transaction_packages.onabort = transaction_packages.onerror =
+            function () {
+              clearTimeout(timer);
+              fail(transaction_packages.error);
+            };
+        } catch (error) {
+          clearTimeout(timer);
+          fail(error);
+        }
+      }
+
+"""
+
+
+def harden_package_cache(text: str) -> str:
+    """Replace the stock Emscripten package cache with the chunked version."""
+    if PACKAGE_CACHE_MARKER in text:
+        return text
+    start = text.find("      function fetchCachedPackage(")
+    end = text.find("      function processPackageData(")
+    if start < 0 or end < start:
+        fail("Could not find the package cache functions in game.js")
+    return text[:start] + PACKAGE_CACHE_JS + text[end:]
+
+
 def patch_game_js(blob: bytes, template: str | None = None, parts: list[str] | None = None) -> str:
     size = len(blob)
     digest = hashlib.sha256(blob).hexdigest()
@@ -276,6 +419,7 @@ def patch_game_js(blob: bytes, template: str | None = None, parts: list[str] | N
     cache_tag = digest[:8]
 
     text = GAME_JS.read_text("utf-8") if template is None else template
+    text = harden_package_cache(text)
     # Each mode needs its own package slot; UUID still invalidates changed data.
     text = text.replace('PACKAGE_PATH + PACKAGE_NAME',
                         '(Module.persistenceDatabase || PACKAGE_PATH) + PACKAGE_NAME')
