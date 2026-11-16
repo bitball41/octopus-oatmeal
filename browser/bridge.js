@@ -10,6 +10,10 @@ const supabase=createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
   realtime:{params:{apikey:SUPABASE_PUBLISHABLE_KEY}},
 });
+// Bump when a change alters what one shared seed generates (pools, RNG
+// streams), so peers on different builds refuse to start a desynced match.
+// 2: profile-independent multiplayer pools and the Certificate seal fix.
+const SYNC_VERSION=2;
 let saveDirectory, server, room, role, joiningCode;
 let sequence=0, pending=[], operation=Promise.resolve();
 installClipboard(() => saveDirectory);
@@ -45,6 +49,11 @@ function makeRoom() {
         fail(error);
         return;
       }
+      if(packet.octopusSync!==SYNC_VERSION) {
+        // Builds with different seeded-pool rules diverge from one seed.
+        fail(new Error('The other player is running an older version of the game. Both players need to reload the page.'));
+        return;
+      }
       if(role==='host') {
         if(packet.action==='createLobby' || (packet.action==='joinLobby' && packet.code!==server.clients.get('local')?.lobby?.code)) return;
         try {server.dispatch('guest',packet);}catch(error){
@@ -60,7 +69,7 @@ function makeRoom() {
     onError:fail,
   });
   const send=peer.send.bind(peer);
-  peer.send=packet=>send({...packet,octopusBuild:window.__octopusBuild?.identity || 'vanilla-mp'});
+  peer.send=packet=>send({...packet,octopusBuild:window.__octopusBuild?.identity || 'vanilla-mp',octopusSync:SYNC_VERSION});
   return peer;
 }
 async function openRoom(candidate,code,desiredRole) {
